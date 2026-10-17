@@ -90,6 +90,14 @@
         </div>
         <div id="event-feed" aria-live="polite"></div>
         <div id="speech-layer" aria-live="polite"></div>
+        <!-- M5-01：人类挑战 AI 成功时展示对方手牌 2~3 秒（由 js/ui/challengeReveal.js 控制显隐） -->
+        <div id="challenge-reveal" class="challenge-reveal" hidden aria-live="polite" aria-label="挑战查看手牌">
+          <div class="challenge-reveal-card">
+            <strong id="challenge-reveal-title"></strong>
+            <div id="challenge-reveal-hand" class="challenge-reveal-hand"></div>
+            <span id="challenge-reveal-count" class="challenge-reveal-count"></span>
+          </div>
+        </div>
       </div>
 
       <div id="hand-zone">

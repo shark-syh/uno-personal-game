@@ -72,7 +72,11 @@ describe('createInitialGame 默认开局', () => {
   });
 
   it('human 先手模式：庄家是人类的右手边', () => {
-    const state = createInitialGame({ playerCount: 4, startingPlayer: 'human', seed: 'human-first' });
+    const state = createInitialGame({
+      playerCount: 4,
+      startingPlayer: 'human',
+      seed: 'human-first',
+    });
     expect(state.dealerSeat).toBe(prevSeat(state.config.humanSeat, 4));
   });
 
@@ -93,9 +97,9 @@ describe('createInitialGame 默认开局', () => {
     expect(() => createInitialGame({ playerCount: 11 })).toThrow(RangeError);
     expect(() => createInitialGame({ playerCount: 4, humanSeat: 4 })).toThrow(RangeError);
     expect(() => createInitialGame({ playerCount: 4, unoPenalty: -1 })).toThrow(RangeError);
-    expect(() =>
-      createInitialGame({ playerCount: 4, names: ['只有两个', '名字'] }),
-    ).toThrow(RangeError);
+    expect(() => createInitialGame({ playerCount: 4, names: ['只有两个', '名字'] })).toThrow(
+      RangeError,
+    );
   });
 });
 
@@ -159,5 +163,33 @@ describe('起手翻牌规则', () => {
     expect(hasEvent(state, 'DRAW')).toBe(false);
     for (const player of state.players) expect(player.hand).toHaveLength(7);
     expect(countCards(state)).toBe(108);
+  });
+});
+
+// ===========================================================================
+// M5-06：设置页规则可配置项（浏览器端设置 → GameConfig 的引擎配置路径）
+// ===========================================================================
+describe('M5-06 设置页规则可配置项', () => {
+  it('4 项低风险规则支持非默认值', () => {
+    const state = createInitialGame({
+      playerCount: 2,
+      seed: 'm5-06-rules',
+      twoPlayerRules: false,
+      unoPenalty: 3,
+      deckExhaustion: 'end-by-fewest',
+      startCardRule: 'ignore-action',
+    });
+    expect(state.config.twoPlayerRules).toBe(false);
+    expect(state.config.unoPenalty).toBe(3);
+    expect(state.config.deckExhaustion).toBe('end-by-fewest');
+    expect(state.config.startCardRule).toBe('ignore-action');
+  });
+
+  it('未传规则字段时默认值不变（官方口径）', () => {
+    const state = createInitialGame({ playerCount: 4, seed: 'm5-06-defaults' });
+    expect(state.config.twoPlayerRules).toBe(true);
+    expect(state.config.unoPenalty).toBe(2);
+    expect(state.config.deckExhaustion).toBe('reshuffle');
+    expect(state.config.startCardRule).toBe('classic');
   });
 });

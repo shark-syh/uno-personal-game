@@ -436,6 +436,11 @@ function startGame(lobbyConfig = {}) {
       aiMode: lastLobbyConfig.aiMode,
       challengeWild4: lastLobbyConfig.challengeWild4 !== false,
       autoCallUno: settings.autoCallUno === true,
+      // M5-06：设置页可配置的规则项（默认值与引擎 DEFAULT_GAME_CONFIG 一致，仅对新局生效）
+      twoPlayerRules: settings.twoPlayerRules !== false,
+      unoPenalty: Number.isInteger(settings.unoPenalty) ? settings.unoPenalty : 2,
+      deckExhaustion: settings.deckExhaustion === 'end-by-fewest' ? 'end-by-fewest' : 'reshuffle',
+      startCardRule: settings.startCardRule === 'ignore-action' ? 'ignore-action' : 'classic',
       seed,
     });
   } catch (error) {
@@ -448,6 +453,9 @@ function startGame(lobbyConfig = {}) {
   const names = buildPlayerNames(config);
   names[0] = String(lastLobbyConfig.playerName || '你').trim().slice(0, 12) || '你';
   config.names = names;
+
+  // ?test=1 自动化验收用：把本局最终引擎配置暴露给测试脚本（正常入口不写入，不影响契约）
+  if (isTestMode()) window.__unoEngineConfig = { ...config };
 
   const state = createInitialGame(config);
   const rt = {

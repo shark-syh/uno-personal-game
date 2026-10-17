@@ -27,7 +27,7 @@ function normal(name = "normal-play", count = 4) {
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 
-export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one"];
+export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
 
 export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "lobby") return common({ name, count: 4, phase: "lobby" });
@@ -74,6 +74,8 @@ export function createMockView(name = "lobby", playerCount = 4) {
   }
   if (name === "ten-players") return common({ name, count: 10, players: basePlayers(10, { thinking: true }), legalActions: [] });
   // M5-04：牌堆只剩 0/1 张的 HUD 计数与洗回提示（mock 静态局面，用于 verify:ui 断言）
+  // M5-01：人类挑战 AI 成功 → 展示对方手牌（dev 工具条「重播动画」可见 2~3s 覆盖层）
+  if (name === "challenge-success") return common({ name, events: [{ type: "CHALLENGE_SUCCESS", challenger: 0, target: 1, hand: [card("R9"), card("GS"), card("W4"), card("B0"), card("YA2")] }], legalActions: [action("draw", "DRAW", "摸牌")] });
   if (name === "deck-edge-zero") return common({ name, drawPileCount: 0, events: [{ type: "PILE_RESHUFFLE", reason: "draw" }, { type: "DRAW", seat: 0, count: 2 }] });
   if (name === "deck-edge-one") return common({ name, drawPileCount: 1, events: [{ type: "DRAW", seat: 1, count: 1 }] });
   return normal("normal-play", 4);

@@ -636,6 +636,125 @@ async function main() {
       await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回到大厅');
       check(`第 ${gameIndex + 1} 局：再来一局 / 退出回大厅可用`, true);
     }
+    // ---------------- 2b. M5-05：6 / 10 人真实引擎对局布局与轮转 ----------------
+    const layoutProbe = `(() => {
+      const opponents = [...document.querySelectorAll('#opponents .opponent')].map((node) => {
+        const rect = node.getBoundingClientRect();
+        return { seat: Number(node.dataset.seat), x: Math.round(rect.x), y: Math.round(rect.y), w: Math.round(rect.width), h: Math.round(rect.height) };
+      });
+      const overlaps = [];
+      for (let i = 0; i < opponents.length; i += 1) for (let j = i + 1; j < opponents.length; j += 1) {
+        const a = opponents[i]; const b = opponents[j];
+        const overlapW = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const overlapH = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        if (overlapW > 2 && overlapH > 2) overlaps.push([a.seat, b.seat]);
+      }
+      const inside = opponents.every((item) => item.x >= 0 && item.y >= 0 && item.x + item.w <= window.innerWidth && item.y + item.h <= window.innerHeight);
+      const handTop = document.querySelector('#hand').getBoundingClientRect().top;
+      const overlapHand = opponents.filter((item) => item.y + item.h > handTop + 2).map((item) => item.seat);
+      return {
+        seats: opponents.length,
+        overlaps,
+        inside,
+        overlapHand,
+        overflow: { scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, scrollH: document.documentElement.scrollHeight, clientH: document.documentElement.clientHeight },
+        drawPileCount: Number(document.querySelector('#draw-pile').dataset.count),
+        drawPileHud: document.querySelector('#draw-count').textContent,
+      };
+    })()`;
+    const multiplayerLayouts = [];
+    for (const multiplayerCount of [6, 10]) {
+      await navigate(`${BASE_URL}/?test=1`);
+      await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅可见');
+      await evaluate(`window.__verify.selectPlayers(${multiplayerCount})`);
+      await evaluate('window.__verify.clickStart()');
+      await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
+      await waitFor('window.__verify.handCount() >= 7', 5000, '人类手牌 ≥7 张');
+      await sleep(400);
+      const layout = await evaluate(layoutProbe);
+      check(
+        `${multiplayerCount} 人：真实对局 AI 座位数正确（${multiplayerCount - 1} 个）`,
+        layout.seats === multiplayerCount - 1,
+        `seats=${layout.seats}`,
+      );
+      check(
+        `${multiplayerCount} 人：座位全部在视口内、互不遮挡`,
+        layout.inside && layout.overlaps.length === 0,
+        JSON.stringify({ inside: layout.inside, overlaps: layout.overlaps }),
+      );
+      check(
+        `${multiplayerCount} 人：座位不压手牌区、页面无横向溢出/竖向滚动`,
+        layout.overlapHand.length === 0 &&
+          layout.overflow.scrollW <= layout.overflow.clientW &&
+          layout.overflow.scrollH <= layout.overflow.clientH + 2,
+        JSON.stringify({ overlapHand: layout.overlapHand, overflow: layout.overflow }),
+      );
+      check(
+        `${multiplayerCount} 人：抽牌堆计数与 HUD 一致`,
+        layout.drawPileCount >= 0 && String(layout.drawPileCount) === layout.drawPileHud,
+        `count=${layout.drawPileCount} hud=${layout.drawPileHud}`,
+      );
+      const rotation = await evaluate(`(async () => {
+        const seats = new Set();
+        const startedAt = performance.now();
+        let steps = 0;
+        while (performance.now() - startedAt < 5000 && steps < 40) {
+          window.__verify.autoStep();
+          steps += 1;
+          if (window.__verify.visibleScreen() !== 'game') break;
+          const current = document.querySelector('#opponents .opponent.is-current');
+          if (current) seats.add(Number(current.dataset.seat));
+          else if (document.querySelector('#hand .card.is-legal')) seats.add(0);
+          await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
+        }
+        return { steps, seats: [...seats], elapsed: Math.round(performance.now() - startedAt), screen: window.__verify.visibleScreen() };
+      })()`);
+      check(
+        `${multiplayerCount} 人：轮转正常（自动行动座位 ≥2 个）`,
+        rotation.steps > 0 &&
+          rotation.seats.length >= 2 &&
+          rotation.seats.every((seat) => seat >= 0 && seat < multiplayerCount),
+        JSON.stringify(rotation),
+      );
+      multiplayerLayouts.push({ playerCount: multiplayerCount, layout });
+      if (multiplayerCount === 6) await shot('ui-m5-6p-1440.png');
+      if (multiplayerCount === 10) await shot('ui-m5-10p-1440.png');
+    }
+    // 10 人 @1024 宽度：布局同样无溢出、无遮挡
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1024,
+      height: 768,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await navigate(`${BASE_URL}/?test=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '1024 大厅');
+    await evaluate('window.__verify.selectPlayers(10)');
+    await evaluate('window.__verify.clickStart()');
+    await waitFor('window.__verify.visibleScreen() === "game"', 10000, '1024 十人牌桌');
+    await waitFor('window.__verify.handCount() >= 7', 5000, '1024 人类手牌 ≥7 张');
+    await sleep(400);
+    const layout1024 = await evaluate(layoutProbe);
+    check(
+      '10 人 @1024：座位全部在视口内、互不遮挡、无横向溢出',
+      layout1024.seats === 9 &&
+        layout1024.inside &&
+        layout1024.overlaps.length === 0 &&
+        layout1024.overflow.scrollW <= layout1024.overflow.clientW,
+      JSON.stringify({
+        seats: layout1024.seats,
+        inside: layout1024.inside,
+        overlaps: layout1024.overlaps,
+        overflow: layout1024.overflow,
+      }),
+    );
+    await shot('ui-m5-10p-1024.png');
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
     // 2026-10-18 用户要求：取消分数计算，保留最终结算，结算页改为数据图表总结操作
     const chartAudits = resultChartAudits;
     check(
@@ -1036,6 +1155,171 @@ async function main() {
     );
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'mock 大厅');
+    // ---------------- 4b. M5-01：挑战时手牌展示（人类挑战 AI 展示 2~3s；AI 挑战人类只提示） ----------------
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 普通局面');
+    await evaluate(`(() => {
+      const token = window.__m501 = { startedAt: performance.now(), shownAt: null, hiddenAt: null, done: false, count: 0, title: '', busy: null, handCount: null };
+      const overlay = document.querySelector('#challenge-reveal');
+      const hand = [
+        { id: 'R9#0', kind: 'number', color: 'red', value: 9, faceCode: 'R9' },
+        { id: 'GS#0', kind: 'skip', color: 'green', value: null, faceCode: 'GS' },
+        { id: 'W4#0', kind: 'wild4', color: null, value: null, faceCode: 'W4' },
+        { id: 'B0#0', kind: 'number', color: 'blue', value: 0, faceCode: 'B0' },
+        { id: 'YA2#0', kind: 'draw2', color: 'yellow', value: null, faceCode: 'YA2' },
+      ];
+      const poll = setInterval(() => {
+        const open = overlay && !overlay.hidden;
+        if (open && token.shownAt === null) {
+          token.shownAt = performance.now();
+          token.count = overlay.querySelectorAll('#challenge-reveal-hand .card').length;
+          token.title = document.querySelector('#challenge-reveal-title')?.textContent || '';
+          token.busy = document.querySelector('#game-screen').getAttribute('aria-busy');
+          token.handCount = overlay.dataset.handCount;
+        }
+        if (!open && token.shownAt !== null && token.hiddenAt === null) { token.hiddenAt = performance.now(); clearInterval(poll); }
+        if (token.done && token.shownAt !== null && token.hiddenAt !== null) clearInterval(poll);
+      }, 40);
+      window.UnoApp.playEvents([{ type: 'CHALLENGE_SUCCESS', challenger: 0, target: 1, hand }], () => { token.done = true; });
+      return true;
+    })()`);
+    await waitFor(
+      `(() => { const overlay = document.querySelector('#challenge-reveal'); return overlay && !overlay.hidden; })()`,
+      3000,
+      '挑战手牌展示出现',
+    );
+    await sleep(200);
+    await shot('ui-m5-challenge-hand-1440.png');
+    await waitFor('window.__m501 && window.__m501.done === true', 8000, '挑战手牌展示播放完成');
+    const revealAudit = await evaluate(
+      `(() => { const token = window.__m501; return { ...token, visible: !document.querySelector('#challenge-reveal').hidden, elapsed: token.hiddenAt === null ? null : Math.round(token.hiddenAt - token.shownAt) }; })()`,
+    );
+    check(
+      '挑战手牌展示：人类挑战 AI 成功时展示对方完整手牌',
+      revealAudit.count === 5 &&
+        revealAudit.title.includes('查看') &&
+        revealAudit.handCount === '5',
+      JSON.stringify({ count: revealAudit.count, title: revealAudit.title }),
+    );
+    check(
+      '挑战手牌展示：约 2~3 秒后自动消失',
+      revealAudit.visible === false &&
+        revealAudit.elapsed !== null &&
+        revealAudit.elapsed >= 2000 &&
+        revealAudit.elapsed <= 4000,
+      JSON.stringify({ elapsed: revealAudit.elapsed, visible: revealAudit.visible }),
+    );
+    check(
+      '挑战手牌展示：展示期间输入锁定（aria-busy）',
+      revealAudit.busy === 'true',
+      `busy=${revealAudit.busy}`,
+    );
+    // AI 挑战人类成功：只提示「查看了你的手牌」，不展示牌面
+    await evaluate(
+      `window.UnoApp.playEvents([{ type: 'CHALLENGE_SUCCESS', challenger: 1, target: 0 }], () => {}); true`,
+    );
+    await sleep(350);
+    const aiLookNotice = await evaluate(
+      `({ toast: document.querySelector('#toast-region')?.textContent || '', overlayHidden: document.querySelector('#challenge-reveal')?.hidden })`,
+    );
+    check(
+      '挑战：AI 挑战人类只提示「查看了你的手牌」且不展示手牌',
+      aiLookNotice.overlayHidden === true && aiLookNotice.toast.includes('查看了你的手牌'),
+      JSON.stringify(aiLookNotice),
+    );
+
+    // ---------------- 4c. M5-06：规则决策表可配置项接入设置页 ----------------
+    await evaluate('window.__verify.selectMock("lobby")');
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, 'mock 大厅');
+    await evaluate(
+      `document.querySelector('.screen.is-active [data-open-dialog="settings"]').click(); true`,
+    );
+    await waitFor('window.__verify.activeDialogTitle() === "设置"', 5000, '设置弹窗');
+    const ruleDefaults = await evaluate(`(() => {
+      const root = document.querySelector('#dialog-root.is-open');
+      const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); if (!node) return null; return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); };
+      return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), hasRulesHeading: (root.textContent || '').includes('规则（对之后新开的对局生效）') };
+    })()`);
+    check(
+      '设置页：4 项低风险规则可配置且默认值保持官方口径',
+      ruleDefaults.hasRulesHeading &&
+        ruleDefaults.twoPlayerRules === true &&
+        ruleDefaults.unoPenalty === '2' &&
+        ruleDefaults.deckExhaustion === 'reshuffle' &&
+        ruleDefaults.startCardRule === 'classic',
+      JSON.stringify(ruleDefaults),
+    );
+    await evaluate(`(() => {
+      const root = document.querySelector('#dialog-root.is-open');
+      const set = (key, value) => { const node = root.querySelector('[data-setting="' + key + '"]'); if (!node) return; if (node.type === 'checkbox') node.checked = value; else node.value = String(value); };
+      set('twoPlayerRules', false); set('unoPenalty', 3); set('deckExhaustion', 'end-by-fewest'); set('startCardRule', 'ignore-action');
+      [...root.querySelectorAll('.dialog-actions button')].find((button) => button.textContent.trim() === '保存').click();
+      return true;
+    })()`);
+    await sleep(300);
+    const savedSettings = await evaluate(
+      `JSON.parse(localStorage.getItem('uno:settings') || '{}')`,
+    );
+    check(
+      '设置页：规则项保存到本地设置（uno:settings）',
+      savedSettings.twoPlayerRules === false &&
+        savedSettings.unoPenalty === 3 &&
+        savedSettings.deckExhaustion === 'end-by-fewest' &&
+        savedSettings.startCardRule === 'ignore-action',
+      JSON.stringify(savedSettings),
+    );
+    const savedToast = await evaluate(`document.querySelector('#toast-region')?.textContent || ''`);
+    check('设置页：保存后提示「设置已保存」', savedToast.includes('设置已保存'), savedToast);
+    // 设置 → 引擎配置映射：?test=1 下注入了 window.__unoEngineConfig，可直接断言本局最终 GameConfig
+    await navigate(`${BASE_URL}/?test=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅可见（规则映射验证）');
+    await evaluate('window.__verify.selectPlayers(2)');
+    await evaluate('window.__verify.clickStart()');
+    await waitFor(
+      'window.__verify.visibleScreen() === "game"',
+      10000,
+      '进入 2 人牌桌（规则映射验证）',
+    );
+    await waitFor('window.__unoEngineConfig !== undefined', 5000, '引擎配置已注入（?test=1）');
+    const appliedConfig = await evaluate(
+      `(() => { const config = window.__unoEngineConfig || {}; return { playerCount: config.playerCount, twoPlayerRules: config.twoPlayerRules, unoPenalty: config.unoPenalty, deckExhaustion: config.deckExhaustion, startCardRule: config.startCardRule }; })()`,
+    );
+    check(
+      '设置页：规则项映射到本局引擎配置（2 人局真实开局）',
+      appliedConfig.playerCount === 2 &&
+        appliedConfig.twoPlayerRules === false &&
+        appliedConfig.unoPenalty === 3 &&
+        appliedConfig.deckExhaustion === 'end-by-fewest' &&
+        appliedConfig.startCardRule === 'ignore-action',
+      JSON.stringify(appliedConfig),
+    );
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'mock 大厅');
+    await evaluate(
+      `document.querySelector('.screen.is-active [data-open-dialog="settings"]').click(); true`,
+    );
+    await waitFor('window.__verify.activeDialogTitle() === "设置"', 5000, '设置弹窗（刷新后）');
+    const persistedRules = await evaluate(
+      `(() => { const root = document.querySelector('#dialog-root.is-open'); const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); }; return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule') }; })()`,
+    );
+    check(
+      '设置页：规则项刷新后保持（持久化）',
+      persistedRules.twoPlayerRules === false &&
+        persistedRules.unoPenalty === '3' &&
+        persistedRules.deckExhaustion === 'end-by-fewest' &&
+        persistedRules.startCardRule === 'ignore-action',
+      JSON.stringify(persistedRules),
+    );
+    // 恢复默认设置，避免影响后续用例
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true, twoPlayerRules: true, unoPenalty: 2, deckExhaustion: 'reshuffle', startCardRule: 'classic' })); true`,
+    );
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor(
+      'window.__verify.visibleScreen() === "lobby"',
+      10000,
+      'mock 大厅（已恢复默认设置）',
+    );
     await evaluate('window.__verify.selectMock("challenge-decide")');
     await waitFor('window.__verify.activeDialogTitle() === "+4 挑战"', 5000, '+4 挑战弹窗');
     const challengeAnimation = await evaluate('window.__verify.animations()');
@@ -1276,6 +1560,10 @@ async function main() {
       '- review-assets/ui-m32-mock-uno-1440.png',
       '- review-assets/ui-m5-deck-edge-1440.png',
       '- review-assets/ui-m5-catch-uno-1440.png',
+      '- review-assets/ui-m5-challenge-hand-1440.png',
+      '- review-assets/ui-m5-6p-1440.png',
+      '- review-assets/ui-m5-10p-1440.png',
+      '- review-assets/ui-m5-10p-1024.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');

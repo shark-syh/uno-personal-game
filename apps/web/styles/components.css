@@ -65,3 +65,21 @@
 .rule-toggle-text { display: grid; gap: 3px; min-width: 0; }
 .rule-toggle-text strong { color: var(--ink); font-size: 14px; }
 .rule-toggle-text small { color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+
+/* M5-06：设置页规则分区 */
+.settings-heading { margin: 4px 0 0; color: var(--yellow); font-size: 13px; font-weight: 800; letter-spacing: .04em; }
+.settings-note { margin: -4px 0 0 !important; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+
+/* M5-01：人类挑战 AI 成功时，展示对方完整手牌 2~3 秒（覆盖牌桌，仅提示不可交互） */
+#challenge-reveal { position: fixed; z-index: 90; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(3, 16, 10, .66); pointer-events: none; }
+#challenge-reveal[hidden] { display: none; }
+.challenge-reveal-card { display: grid; gap: 10px; justify-items: center; max-width: min(94vw, 1040px); max-height: min(84vh, 720px); overflow: hidden; padding: 20px 24px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: linear-gradient(160deg, #0d3722, #082015); box-shadow: var(--shadow-panel); animation: dialog-in 210ms var(--ease-out) both; }
+#challenge-reveal-title { color: var(--ink); font-size: 20px; }
+.challenge-reveal-hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 100%; }
+.challenge-reveal-hand .card { width: 72px; height: 108px; flex: none; }
+.challenge-reveal-hand .card .fallback-label { font-size: 22px; }
+.challenge-reveal-count { color: var(--ink-muted); font-size: 13px; }
+@media (max-width: 760px) {
+  .challenge-reveal-hand .card { width: 54px; height: 81px; }
+  #challenge-reveal-title { font-size: 16px; }
+}

@@ -109,27 +109,41 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
     const settings = getSettings();
     const body = document.createElement("div");
     body.className = "settings-list";
-    const field = (label, key, select = false) => {
+    // M5-06：规则项接入设置页（默认值与引擎 DEFAULT_GAME_CONFIG 一致，仅对新开对局生效）
+    const field = (label, key, options = null) => {
       const row = document.createElement("label");
       row.className = "setting-row";
       const text = document.createElement("span");
       text.textContent = label;
-      const input = document.createElement(select ? "select" : "input");
+      const input = document.createElement(options ? "select" : "input");
       input.name = key;
       input.setAttribute("aria-label", label);
-      if (select) {
-        [["slow", "慢"], ["normal", "正常"], ["fast", "快"]].forEach(([value, name]) => { const option = document.createElement("option"); option.value = value; option.textContent = name; input.append(option); });
-        input.value = settings[key];
-      } else { input.type = "checkbox"; input.checked = settings[key]; }
+      if (options) {
+        options.forEach(([value, name]) => { const option = document.createElement("option"); option.value = String(value); option.textContent = name; input.append(option); });
+        input.value = String(settings[key]);
+        if (key === "unoPenalty") input.dataset.numeric = "true";
+      } else { input.type = "checkbox"; input.checked = Boolean(settings[key]); }
       input.dataset.setting = key;
       row.append(text, input);
       body.append(row);
     };
-    field("音效", "sound"); field("动画", "animation"); field("AI 速度", "aiSpeed", true); field("自动喊 UNO", "autoCallUno");
+    field("音效", "sound"); field("动画", "animation");
+    field("AI 速度", "aiSpeed", [["slow", "慢"], ["normal", "正常"], ["fast", "快"]]);
+    field("自动喊 UNO", "autoCallUno");
+    const rulesHeading = document.createElement("h3");
+    rulesHeading.className = "settings-heading";
+    rulesHeading.textContent = "规则（对之后新开的对局生效）";
+    body.append(rulesHeading);
+    field("2 人特殊规则（Reverse 等同 Skip / 连动）", "twoPlayerRules");
+    field("UNO 罚牌张数", "unoPenalty", [[1, "1 张"], [2, "2 张（官方）"], [3, "3 张"]]);
+    field("牌堆耗尽", "deckExhaustion", [["reshuffle", "洗回弃牌堆（官方）"], ["end-by-fewest", "耗尽即结束（手牌最少者胜）"]]);
+    field("起始动作牌", "startCardRule", [["classic", "照常生效（官方）"], ["ignore-action", "忽略动作牌，继续翻牌"]]);
+    const rulesNote = paragraph("规则设置只影响之后新开的对局；默认值为官方口径，可随时改回。");
+    rulesNote.className = "settings-note";
     const testResult = document.createElement("p");
     testResult.className = "setting-test-result";
     testResult.setAttribute("aria-live", "polite");
-    body.append(testResult);
+    body.append(rulesNote, testResult);
     const testButton = button("测试智谱连接", async () => {
       testButton.disabled = true;
       testResult.textContent = "正在测试智谱连接…（首次约 2~3 秒）";
@@ -142,7 +156,7 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
     }, "btn btn-ghost");
     show("设置", body, [testButton, button("保存", () => {
       const next = { ...settings };
-      body.querySelectorAll("[data-setting]").forEach((input) => { next[input.dataset.setting] = input.tagName === "SELECT" ? input.value : input.checked; });
+      body.querySelectorAll("[data-setting]").forEach((input) => { next[input.dataset.setting] = input.tagName === "SELECT" ? (input.dataset.numeric === "true" ? Number(input.value) : input.value) : input.checked; });
       try { saveSettings(next); closeDialog(); window.dispatchEvent(new Event("uno:settings-changed")); }
       catch { body.append(paragraph("无法保存设置，请检查浏览器是否允许本地存储。")); }
     }, "btn btn-primary"), button("取消", closeDialog, "btn btn-ghost")], source);
