@@ -1,0 +1,11 @@
+{
+  "name": "@uno/game-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UNO 规则引擎（纯 TS，无 UI/网络依赖，可确定性复现）",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

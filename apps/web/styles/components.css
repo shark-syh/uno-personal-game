@@ -1,0 +1,53 @@
+.btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 15px; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--ink); background: rgba(255,255,255,.09); font-weight: 700; cursor: pointer; transition: transform 180ms var(--ease-out), background 180ms ease, border-color 180ms ease, opacity 180ms ease; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { color: #231600; background: var(--yellow); }
+.btn-danger { background: rgba(255, 85, 85, .22); border-color: rgba(255, 120, 120, .42); }
+.btn-ghost { border-color: var(--line); background: transparent; }
+.btn-large { min-height: 52px; padding-inline: 24px; font-size: 16px; }
+.btn-color-red { background: var(--red); color: #3a0909; }
+.btn-color-yellow { background: var(--yellow); color: #3a2400; }
+.btn-color-green { background: var(--green); color: #071c0c; }
+.btn-color-blue { background: var(--blue); color: var(--white); }
+.uno-button { border-color: var(--yellow); color: #261500; background: var(--yellow); animation: uno-pulse 1.7s ease-in-out infinite; }
+.status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; color: #092011; background: var(--success); font-size: 11px; font-weight: 900; }
+.thinking { color: var(--yellow); }
+.thinking::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.1s steps(3, end) infinite; }
+.toast-region { position: fixed; z-index: 100; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: grid; gap: 8px; width: min(320px, calc(100vw - 32px)); pointer-events: none; }
+.toast { padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink); background: #0a291b; box-shadow: var(--shadow-panel); font-size: 13px; }
+
+#dialog-root { position: fixed; z-index: var(--z-dialog); inset: 0; display: none; place-items: center; padding: 20px; background: rgba(0, 0, 0, .64); }
+#dialog-root.is-open { display: grid; }
+.dialog-card { width: min(460px, 100%); max-height: min(720px, calc(100dvh - 40px)); overflow: auto; padding: 24px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: #0c2d1d; box-shadow: var(--shadow-panel); transform-origin: center; animation: dialog-in 190ms var(--ease-out) both; }
+.dialog-card h2 { margin: 0 0 8px; font-size: 24px; }
+.dialog-card p { margin: 0 0 20px; color: var(--ink-muted); line-height: 1.5; }
+.dialog-actions { display: flex; justify-content: end; gap: 8px; margin-top: 22px; }
+.dialog-close { float: right; width: 36px; min-height: 36px; padding: 0; }
+.settings-list { display: grid; gap: 14px; }
+.setting-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.setting-row label { color: var(--ink); font-size: 14px; }
+.setting-row small { display: block; margin-top: 3px; color: var(--ink-muted); font-size: 11px; }
+.setting-row select, .setting-row input[type="checkbox"] { accent-color: var(--yellow); }
+.dev-toolbar { position: relative; z-index: var(--z-dev); display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 64px; padding: 7px max(10px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #04180f; }
+.dev-toolbar label { color: var(--ink-muted); font-size: 11px; }
+.dev-toolbar select { max-width: 170px; padding: 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: #0c2d1d; }
+.dev-toolbar .btn { min-height: 44px; padding: 5px 8px; font-size: 12px; }
+
+@media (hover: hover) and (pointer: fine) { .btn:hover { background: #ffffff29; } .btn-primary:hover { background: #ffc247; } }
+.color-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.color-choices .btn { min-height: 68px; }
+.color-choices .btn-color-red { background: var(--red); }
+.color-choices .btn-color-yellow { background: var(--yellow); }
+.color-choices .btn-color-green { background: var(--green); }
+.color-choices .btn-color-blue { background: var(--blue); }
+.dialog-card { overscroll-behavior: contain; }
+.setting-row { min-height: 44px; cursor: pointer; }
+.setting-row select { padding: 8px; color: var(--ink); background: #0c2d1d; border: 1px solid var(--line); border-radius: 5px; }
+.setting-row input { width: 22px; height: 22px; }
+
+/* 大厅规则选项：+4 挑战勾选（2026-10-17 追加） */
+.rule-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #ffffff0d; cursor: pointer; }
+.rule-toggle input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--yellow); }
+.rule-toggle-text { display: grid; gap: 3px; min-width: 0; }
+.rule-toggle-text strong { color: var(--ink); font-size: 14px; }
+.rule-toggle-text small { color: var(--ink-muted); font-size: 12px; line-height: 1.5; }

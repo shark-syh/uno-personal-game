@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 360" role="img" aria-label="UNO 卡背">
+  <rect width="240" height="360" rx="24" fill="#d7193f"/>
+  <rect x="11" y="11" width="218" height="338" rx="18" fill="none" stroke="#fff" stroke-width="6"/>
+  <ellipse cx="120" cy="180" rx="94" ry="143" fill="#f9f7ee" transform="rotate(-18 120 180)"/>
+  <ellipse cx="120" cy="180" rx="72" ry="124" fill="#d7193f" transform="rotate(-18 120 180)"/>
+  <text x="120" y="198" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-size="58" fill="#fff" transform="rotate(-18 120 180)">UNO</text>
+</svg>

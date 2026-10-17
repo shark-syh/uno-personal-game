@@ -1,0 +1,444 @@
+{
+  "version": 1,
+  "source": "CC0 - github.com/celsiusnarhwal/uno (sliced from Wikimedia Commons UNO_cards_deck.svg)",
+  "cardSize": [
+    240,
+    360
+  ],
+  "totalCards": 108,
+  "uniqueFaces": 54,
+  "cards": [
+    {
+      "code": "B0",
+      "file": "cards/B0.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 0,
+      "copies": 1
+    },
+    {
+      "code": "B1",
+      "file": "cards/B1.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 1,
+      "copies": 2
+    },
+    {
+      "code": "B2",
+      "file": "cards/B2.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 2,
+      "copies": 2
+    },
+    {
+      "code": "B3",
+      "file": "cards/B3.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 3,
+      "copies": 2
+    },
+    {
+      "code": "B4",
+      "file": "cards/B4.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 4,
+      "copies": 2
+    },
+    {
+      "code": "B5",
+      "file": "cards/B5.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 5,
+      "copies": 2
+    },
+    {
+      "code": "B6",
+      "file": "cards/B6.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 6,
+      "copies": 2
+    },
+    {
+      "code": "B7",
+      "file": "cards/B7.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 7,
+      "copies": 2
+    },
+    {
+      "code": "B8",
+      "file": "cards/B8.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 8,
+      "copies": 2
+    },
+    {
+      "code": "B9",
+      "file": "cards/B9.png",
+      "kind": "number",
+      "color": "blue",
+      "value": 9,
+      "copies": 2
+    },
+    {
+      "code": "BA2",
+      "file": "cards/BA2.png",
+      "kind": "draw2",
+      "color": "blue",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "BR",
+      "file": "cards/BR.png",
+      "kind": "reverse",
+      "color": "blue",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "BS",
+      "file": "cards/BS.png",
+      "kind": "skip",
+      "color": "blue",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "G0",
+      "file": "cards/G0.png",
+      "kind": "number",
+      "color": "green",
+      "value": 0,
+      "copies": 1
+    },
+    {
+      "code": "G1",
+      "file": "cards/G1.png",
+      "kind": "number",
+      "color": "green",
+      "value": 1,
+      "copies": 2
+    },
+    {
+      "code": "G2",
+      "file": "cards/G2.png",
+      "kind": "number",
+      "color": "green",
+      "value": 2,
+      "copies": 2
+    },
+    {
+      "code": "G3",
+      "file": "cards/G3.png",
+      "kind": "number",
+      "color": "green",
+      "value": 3,
+      "copies": 2
+    },
+    {
+      "code": "G4",
+      "file": "cards/G4.png",
+      "kind": "number",
+      "color": "green",
+      "value": 4,
+      "copies": 2
+    },
+    {
+      "code": "G5",
+      "file": "cards/G5.png",
+      "kind": "number",
+      "color": "green",
+      "value": 5,
+      "copies": 2
+    },
+    {
+      "code": "G6",
+      "file": "cards/G6.png",
+      "kind": "number",
+      "color": "green",
+      "value": 6,
+      "copies": 2
+    },
+    {
+      "code": "G7",
+      "file": "cards/G7.png",
+      "kind": "number",
+      "color": "green",
+      "value": 7,
+      "copies": 2
+    },
+    {
+      "code": "G8",
+      "file": "cards/G8.png",
+      "kind": "number",
+      "color": "green",
+      "value": 8,
+      "copies": 2
+    },
+    {
+      "code": "G9",
+      "file": "cards/G9.png",
+      "kind": "number",
+      "color": "green",
+      "value": 9,
+      "copies": 2
+    },
+    {
+      "code": "GA2",
+      "file": "cards/GA2.png",
+      "kind": "draw2",
+      "color": "green",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "GR",
+      "file": "cards/GR.png",
+      "kind": "reverse",
+      "color": "green",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "GS",
+      "file": "cards/GS.png",
+      "kind": "skip",
+      "color": "green",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "R0",
+      "file": "cards/R0.png",
+      "kind": "number",
+      "color": "red",
+      "value": 0,
+      "copies": 1
+    },
+    {
+      "code": "R1",
+      "file": "cards/R1.png",
+      "kind": "number",
+      "color": "red",
+      "value": 1,
+      "copies": 2
+    },
+    {
+      "code": "R2",
+      "file": "cards/R2.png",
+      "kind": "number",
+      "color": "red",
+      "value": 2,
+      "copies": 2
+    },
+    {
+      "code": "R3",
+      "file": "cards/R3.png",
+      "kind": "number",
+      "color": "red",
+      "value": 3,
+      "copies": 2
+    },
+    {
+      "code": "R4",
+      "file": "cards/R4.png",
+      "kind": "number",
+      "color": "red",
+      "value": 4,
+      "copies": 2
+    },
+    {
+      "code": "R5",
+      "file": "cards/R5.png",
+      "kind": "number",
+      "color": "red",
+      "value": 5,
+      "copies": 2
+    },
+    {
+      "code": "R6",
+      "file": "cards/R6.png",
+      "kind": "number",
+      "color": "red",
+      "value": 6,
+      "copies": 2
+    },
+    {
+      "code": "R7",
+      "file": "cards/R7.png",
+      "kind": "number",
+      "color": "red",
+      "value": 7,
+      "copies": 2
+    },
+    {
+      "code": "R8",
+      "file": "cards/R8.png",
+      "kind": "number",
+      "color": "red",
+      "value": 8,
+      "copies": 2
+    },
+    {
+      "code": "R9",
+      "file": "cards/R9.png",
+      "kind": "number",
+      "color": "red",
+      "value": 9,
+      "copies": 2
+    },
+    {
+      "code": "RA2",
+      "file": "cards/RA2.png",
+      "kind": "draw2",
+      "color": "red",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "RR",
+      "file": "cards/RR.png",
+      "kind": "reverse",
+      "color": "red",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "RS",
+      "file": "cards/RS.png",
+      "kind": "skip",
+      "color": "red",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "Y0",
+      "file": "cards/Y0.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 0,
+      "copies": 1
+    },
+    {
+      "code": "Y1",
+      "file": "cards/Y1.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 1,
+      "copies": 2
+    },
+    {
+      "code": "Y2",
+      "file": "cards/Y2.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 2,
+      "copies": 2
+    },
+    {
+      "code": "Y3",
+      "file": "cards/Y3.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 3,
+      "copies": 2
+    },
+    {
+      "code": "Y4",
+      "file": "cards/Y4.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 4,
+      "copies": 2
+    },
+    {
+      "code": "Y5",
+      "file": "cards/Y5.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 5,
+      "copies": 2
+    },
+    {
+      "code": "Y6",
+      "file": "cards/Y6.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 6,
+      "copies": 2
+    },
+    {
+      "code": "Y7",
+      "file": "cards/Y7.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 7,
+      "copies": 2
+    },
+    {
+      "code": "Y8",
+      "file": "cards/Y8.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 8,
+      "copies": 2
+    },
+    {
+      "code": "Y9",
+      "file": "cards/Y9.png",
+      "kind": "number",
+      "color": "yellow",
+      "value": 9,
+      "copies": 2
+    },
+    {
+      "code": "YA2",
+      "file": "cards/YA2.png",
+      "kind": "draw2",
+      "color": "yellow",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "YR",
+      "file": "cards/YR.png",
+      "kind": "reverse",
+      "color": "yellow",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "YS",
+      "file": "cards/YS.png",
+      "kind": "skip",
+      "color": "yellow",
+      "value": null,
+      "copies": 2
+    },
+    {
+      "code": "WC",
+      "file": "cards/WC.png",
+      "kind": "wild",
+      "color": null,
+      "value": null,
+      "copies": 4
+    },
+    {
+      "code": "W4",
+      "file": "cards/W4.png",
+      "kind": "wild4",
+      "color": null,
+      "value": null,
+      "copies": 4
+    }
+  ]
+}

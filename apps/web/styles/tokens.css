@@ -1,0 +1,74 @@
+:root {
+  --felt-900: #071f15;
+  --felt-800: #0e4d2e;
+  --felt-700: #14532d;
+  --felt-600: #1a6b3d;
+  --ink: #f8fbf8;
+  --ink-muted: #b9d0c1;
+  --surface: rgba(7, 31, 21, 0.82);
+  --surface-raised: rgba(20, 83, 45, 0.88);
+  --surface-light: #f7fbf7;
+  --line: rgba(255, 255, 255, 0.16);
+  --line-strong: rgba(255, 255, 255, 0.3);
+  --red: #ff5555;
+  --yellow: #ffaa00;
+  --green: #55aa55;
+  --blue: #5555ff;
+  --white: #fff;
+  --black: #000;
+  --danger: #ff6b6b;
+  --success: #8fe2a7;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --card-w: 120px;
+  --card-h: 180px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.35);
+  --shadow-panel: 0 14px 32px rgba(0, 0, 0, 0.25);
+  --shadow-focus: 0 0 0 3px rgba(255, 255, 255, 0.92), 0 0 0 6px rgba(85, 85, 255, 0.75);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --z-table: 1;
+  --z-hud: 10;
+  --z-dev: 20;
+  --z-dialog: 50;
+}
+
+* { box-sizing: border-box; letter-spacing: 0; }
+[hidden] { display: none !important; }
+
+html {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--felt-900);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  color: var(--ink);
+  background: var(--felt-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; }
+input, select { font-size: 16px; }
+button { touch-action: manipulation; user-select: none; }
+h1, h2 { text-wrap: balance; overflow-wrap: anywhere; }
+button { color: inherit; }
+button, input, select { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+::selection { background: rgba(255, 170, 0, 0.35); color: var(--white); }

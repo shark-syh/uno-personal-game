@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#0e4d2e">
+  <link rel="icon" type="image/svg+xml" href="assets/card-back.svg">
+  <title>UNO 单机版</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/cards.css">
+  <link rel="stylesheet" href="styles/components.css">
+  <link rel="stylesheet" href="styles/animations.css">
+</head>
+<body>
+  <main id="app" aria-live="polite">
+    <section id="lobby-screen" class="screen" data-screen="lobby" aria-labelledby="lobby-title">
+      <div class="lobby-shell">
+        <div class="lobby-brand">
+          <img class="lobby-mark" src="assets/card-back.svg" width="120" height="180" alt="UNO 卡背">
+          <h1 id="lobby-title">UNO 单机版</h1>
+          <p>个人练习项目，非官方</p>
+        </div>
+        <div class="lobby-panel">
+          <form id="lobby-form" class="lobby-form">
+            <div class="form-grid">
+              <div class="form-field full">
+                <label for="player-name">玩家名</label>
+                <input id="player-name" name="playerName" type="text" value="你" maxlength="12" autocomplete="nickname">
+              </div>
+              <div class="form-field full">
+                <span class="field-label">对战人数</span>
+                <div id="player-count-options" class="choice-grid" role="group" aria-label="对战人数"></div>
+              </div>
+              <div class="form-field">
+                <span class="field-label">AI 难度</span>
+                <div id="difficulty-options" class="choice-grid" role="group" aria-label="AI 难度"></div>
+              </div>
+              <div class="form-field">
+                <span class="field-label">AI 模式</span>
+                <div id="ai-mode-options" class="choice-grid three" role="group" aria-label="AI 模式"></div>
+              </div>
+              <div class="form-field full">
+                <span class="field-label">规则选项</span>
+                <label class="rule-toggle" for="challenge-wild4">
+                  <input id="challenge-wild4" name="challengeWild4" type="checkbox" checked>
+                  <span class="rule-toggle-text">
+                    <strong>+4 挑战</strong>
+                    <small id="challenge-wild4-hint">开启：被 +4 指向的玩家可选择「挑战」或「摸 4 张」；关闭：+4 直接摸 4 张</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div class="lobby-actions">
+              <button class="btn btn-primary btn-large" type="submit" aria-label="开始游戏">开始游戏</button>
+              <button class="btn btn-ghost" type="button" data-open-dialog="settings" aria-label="设置">设置</button>
+              <button class="btn btn-ghost" type="button" data-open-dialog="stats" aria-label="战绩">战绩</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section id="game-screen" class="screen" data-screen="game" aria-label="牌桌">
+      <header id="top-bar">
+        <div class="top-status">
+          <span class="status-chip"><span id="color-indicator" class="color-dot" data-color="red"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
+          <span class="status-chip"><span id="direction-indicator" data-direction="1" aria-label="顺时针">↻</span><span id="direction-label">顺时针</span></span>
+          <span class="status-chip"><strong>AI</strong><span id="ai-mode-indicator">自动</span></span>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-ghost" type="button" data-open-dialog="settings" aria-label="设置">设置</button>
+          <button id="quit-game" class="btn btn-danger" type="button" aria-label="退出对局">退出</button>
+        </div>
+      </header>
+
+      <div id="table-area">
+        <div id="opponents" aria-label="AI 玩家"></div>
+        <div id="table-center" aria-label="牌堆">
+          <div id="color-glow" data-color="red" aria-hidden="true"></div>
+          <span id="table-direction" aria-label="顺时针">↻</span>
+          <div class="pile-stack">
+            <div id="draw-pile" data-count="41" aria-label="抽牌堆"></div>
+            <span id="draw-count" class="pile-count">41</span>
+          </div>
+          <div class="pile-stack">
+            <div id="discard-pile" data-top-card="R3" aria-label="弃牌堆"></div>
+            <span id="stack-badge" data-total="" hidden></span>
+          </div>
+        </div>
+        <div id="event-feed" aria-live="polite"></div>
+        <div id="speech-layer" aria-live="polite"></div>
+      </div>
+
+      <div id="hand-zone">
+        <div class="hand-heading"><span>你的手牌</span><span id="hand-count"></span></div>
+        <div id="hand" data-seat="0" aria-label="你的手牌"></div>
+        <div id="action-bar" aria-label="可用操作"></div>
+        <div id="hint-bar" role="status"></div>
+      </div>
+    </section>
+
+    <section id="result-screen" class="screen" data-screen="result" aria-labelledby="result-title">
+      <div class="result-panel">
+        <div id="result-content"></div>
+      </div>
+    </section>
+  </main>
+  <div id="dialog-root" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-live="polite"></div>
+  <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+  <div id="dev-toolbar" class="dev-toolbar" hidden></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

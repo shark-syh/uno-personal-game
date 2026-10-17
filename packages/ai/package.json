@@ -1,0 +1,11 @@
+{
+  "name": "@uno/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UNO 本地启发式 AI（M2 阶段实现，离线可用、作为 LLM 兜底）",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
