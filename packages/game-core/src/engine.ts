@@ -12,7 +12,7 @@ import type {
   UnoWindowState,
 } from './types.ts';
 
-/** AI 喊 UNO 概率（按难度，见 `开发计划.md` 4.7）；真实/骨灰级永远会喊 */
+/** AI 喊 UNO 概率（按难度，见 `docs/开发计划.md` 4.7）；真实/骨灰级永远会喊 */
 const AI_UNO_CALL_CHANCE: Record<Difficulty, number> = {
   casual: 0.8,
   easy: 0.95,
@@ -20,7 +20,7 @@ const AI_UNO_CALL_CHANCE: Record<Difficulty, number> = {
   hardcore: 1,
 };
 
-/** AI 抓 UNO 概率（按难度，见 `开发计划.md` 4.7） */
+/** AI 抓 UNO 概率（按难度，见 `docs/开发计划.md` 4.7） */
 const AI_UNO_CATCH_CHANCE: Record<Difficulty, number> = {
   casual: 0.1,
   easy: 0.4,
@@ -58,7 +58,7 @@ function replenishDrawPile(state: GameState, events: GameEvent[]): boolean {
 }
 
 /**
- * 牌堆是否还能供一张牌（不结算本局）。见 `开发计划.md` 4.9：
+ * 牌堆是否还能供一张牌（不结算本局）。见 `docs/开发计划.md` 4.9：
  * 抽牌堆非空 → 可摸；`allowRoundEnd=false` → 能洗就洗；`end-by-fewest` → 一空即不可摸；
  * 默认 reshuffle → 把弃牌堆除顶牌外洗回。
  */
@@ -129,7 +129,7 @@ function endRound(state: GameState, winnerSeat: number, events: GameEvent[]): vo
 }
 
 /**
- * 牌堆耗尽结束本局（M1-7，见 `开发计划.md` 4.9）：手牌最少者获胜；
+ * 牌堆耗尽结束本局（M1-7，见 `docs/开发计划.md` 4.9）：手牌最少者获胜；
  * 若并列最少则平局（winnerSeat = null）。事件 reason='deck-empty' 作为日志标注。
  */
 function endRoundByFewestCards(state: GameState, events: GameEvent[]): void {
@@ -217,7 +217,7 @@ function resolveStackDraw(state: GameState, events: GameEvent[]): void {
 }
 
 /**
- * 弃权叠牌时是否开放 +4 挑战（M1-5，见 `开发计划.md` 4.6）。
+ * 弃权叠牌时是否开放 +4 挑战（M1-5，见 `docs/开发计划.md` 4.6）。
  * 只有"普通回合打出的单张 +4"满足条件：
  * - 叠牌链中已有叠牌（+2/+4 续过链）→ 不开放（4.5 明确决定）；
  * - `challengeWild4=false` → 不开放；
@@ -661,7 +661,7 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       if (next.drawnThisTurn) throw new Error('本回合已经抽过牌，请打出抽到的牌或结束回合');
 
       const seat = next.currentSeat;
-      // BUG-01（见 `开发计划.md` 4.4）：主动摸牌改为「持续摸牌，直到摸到第一张当前可打出的牌」。
+      // BUG-01（见 `docs/开发计划.md` 4.4）：主动摸牌改为「持续摸牌，直到摸到第一张当前可打出的牌」。
       // 过程中摸到的其余牌留在手里；停下的那张记为 drawnThisTurn，合法动作只剩打出它或结束回合。
       //
       // 终止性：每次成功摸牌都会让「抽牌堆 + 弃牌堆」总张数减 1（洗回只是把弃牌堆搬到

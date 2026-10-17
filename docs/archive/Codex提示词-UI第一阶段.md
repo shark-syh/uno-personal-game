@@ -1,7 +1,7 @@
 # 给 Codex 的提示词（UI 第一阶段：静态框架）
 
 > 用法：把下面横线以下的全部内容整段粘贴到 Codex（在当前仓库 `C:\Users\hw\Desktop\uno` 下运行）。
-> Codex 会自动读取 `UI开发提示词.md` 和 `开发计划.md`，然后按契约把 UI 框架写进 `apps/web/`。
+> Codex 会自动读取 `.docs/UI开发提示词.md` 和 `.docs/开发计划.md`，然后按契约把 UI 框架写进 `apps/web/`。
 
 ---
 
@@ -9,13 +9,13 @@
 
 ## 0. 先读这些文件（按顺序，必须读）
 
-1. `UI开发提示词.md`
+1. `.docs/UI开发提示词.md`
    - 第 0 节：开发顺序与文件放置
    - 第 1 节：UI ↔ 引擎契约（GameView / UiAction / GameEvent / DOM 锚点 / `window.UnoApp` API）← **必须严格遵守，字段名一个都不能改**
    - 第 2 节：视觉规范
    - 第 3 节：第一阶段提示词（把里面的要求当作你的实现清单）
    - 第 6 节：验收清单
-2. `开发计划.md` 的 4.12（规则决策表）、5.2（目录结构）、5.4（前端架构）、7（UI/UX）、9.4（人工验收）
+2. `.docs/开发计划.md` 的 4.12（规则决策表）、5.2（目录结构）、5.4（前端架构）、7（UI/UX）、9.4（人工验收）
 3. `apps/web/cards/manifest.json`（54 张卡面映射：faceCode / kind / color / value / copies）
 
 ## 1. 项目定位（重要，防止越界）
@@ -27,7 +27,7 @@
 ## 2. 写权限边界（严格遵守）
 
 - 只能新建/修改 `apps/web/` 下的文件。
-- **不要修改**：`apps/web/cards/`（图片与 manifest.json）、`开发计划.md`、`UI开发提示词.md`、`research/`、`scripts/`、`packages/`、`apps/server/`、根目录 `package.json`（不存在也不要创建）。
+- **不要修改**：`apps/web/cards/`（图片与 manifest.json）、`.docs/开发计划.md`、`.docs/UI开发提示词.md`、`research/`、`scripts/`、`packages/`、`apps/server/`、根目录 `package.json`（不存在也不要创建）。
 - 不要运行 `npm install`，不要安装任何依赖，不要初始化 git。
 - 可以创建 `apps/web/README-UI.md`，记录预览方式、mock 切换方式、你的实现假设。
 
@@ -149,4 +149,4 @@ mock 卡牌数据按契约构造即可，不需要 108 张完整牌堆。
 
 ## 9. 验收标准
 
-逐项对照 `UI开发提示词.md` 第 6 节验收清单（12 项），在最终回复中逐条报告是否满足；未满足的写明原因和下一步。
+逐项对照 `.docs/UI开发提示词.md` 第 6 节验收清单（12 项），在最终回复中逐条报告是否满足；未满足的写明原因和下一步。

@@ -1,7 +1,7 @@
 /**
  * 引擎侧 UI 对接层（M3-2）：把内部 `GameState` 投影成 UI 契约的 `GameView`。
  *
- * 契约来源：`UI开发提示词.md` 第 1 节（字段冻结）。本文件只负责：
+ * 契约来源：`docs/UI开发提示词.md` 第 1 节（字段冻结）。本文件只负责：
  * - 隐藏信息过滤：其他玩家手牌、`wild4Info`、他人摸牌牌面、AI 挑战时看到的手牌；
  * - `EngineAction` → `UiAction`（带 id / label / hint，供 UI 渲染按钮）；
  * - `getResult` → 契约 `result`（含平局）；

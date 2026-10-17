@@ -294,7 +294,7 @@ function extractStackGain(draft: CandidateDraft, view: AiView, nextCount: number
 }
 
 /**
- * 一次「主动摸牌」的期望张数（M3-3 规则变更，见 `开发计划.md` 4.4）：
+ * 一次「主动摸牌」的期望张数（M3-3 规则变更，见 `docs/开发计划.md` 4.4）：
  * 摸牌会一直摸到出现可打出的牌为止，因此代价不再是固定的 1 张。
  *
  * 只用公开信息估计"随机一张未知牌可打出"的概率 p：

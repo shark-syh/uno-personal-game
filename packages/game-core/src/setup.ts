@@ -52,7 +52,7 @@ export function countCards(state: GameState): number {
 /**
  * 创建一局新游戏并完成发牌与起手翻牌。
  *
- * 规则依据 `开发计划.md` 第 4 章：
+ * 规则依据 `docs/开发计划.md` 第 4 章：
  * - 每人 7 张，随机庄家，庄家左手边先手；
  * - 起手数字牌：确定当前颜色；
  * - 起手 Wild：首位玩家选色（phase = choose-color）；

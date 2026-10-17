@@ -1,7 +1,7 @@
 # UI 第一阶段验收报告（2026-10-17）
 
 > 验收对象：外部 Codex 交付的 `apps/web/` 静态 UI 框架（mock 驱动，22 个文件 + 54 张卡面）
-> 验收依据：`UI开发提示词.md` 第 1 节（契约）、第 3 节（第一阶段提示词与自检清单）、第 6 节（验收清单）
+> 验收依据：`docs/UI开发提示词.md` 第 1 节（契约）、第 3 节（第一阶段提示词与自检清单）、第 6 节（验收清单）
 > 验收方式：静态代码审查（只读）+ 本地服务资源检查 + 无头 Chrome 真实渲染/交互自动化 + 关键局面截图人工核对
 > **结论：通过（有保留）** —— 无阻塞问题（P0=0）；契约、DOM 锚点、全局 API、11 种 mock 局面、主要交互均达标。
 > **2026-10-17 更新：A 项修复已完成**（6 项建议项 + 2 项质量加固 + 默认入口可点击开始），详见第七节；剩余打磨项见第二节。
@@ -75,19 +75,19 @@
 
 | 大厅 | 牌桌（4 人） |
 |------|------|
-| ![大厅](review-assets/ui-lobby-1440.png) | ![牌桌](review-assets/ui-normal-play-1440.png) |
+| ![大厅](../review-assets/ui-lobby-1440.png) | ![牌桌](../review-assets/ui-normal-play-1440.png) |
 
 | 叠牌响应（累计 +8） | Wild 选色弹窗 |
 |------|------|
-| ![叠牌](review-assets/ui-stack-response-1440.png) | ![选色](review-assets/ui-wild-color-picker-1440.png) |
+| ![叠牌](../review-assets/ui-stack-response-1440.png) | ![选色](../review-assets/ui-wild-color-picker-1440.png) |
 
 | +4 挑战弹窗 | 结算页 |
 |------|------|
-| ![挑战](review-assets/ui-challenge-decide-1440.png) | ![结算](review-assets/ui-result-1440.png) |
+| ![挑战](../review-assets/ui-challenge-decide-1440.png) | ![结算](../review-assets/ui-result-1440.png) |
 
 | 10 人布局（1024×768） |
 |------|
-| ![10人](review-assets/ui-ten-players-1024.png) |
+| ![10人](../review-assets/ui-ten-players-1024.png) |
 
 ## 五、验收须知与已知限制
 
@@ -141,7 +141,7 @@
 
 > 需求：+4 挑战在开始游戏前可勾选（默认开启）。属用户明确要求的 UI 迭代，契约 DOM 锚点/`window.UnoApp` API 未改动。
 
-**改动**：`index.html` 大厅「规则选项」区新增 `#challenge-wild4` 勾选框（含说明文案）；`js/ui/lobby.js` 读取/保存本次会话选择，并在 `START_GAME` 的 `config` 中附带 `challengeWild4`；`js/mock/mockView.js` 的 `config` 默认值补 `challengeWild4: true`；`styles/components.css` 新增 `.rule-toggle` 样式；`README-UI.md` 与 `UI开发提示词.md` 第 1 节同步说明该向后兼容扩展。
+**改动**：`index.html` 大厅「规则选项」区新增 `#challenge-wild4` 勾选框（含说明文案）；`js/ui/lobby.js` 读取/保存本次会话选择，并在 `START_GAME` 的 `config` 中附带 `challengeWild4`；`js/mock/mockView.js` 的 `config` 默认值补 `challengeWild4: true`；`styles/components.css` 新增 `.rule-toggle` 样式；`README-UI.md` 与 `docs/UI开发提示词.md` 第 1 节同步说明该向后兼容扩展。
 
 **无头 Chrome 实测（`review-assets/ui-lobby-challenge-toggle-1440.png`）**：
 

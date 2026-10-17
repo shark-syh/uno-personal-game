@@ -206,7 +206,7 @@ export interface ChallengeStrategy {
   priorIllegal: number;
 }
 
-/** 四档难度的参数表（对应 `开发计划.md` 6.4） */
+/** 四档难度的参数表（对应 `docs/开发计划.md` 6.4） */
 export interface DifficultyProfile {
   difficulty: Difficulty;
   label: string;

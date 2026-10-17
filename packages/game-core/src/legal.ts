@@ -14,7 +14,7 @@ export function isColor(value: unknown): value is Color {
 /**
  * 某张牌在当前局面下能否打出（正常回合 / 抽牌后判断共用）。
  *
- * 规则（见 `开发计划.md` 4.4）：
+ * 规则（见 `docs/开发计划.md` 4.4）：
  * - Wild / Wild+4：永远可出（Wild+4 允许诈唬，挑战由 M1-5 实现）；
  * - 颜色匹配；
  * - 数字匹配（顶牌是数字时）；

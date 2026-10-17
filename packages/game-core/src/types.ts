@@ -1,7 +1,7 @@
 /**
  * UNO 规则引擎核心类型（M1 阶段）。
  *
- * 字段命名与 `UI开发提示词.md` 第 1 节的契约保持一致，后续对接时不要随意改名。
+ * 字段命名与 `docs/UI开发提示词.md` 第 1 节的契约保持一致，后续对接时不要随意改名。
  */
 
 /** 四种颜色 */
@@ -168,7 +168,7 @@ export interface Wild4PlayInfo {
 }
 
 /**
- * 叠牌链状态（宽松叠法，见 `开发计划.md` 4.5）。
+ * 叠牌链状态（宽松叠法，见 `docs/开发计划.md` 4.5）。
  * 仅在 `phase === 'stack-response'` 时非 null；与 UNO 窗口重叠时（uno-window 阶段）也可能非 null。
  */
 export interface StackState {
@@ -185,7 +185,7 @@ export interface StackState {
 }
 
 /**
- * +4 挑战窗口状态（M1-5，见 `开发计划.md` 4.6）。
+ * +4 挑战窗口状态（M1-5，见 `docs/开发计划.md` 4.6）。
  * 仅在 `phase === 'challenge-decide'` 时非 null：有挑战权的玩家二选一（挑战 / 接受摸 4）。
  */
 export interface PendingChallenge {
@@ -198,7 +198,7 @@ export interface PendingChallenge {
 }
 
 /**
- * UNO 窗口状态（M1-6，见 `开发计划.md` 4.7）。
+ * UNO 窗口状态（M1-6，见 `docs/开发计划.md` 4.7）。
  * 仅在 `phase === 'uno-window'` 时非 null：某玩家出牌后手牌恰好剩 1 张且还没喊 UNO。
  * 窗口是"下一步行动之前"的反应窗口：下一位玩家一行动就关闭（同时结算 AI 抓人概率）。
  */
@@ -253,7 +253,7 @@ export interface GameState {
   rng: RngState;
 }
 
-/** 单个玩家的结算数据（见 `开发计划.md` 4.10；2026-10-18 起取消计分，改为操作统计图表） */
+/** 单个玩家的结算数据（见 `docs/开发计划.md` 4.10；2026-10-18 起取消计分，改为操作统计图表） */
 export interface PlayerResult {
   seat: number;
   name: string;

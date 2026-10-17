@@ -1,0 +1,9 @@
+# 仅声明二进制/Windows 批处理文件的处理方式，避免改写已有文本文件的行尾。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.pdf binary
