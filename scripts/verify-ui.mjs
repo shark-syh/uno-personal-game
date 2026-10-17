@@ -532,6 +532,18 @@ async function main() {
           JSON.stringify(setup),
         );
         check('开局卡面全部加载成功', setup.failed === 0, `failed=${setup.failed}`);
+        // M5-04：抽牌堆 HUD 计数与 data-count 一致、为合理数字（真实引擎视图）
+        const drawPileHud = await evaluate(
+          `({ text: document.querySelector('#draw-count')?.textContent || '', dataCount: document.querySelector('#draw-pile')?.dataset.count || '' })`,
+        );
+        check(
+          '抽牌堆计数在 HUD 正确显示（文本与 data-count 一致）',
+          drawPileHud.text === drawPileHud.dataCount &&
+            /^\d+$/.test(drawPileHud.text) &&
+            Number(drawPileHud.text) >= 0 &&
+            Number(drawPileHud.text) <= 108,
+          JSON.stringify(drawPileHud),
+        );
         check(
           '1440 宽无横向溢出',
           setup.overflow.scroll <= setup.overflow.client,
@@ -1081,6 +1093,34 @@ async function main() {
       await evaluate('window.__verify.resultTitle()'),
     );
 
+    // M5-04：牌堆只剩 0/1 张时 HUD 计数与洗回提示（mock 静态局面，真实引擎边界由单测覆盖）
+    await evaluate('window.__verify.selectMock("deck-edge-zero")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 牌堆边界局面（0 张）');
+    const deckEdgeZero = await evaluate(
+      `({ text: document.querySelector('#draw-count')?.textContent || '', dataCount: document.querySelector('#draw-pile')?.dataset.count || '', feed: document.querySelector('#event-feed')?.textContent || '' })`,
+    );
+    check(
+      '牌堆边界：抽牌堆剩 0 张时计数正常显示',
+      deckEdgeZero.text === '0' && deckEdgeZero.dataCount === '0',
+      JSON.stringify(deckEdgeZero),
+    );
+    check(
+      '牌堆边界：洗回事件在事件流显示「牌堆重新洗牌」',
+      deckEdgeZero.feed.includes('牌堆重新洗牌') && deckEdgeZero.feed.includes('摸了 2 张'),
+      deckEdgeZero.feed,
+    );
+    await shot('ui-m5-deck-edge-1440.png');
+    await evaluate('window.__verify.selectMock("deck-edge-one")');
+    await sleep(200);
+    const deckEdgeOne = await evaluate(
+      `({ text: document.querySelector('#draw-count')?.textContent || '', dataCount: document.querySelector('#draw-pile')?.dataset.count || '' })`,
+    );
+    check(
+      '牌堆边界：抽牌堆剩 1 张时计数正常显示',
+      deckEdgeOne.text === '1' && deckEdgeOne.dataCount === '1',
+      JSON.stringify(deckEdgeOne),
+    );
+
     // 1024 布局无横向溢出
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1024,
@@ -1162,7 +1202,7 @@ async function main() {
     const passed = checks.filter((item) => item.ok).length;
     const failed = checks.length - passed;
     const lines = [
-      '# M3-3 体验修正 + M3-2/M4 浏览器验收报告（自动生成）',
+      '# 浏览器验收报告（自动生成；M3-3/M4 回归 + M5 规则边界）',
       '',
       `> 时间：${new Date().toISOString()} ｜ 入口：${BASE_URL} ｜ 浏览器：${version.Browser}`,
       `> 结果：**${passed} / ${checks.length} 通过**${failed > 0 ? `，${failed} 项失败` : ''}`,
@@ -1197,6 +1237,7 @@ async function main() {
       '- review-assets/ui-m32-result-1440.png',
       '- review-assets/ui-m32-mock-challenge-1440.png',
       '- review-assets/ui-m32-mock-uno-1440.png',
+      '- review-assets/ui-m5-deck-edge-1440.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');

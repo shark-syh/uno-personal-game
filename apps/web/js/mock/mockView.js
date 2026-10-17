@@ -17,8 +17,8 @@ function basePlayers(count, { thinking = false, oneUno = false } = {}) {
 }
 function humanHand() { return [card("R7", 0), card("GS", 0), card("B0", 0), card("WC", 0), card("YA2", 0)]; }
 function colorActions(type, cardId) { return Object.keys(colors).map((color) => action(`${type}:${cardId}:${color}`, type, type === "CHOOSE_COLOR" ? `${colors[color]}色` : `出 ${cardId.split("#")[0]} · ${colors[color]}`, { cardId, ...(type === "CHOOSE_COLOR" ? { color } : { colorChoice: color }) })); }
-function common({ name = "normal-play", count = 4, phase = "await-play", players = basePlayers(count), hand = humanHand(), legalActions = [], currentColor = "red", stack = null, events = [], pendingColorChoice = false, pendingChallenge = null, canCallUno = false, canCatch = [], drawnThisTurn = null, discardTop = card("R3"), discardTop3 = [discardTop, card("B3"), card("Y5")] } = {}) {
-  return { mock: true, screen: name === "lobby" ? "lobby" : name === "result" ? "result" : "game", phase, config: { playerCount: count, difficulty: "realistic", aiMode: "auto", challengeWild4: true }, currentSeat: players.find((player) => player.thinking)?.seat ?? 0, direction: 1, currentColor, players: players.map((player) => player.isHuman ? { ...player, handCount: hand.length } : player), human: { seat: 0, hand, legalActions, drawnThisTurn, mustRespondStack: phase === "stack-response", canCallUno, canCatch, pendingChallenge }, table: { discardTop, discardTop3, drawPileCount: 41, stack, pendingColorChoice, winnerSeat: null }, events, result: null, settings: { autoCallUno: false, aiSpeed: "normal", sound: true, animation: true, showHint: true, aiChatter: true }, dev: { mockName: name } };
+function common({ name = "normal-play", count = 4, phase = "await-play", drawPileCount = 41, players = basePlayers(count), hand = humanHand(), legalActions = [], currentColor = "red", stack = null, events = [], pendingColorChoice = false, pendingChallenge = null, canCallUno = false, canCatch = [], drawnThisTurn = null, discardTop = card("R3"), discardTop3 = [discardTop, card("B3"), card("Y5")] } = {}) {
+  return { mock: true, screen: name === "lobby" ? "lobby" : name === "result" ? "result" : "game", phase, config: { playerCount: count, difficulty: "realistic", aiMode: "auto", challengeWild4: true }, currentSeat: players.find((player) => player.thinking)?.seat ?? 0, direction: 1, currentColor, players: players.map((player) => player.isHuman ? { ...player, handCount: hand.length } : player), human: { seat: 0, hand, legalActions, drawnThisTurn, mustRespondStack: phase === "stack-response", canCallUno, canCatch, pendingChallenge }, table: { discardTop, discardTop3, drawPileCount, stack, pendingColorChoice, winnerSeat: null }, events, result: null, settings: { autoCallUno: false, aiSpeed: "normal", sound: true, animation: true, showHint: true, aiChatter: true }, dev: { mockName: name } };
 }
 
 function normal(name = "normal-play", count = 4) {
@@ -27,7 +27,7 @@ function normal(name = "normal-play", count = 4) {
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 
-export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "catch-uno", "result", "ten-players", "two-players"];
+export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one"];
 
 export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "lobby") return common({ name, count: 4, phase: "lobby" });
@@ -73,6 +73,9 @@ export function createMockView(name = "lobby", playerCount = 4) {
     };
   }
   if (name === "ten-players") return common({ name, count: 10, players: basePlayers(10, { thinking: true }), legalActions: [] });
+  // M5-04：牌堆只剩 0/1 张的 HUD 计数与洗回提示（mock 静态局面，用于 verify:ui 断言）
+  if (name === "deck-edge-zero") return common({ name, drawPileCount: 0, events: [{ type: "PILE_RESHUFFLE", reason: "draw" }, { type: "DRAW", seat: 0, count: 2 }] });
+  if (name === "deck-edge-one") return common({ name, drawPileCount: 1, events: [{ type: "DRAW", seat: 1, count: 1 }] });
   return normal("normal-play", 4);
 }
 
