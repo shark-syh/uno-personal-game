@@ -121,13 +121,16 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
       if (options) {
         options.forEach(([value, name]) => { const option = document.createElement("option"); option.value = String(value); option.textContent = name; input.append(option); });
         input.value = String(settings[key]);
-        if (key === "unoPenalty") input.dataset.numeric = "true";
+        if (key === "unoPenalty" || key === "soundVolume") input.dataset.numeric = "true";
       } else { input.type = "checkbox"; input.checked = Boolean(settings[key]); }
       input.dataset.setting = key;
       row.append(text, input);
       body.append(row);
     };
-    field("音效", "sound"); field("动画", "animation");
+    field("音效", "sound");
+    field("音效音量", "soundVolume", [[0.35, "低"], [0.7, "中"], [1, "高"]]);
+    field("动画", "animation");
+    field("动画速度", "animationSpeed", [["normal", "正常"], ["fast", "快速"]]);
     field("AI 速度", "aiSpeed", [["slow", "慢"], ["normal", "正常"], ["fast", "快"]]);
     field("自动喊 UNO", "autoCallUno");
     const rulesHeading = document.createElement("h3");

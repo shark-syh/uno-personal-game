@@ -328,6 +328,7 @@ async function main() {
       '--disable-dev-shm-usage',
       '--hide-scrollbars',
       '--mute-audio',
+      '--autoplay-policy=no-user-gesture-required',
       `--remote-debugging-port=${DEBUG_PORT}`,
       `--user-data-dir=${profileDir}`,
       '--window-size=1440,900',
@@ -1098,8 +1099,8 @@ async function main() {
       return { during, after, elapsed: window.__queueDone.elapsed };
     })()`);
     check(
-      '事件队列逐条播放（5 事件 ≈ 1000ms）',
-      queueMeasure.elapsed >= 850 && queueMeasure.elapsed <= 1500,
+      '事件队列逐条播放（5 事件 = 200ms/条基础 + 动效时长）',
+      queueMeasure.elapsed >= 850 && queueMeasure.elapsed <= 2600,
       `elapsed=${queueMeasure.elapsed.toFixed(0)}ms`,
     );
     check(
@@ -1112,6 +1113,63 @@ async function main() {
       queueMeasure.after.busy === null && queueMeasure.after.actionBarDisabled === null,
       JSON.stringify(queueMeasure.after),
     );
+    // ---------------- 4a. M6-01：事件动效（飞牌/横幅/动效层清理） ----------------
+    const fxEventsCode = `[
+      { type: 'DRAW', seat: 0, count: 2, cards: [ { id: 'R7#0', kind: 'number', color: 'red', value: 7, faceCode: 'R7' }, { id: 'GS#0', kind: 'skip', color: 'green', value: null, faceCode: 'GS' } ] },
+      { type: 'PLAY', seat: 1, card: { id: 'B3#0', kind: 'number', color: 'blue', value: 3, faceCode: 'B3' } },
+      { type: 'SKIP', seat: 1 },
+      { type: 'REVERSE' },
+      { type: 'UNO_CALLED', seat: 1 },
+      { type: 'PILE_RESHUFFLE' },
+    ]`;
+    await evaluate(`(() => {
+      const token = window.__m601 = { startedAt: performance.now(), maxCards: 0, maxLayer: 0, lastEffect: '', done: false, elapsed: null };
+      const events = ${fxEventsCode};
+      const poll = setInterval(() => {
+        token.maxCards = Math.max(token.maxCards, document.querySelectorAll('#effect-layer .fx-card').length);
+        token.maxLayer = Math.max(token.maxLayer, document.querySelectorAll('#effect-layer > *').length);
+        token.lastEffect = document.documentElement.dataset.lastEffect || token.lastEffect;
+        if (token.done) clearInterval(poll);
+      }, 40);
+      window.UnoApp.playEvents(events, () => { token.done = true; token.elapsed = Math.round(performance.now() - token.startedAt); });
+      return true;
+    })()`);
+    await sleep(180);
+    await shot('ui-m6-effects-1440.png');
+    await waitFor('window.__m601 && window.__m601.done === true', 8000, '动效事件队列播放完成');
+    await sleep(160);
+    const fxAudit = await evaluate(
+      `({ maxCards: window.__m601.maxCards, maxLayer: window.__m601.maxLayer, lastEffect: window.__m601.lastEffect, elapsed: window.__m601.elapsed, layer: document.querySelectorAll('#effect-layer > *').length, busy: document.querySelector('#game-screen').getAttribute('aria-busy') })`,
+    );
+    check(
+      '事件动效：飞牌/横幅等临时元素由动效层创建（至少 2 个同时动画）',
+      fxAudit.maxLayer >= 2 && fxAudit.maxCards >= 1 && fxAudit.lastEffect === 'PILE_RESHUFFLE',
+      JSON.stringify(fxAudit),
+    );
+    check(
+      '事件动效：队列结束后动效层清理干净、输入锁解除',
+      fxAudit.layer === 0 && fxAudit.busy === null,
+      JSON.stringify({ layer: fxAudit.layer, busy: fxAudit.busy }),
+    );
+    check(
+      '事件动效：6 个事件总时长合理（约 0.6~3s）',
+      fxAudit.elapsed >= 600 && fxAudit.elapsed <= 3000,
+      `elapsed=${fxAudit.elapsed}ms`,
+    );
+    // dev 工具条「重播动画」同样触发动效
+    await evaluate(
+      `(() => { const button = [...document.querySelectorAll('#dev-toolbar button')].find((item) => item.textContent.trim() === '重播动画'); button?.click(); return Boolean(button); })()`,
+    );
+    await sleep(220);
+    const replayFx = await evaluate(
+      `({ layer: document.querySelectorAll('#effect-layer > *').length, lastEffect: document.documentElement.dataset.lastEffect || '' })`,
+    );
+    check(
+      'dev 工具条「重播动画」触发动效（mock 局面）',
+      replayFx.layer > 0,
+      JSON.stringify(replayFx),
+    );
+    await sleep(900);
 
     // reduced-motion：应跳过动画、立即完成
     await cdp.send('Emulation.setEmulatedMedia', {
@@ -1121,12 +1179,12 @@ async function main() {
       const events = Array.from({ length: 5 }, () => ({ type: 'DRAW', seat: 1, count: 1, cards: [] }));
       const startedAt = performance.now();
       await new Promise((resolvePromise) => window.UnoApp.playEvents(events, resolvePromise));
-      return { elapsed: performance.now() - startedAt, busy: document.querySelector('#game-screen').getAttribute('aria-busy') };
+      return { elapsed: performance.now() - startedAt, busy: document.querySelector('#game-screen').getAttribute('aria-busy'), effects: document.querySelectorAll('#effect-layer > *').length };
     })()`);
     await cdp.send('Emulation.setEmulatedMedia', { features: [] });
     check(
-      'reduced-motion 下跳过动画（<100ms 完成）',
-      reducedMotion.elapsed < 100 && reducedMotion.busy === null,
+      'reduced-motion 下跳过动画与事件动效（<100ms 完成）',
+      reducedMotion.elapsed < 100 && reducedMotion.busy === null && reducedMotion.effects === 0,
       `elapsed=${reducedMotion.elapsed.toFixed(0)}ms`,
     );
 
@@ -1141,13 +1199,71 @@ async function main() {
       const events = Array.from({ length: 5 }, () => ({ type: 'DRAW', seat: 1, count: 1, cards: [] }));
       const startedAt = performance.now();
       await new Promise((resolvePromise) => window.UnoApp.playEvents(events, resolvePromise));
-      return { elapsed: performance.now() - startedAt, animation: document.documentElement.dataset.animation };
+      return { elapsed: performance.now() - startedAt, animation: document.documentElement.dataset.animation, effects: document.querySelectorAll('#effect-layer > *').length };
     })()`);
     check(
-      '设置关闭动画后跳过动画（<100ms）',
-      animationOff.elapsed < 100 && animationOff.animation === 'false',
+      '设置关闭动画后跳过动画与事件动效（<100ms）',
+      animationOff.elapsed < 100 &&
+        animationOff.animation === 'false' &&
+        animationOff.effects === 0,
       `elapsed=${animationOff.elapsed.toFixed(0)}ms`,
     );
+
+    // ---------------- 4b. M6-02：音效（WebAudio 合成 / 开关 / 音量 / autoplay 解锁） ----------------
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: true, soundVolume: 0.7, animation: true, animationSpeed: 'normal', showHint: true, aiChatter: true })); true`,
+    );
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'mock 大厅（音效验证）');
+    // 真实键盘事件解锁 AudioContext（浏览器 autoplay 限制）
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'Escape',
+      code: 'Escape',
+      windowsVirtualKeyCode: 27,
+    });
+    await cdp.send('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: 'Escape',
+      code: 'Escape',
+      windowsVirtualKeyCode: 27,
+    });
+    await sleep(260);
+    await evaluate('window.__verify.selectMock("normal-play")');
+    const sfxAudit = await evaluate(`(async () => {
+      const before = Number(document.documentElement.dataset.sfxCount || '0');
+      const events = [
+        { type: 'PLAY', seat: 1, card: { id: 'B3#0', kind: 'number', color: 'blue', value: 3, faceCode: 'B3' } },
+        { type: 'DRAW', seat: 1, count: 1, cards: [] },
+        { type: 'UNO_CALLED', seat: 1 },
+      ];
+      await new Promise((resolvePromise) => window.UnoApp.playEvents(events, resolvePromise));
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 120));
+      const settings = JSON.parse(localStorage.getItem('uno:settings') || '{}');
+      return { before, after: Number(document.documentElement.dataset.sfxCount || '0'), audio: document.documentElement.dataset.audio || 'none', soundVolume: settings.soundVolume };
+    })()`);
+    check(
+      '音效：音效开启时事件触发合成音效（3 个事件 ≥3 次）',
+      sfxAudit.after - sfxAudit.before >= 3,
+      JSON.stringify(sfxAudit),
+    );
+    check(
+      '音效：首次用户交互后 AudioContext 可用（autoplay 解锁）',
+      sfxAudit.audio === 'running',
+      `audio=${sfxAudit.audio}`,
+    );
+    // 关闭音效：不再播放
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, soundVolume: 0.7, animation: false, animationSpeed: 'normal', showHint: true, aiChatter: true })); true`,
+    );
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'mock 大厅（音效关闭）');
+    const sfxOff = await evaluate(`(async () => {
+      const before = Number(document.documentElement.dataset.sfxCount || '0');
+      await new Promise((resolvePromise) => window.UnoApp.playEvents([{ type: 'PLAY', seat: 1, card: null }], resolvePromise));
+      return { before, after: Number(document.documentElement.dataset.sfxCount || '0') };
+    })()`);
+    check('音效：设置关闭后不再播放', sfxOff.before === sfxOff.after, JSON.stringify(sfxOff));
 
     // ---------------- 5. mock 弹窗与 CSS 动画（回归） ----------------
     await evaluate(
@@ -1191,6 +1307,7 @@ async function main() {
     await sleep(200);
     await shot('ui-m5-challenge-hand-1440.png');
     await waitFor('window.__m501 && window.__m501.done === true', 8000, '挑战手牌展示播放完成');
+    await sleep(180);
     const revealAudit = await evaluate(
       `(() => { const token = window.__m501; return { ...token, visible: !document.querySelector('#challenge-reveal').hidden, elapsed: token.hiddenAt === null ? null : Math.round(token.hiddenAt - token.shownAt) }; })()`,
     );
@@ -1235,24 +1352,27 @@ async function main() {
       `document.querySelector('.screen.is-active [data-open-dialog="settings"]').click(); true`,
     );
     await waitFor('window.__verify.activeDialogTitle() === "设置"', 5000, '设置弹窗');
+    await shot('ui-m6-settings-1440.png');
     const ruleDefaults = await evaluate(`(() => {
       const root = document.querySelector('#dialog-root.is-open');
       const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); if (!node) return null; return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); };
-      return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), hasRulesHeading: (root.textContent || '').includes('规则（对之后新开的对局生效）') };
+      return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), soundVolume: read('soundVolume'), animationSpeed: read('animationSpeed'), hasRulesHeading: (root.textContent || '').includes('规则（对之后新开的对局生效）') };
     })()`);
     check(
-      '设置页：4 项低风险规则可配置且默认值保持官方口径',
+      '设置页：规则 4 项 + 音效音量/动画速度可配置且默认值正确',
       ruleDefaults.hasRulesHeading &&
         ruleDefaults.twoPlayerRules === true &&
         ruleDefaults.unoPenalty === '2' &&
         ruleDefaults.deckExhaustion === 'reshuffle' &&
-        ruleDefaults.startCardRule === 'classic',
+        ruleDefaults.startCardRule === 'classic' &&
+        ruleDefaults.soundVolume === '0.7' &&
+        ruleDefaults.animationSpeed === 'normal',
       JSON.stringify(ruleDefaults),
     );
     await evaluate(`(() => {
       const root = document.querySelector('#dialog-root.is-open');
       const set = (key, value) => { const node = root.querySelector('[data-setting="' + key + '"]'); if (!node) return; if (node.type === 'checkbox') node.checked = value; else node.value = String(value); };
-      set('twoPlayerRules', false); set('unoPenalty', 3); set('deckExhaustion', 'end-by-fewest'); set('startCardRule', 'ignore-action');
+      set('twoPlayerRules', false); set('unoPenalty', 3); set('deckExhaustion', 'end-by-fewest'); set('startCardRule', 'ignore-action'); set('soundVolume', 0.35); set('animationSpeed', 'fast');
       [...root.querySelectorAll('.dialog-actions button')].find((button) => button.textContent.trim() === '保存').click();
       return true;
     })()`);
@@ -1265,7 +1385,9 @@ async function main() {
       savedSettings.twoPlayerRules === false &&
         savedSettings.unoPenalty === 3 &&
         savedSettings.deckExhaustion === 'end-by-fewest' &&
-        savedSettings.startCardRule === 'ignore-action',
+        savedSettings.startCardRule === 'ignore-action' &&
+        savedSettings.soundVolume === 0.35 &&
+        savedSettings.animationSpeed === 'fast',
       JSON.stringify(savedSettings),
     );
     const savedToast = await evaluate(`document.querySelector('#toast-region')?.textContent || ''`);
@@ -1300,19 +1422,21 @@ async function main() {
     );
     await waitFor('window.__verify.activeDialogTitle() === "设置"', 5000, '设置弹窗（刷新后）');
     const persistedRules = await evaluate(
-      `(() => { const root = document.querySelector('#dialog-root.is-open'); const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); }; return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule') }; })()`,
+      `(() => { const root = document.querySelector('#dialog-root.is-open'); const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); }; return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), soundVolume: read('soundVolume'), animationSpeed: read('animationSpeed') }; })()`,
     );
     check(
       '设置页：规则项刷新后保持（持久化）',
       persistedRules.twoPlayerRules === false &&
         persistedRules.unoPenalty === '3' &&
         persistedRules.deckExhaustion === 'end-by-fewest' &&
-        persistedRules.startCardRule === 'ignore-action',
+        persistedRules.startCardRule === 'ignore-action' &&
+        persistedRules.soundVolume === '0.35' &&
+        persistedRules.animationSpeed === 'fast',
       JSON.stringify(persistedRules),
     );
     // 恢复默认设置，避免影响后续用例
     await evaluate(
-      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true, twoPlayerRules: true, unoPenalty: 2, deckExhaustion: 'reshuffle', startCardRule: 'classic' })); true`,
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true, twoPlayerRules: true, unoPenalty: 2, deckExhaustion: 'reshuffle', startCardRule: 'classic', soundVolume: 0.7, animationSpeed: 'normal' })); true`,
     );
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor(
@@ -1485,6 +1609,42 @@ async function main() {
       mobile: false,
     });
 
+    // ---------------- 5b. M6-05：小屏响应式（760 宽）与减少动态效果回归 ----------------
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 760,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '760 大厅');
+    const mobileLobby = await evaluate('window.__verify.overflow()');
+    check(
+      '760 宽大厅无横向溢出',
+      mobileLobby.scroll <= mobileLobby.client,
+      JSON.stringify(mobileLobby),
+    );
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, '760 牌桌');
+    const mobileGame = await evaluate(
+      `({ overflow: window.__verify.overflow(), hand: (() => { const node = document.querySelector('#hand'); return { scroll: node.scrollWidth, client: node.clientWidth, cards: node.querySelectorAll('.card').length }; })(), actionBar: window.__verify.actionLabels().length })`,
+    );
+    check(
+      '760 宽牌桌无横向溢出、手牌区可横向滚动兜底、操作栏可用',
+      mobileGame.overflow.scroll <= mobileGame.overflow.client &&
+        mobileGame.hand.cards >= 5 &&
+        mobileGame.hand.scroll >= mobileGame.hand.client &&
+        mobileGame.actionBar >= 1,
+      JSON.stringify(mobileGame),
+    );
+    await shot('ui-m6-mobile-760.png');
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 1440,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+
     // ---------------- 6. 控制台 / 网络 / 隐藏信息 ----------------
     const originViolations = [...requestUrls].filter(
       (url) =>
@@ -1564,6 +1724,9 @@ async function main() {
       '- review-assets/ui-m5-6p-1440.png',
       '- review-assets/ui-m5-10p-1440.png',
       '- review-assets/ui-m5-10p-1024.png',
+      '- review-assets/ui-m6-effects-1440.png',
+      '- review-assets/ui-m6-settings-1440.png',
+      '- review-assets/ui-m6-mobile-760.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');

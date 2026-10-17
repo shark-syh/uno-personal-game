@@ -5,6 +5,7 @@ import { playEvents } from "./animation/queue.js";
 import { getSettings } from "./state/settings.js";
 import { createLobbyView } from "./vendor/uno-engine.js";
 import { startEngineMode, stopEngineMode } from "./engine/engineMode.js";
+import { installAudioUnlock } from "./audio/sfx.js";
 
 // M3-2：默认进入「引擎模式」（真实对局）；mock 只用于 UI 回归/开发。
 // - 直接打开页面：引擎模式（大厅 → 真实对局），零构建，引擎由 js/vendor/uno-engine.js 提供。
@@ -126,5 +127,7 @@ window.addEventListener("uno:settings-changed", () => {
   toast("设置已保存");
 });
 installDialogKeyboard();
+// M6-02：浏览器 autoplay 限制——首次用户交互时创建/恢复 AudioContext
+installAudioUnlock();
 if (mode === "mock") rerender(view);
 else startEngineMode({ toast });

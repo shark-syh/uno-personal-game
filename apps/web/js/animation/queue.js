@@ -1,7 +1,11 @@
+import { applyEventEffect, cleanupEffects, motionFactor } from "./effects.js";
+import { playSfxForEvent } from "../audio/sfx.js";
 import { hideChallengeHand, showChallengeHand, showOpponentLookedNotice } from "../ui/challengeReveal.js";
 
 /** M5-01：挑战成功展示对方手牌的时长（2~3 秒，展示期间保持输入锁） */
 const CHALLENGE_REVEAL_MS = 2600;
+/** 事件队列基础节奏（无额外动效时每条事件 200ms，M3-2 起的约定） */
+const BASE_EVENT_MS = 200;
 
 let timer = null;
 let completion = null;
@@ -19,10 +23,16 @@ function isChallengeHandEvent(event) {
   return event?.type === "CHALLENGE_SUCCESS" && Array.isArray(event.hand);
 }
 
+/** AI 挑战人类成功：只提示，不展示牌面（M5-01） */
+function isAiLookedEvent(event) {
+  return event?.type === "CHALLENGE_SUCCESS" && !Array.isArray(event.hand) && event.target === 0;
+}
+
 /** 清理当前播放的定时器与临时禁用状态（不触发完成回调） */
 function clearRun() {
   clearTimeout(timer);
   timer = null;
+  cleanupEffects();
   hideChallengeHand();
   document.querySelector("#game-screen")?.removeAttribute("aria-busy");
   document.querySelector("#action-bar")?.removeAttribute("aria-disabled");
@@ -47,11 +57,17 @@ export function cancelEvents() {
 export function playEvents(events = [], done = () => {}) {
   cancelEvents();
   completion = done;
+  // M6-05：基础节奏跟随动画速度设置（fast/正常）与 ?slow=1 调试模式
+  const baseEventMs = Math.max(90, Math.round(BASE_EVENT_MS * motionFactor()));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const animationOff = document.documentElement.dataset.animation === "false";
   const revealEvent = events.find(isChallengeHandEvent);
   if (reduced || animationOff) {
-    // 信息展示不因关闭动效而丢失：静态展示后自动消失，期间同样锁输入
+    // 关闭动效时：音效仍按事件播放（受设置开关控制）；挑战手牌展示保留（信息不因动效关闭而丢失）
+    events.forEach((event) => {
+      playSfxForEvent(event);
+      if (isAiLookedEvent(event)) showOpponentLookedNotice(event.challenger);
+    });
     if (revealEvent) {
       lockInput();
       showChallengeHand({ targetSeat: revealEvent.target, hand: revealEvent.hand, duration: CHALLENGE_REVEAL_MS });
@@ -77,14 +93,16 @@ export function playEvents(events = [], done = () => {}) {
     }
     const event = events[index];
     index += 1;
-    let delay = 200;
+    playSfxForEvent(event);
+    let delay = baseEventMs;
     if (isChallengeHandEvent(event)) {
       // 人类挑战 AI 成功：展示对方手牌 2~3 秒，期间输入保持锁定
       showChallengeHand({ targetSeat: event.target, hand: event.hand, duration: CHALLENGE_REVEAL_MS });
       delay = CHALLENGE_REVEAL_MS;
-    } else if (event.type === "CHALLENGE_SUCCESS" && event.target === 0) {
-      // AI 挑战人类成功：只提示「查看了你的手牌」，不展示牌面
-      showOpponentLookedNotice(event.challenger);
+    } else {
+      if (isAiLookedEvent(event)) showOpponentLookedNotice(event.challenger);
+      const effectMs = applyEventEffect(event);
+      if (effectMs > delay) delay = effectMs;
     }
     timer = window.setTimeout(next, delay);
   };
