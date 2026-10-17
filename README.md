@@ -6,14 +6,16 @@
 
 > ⚠️ 个人非商业练习项目。UNO® 是 Mattel 的注册商标，本项目与其无关联。
 
-## 当前状态（M0 + M1 规则引擎已完成）
+## 当前状态（M0 + M1 规则引擎 + M2 本地 AI 已完成）
 
 - ✅ 调研、开发计划、UI ↔ 引擎契约（见 `开发计划.md`、`UI开发提示词.md`）
 - ✅ 54 张 CC0 卡面资源（`apps/web/cards/`）
 - ✅ 工程骨架、本地服务（静态托管 + `/api/health`、`/api/config`）、智谱连通性冒烟脚本
 - ✅ M1 规则引擎（闭环）：牌组/开局、回合主循环、动作牌完整规则、宽松叠牌、+4 挑战、UNO 喊与抓、牌堆耗尽与结算 `getResult`（含平局）
 - ✅ UI 第一阶段（mock 驱动）：大厅/牌桌/结算 + 54 张卡面；大厅含「+4 挑战」开始前勾选项
-- ⬜ 下一步：M2 本地 AI → M3-2 UI 对接引擎。**当前浏览器里仍是 mock 演示，不能真打**；引擎能力可用命令行 demo 与测试验证。
+- ✅ M2 本地 AI：候选生成 + 启发式评分 + 记牌器 + 挑战/诈唬策略 + 四档难度（休闲/简单/真实/骨灰级）+ 自对弈基准（`npm run selfplay`，700 局验收：非法动作 0、难度胜率单调、平均回合约 50）
+- ⬜ 下一步：M3-2 UI 对接引擎。**当前浏览器里仍是 mock 演示，不能真打**；引擎/AI 能力可用命令行 demo、自对弈与测试验证。
+- ✅ 已建 git 仓库并提交 MVP 基线（M0+M1+UI）与 M2 里程碑（本地版本控制，便于回滚）。
 
 ## 环境要求
 
@@ -57,8 +59,16 @@ npm run dev
 | `npm run typecheck` | TypeScript 类型检查 |
 | `npm run lint` | ESLint 检查 |
 | `npm run smoke:ai` | 测试智谱 Key 连通性（需先配置 `.env`） |
-| `npm run selfplay` | AI 自对弈基准（M2 阶段实现） |
+| `npm run selfplay` | AI 自对弈基准（M2）：非法动作数、四档难度胜率单调性、平均回合数 |
 | `npm run process:cards` | 重新处理 `research/cards` 里的卡面资源 |
+
+自对弈基准示例（项目根目录）：
+
+```bash
+npm run selfplay                          # 相邻难度各 200 局 + 4 人混战 100 局
+npm run selfplay -- --games 300 --mixed 200
+npm run selfplay -- --games 100 --no-mixed --seed demo
+```
 
 ## 目录结构
 
@@ -67,7 +77,7 @@ uno/
 ├─ apps/web/           # 前端（原生 HTML/CSS/JS，零构建；外部 Codex 产出）
 ├─ apps/server/        # 本地服务（静态托管 + 智谱 API 代理）
 ├─ packages/game-core/ # 规则引擎（M1）
-├─ packages/ai/        # 本地启发式 AI（M2）
+├─ packages/ai/        # 本地启发式 AI（M2：四档难度 + 记牌 + 自对弈）
 ├─ scripts/            # 工具脚本（卡面处理、AI 冒烟、自对弈）
 ├─ research/           # 调研资料与原始卡面（CC0）
 ├─ 开发计划.md         # 完整开发计划（规则规格、架构、里程碑）
