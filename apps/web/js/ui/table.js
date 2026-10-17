@@ -21,9 +21,11 @@ export function renderTable(view, context) {
       case "REVERSE": return "方向改变";
       case "PILE_RESHUFFLE": return "牌堆重新洗牌";
       case "PLAYER_OUT": return `${nameOf(event.seat)} 出完了手牌`;
-      case "ROUND_END": return event.reason === "deck-empty"
-        ? `牌堆耗尽，${nameOf(event.winnerSeat)} 手牌最少获胜`
-        : `${nameOf(event.winnerSeat)} 获胜`;
+      case "ROUND_END": return event.winnerSeat === null
+        ? (event.reason === "deck-empty" ? "牌堆耗尽，平局" : "平局")
+        : event.reason === "deck-empty"
+          ? `牌堆耗尽，${nameOf(event.winnerSeat)} 手牌最少获胜`
+          : `${nameOf(event.winnerSeat)} 获胜`;
       case "STACK_PUSH": return `${nameOf(event.seat)} 叠牌，累计需摸 ${event.total} 张`;
       case "STACK_RESOLVE": return `${nameOf(event.seat)} 摸 ${event.total} 张（叠牌结算）`;
       case "CHALLENGE_SUCCESS": return `挑战成功：${nameOf(event.challenger)} 查看 ${nameOf(event.target)} 的手牌`;

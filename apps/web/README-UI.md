@@ -1,52 +1,61 @@
 # UNO 单机版 UI
 
-这是第一阶段的纯渲染 UI，使用原生 HTML、CSS 和 ES2022 模块，没有构建工具、第三方依赖或网络请求。规则引擎、AI 和发牌逻辑不在本阶段实现；UI 只消费 `GameView`，并把 `UiAction` 原样交给动作处理器。
+这是原生 HTML/CSS/ES Module UI（零构建、无第三方依赖）。**M3-2 起默认进入「引擎模式」**：页面直接连真实规则引擎与本地 AI，可以完整打完一局；mock 模式保留用于 UI 回归。
 
 ## 预览
 
 在仓库根目录执行：
 
 ```bash
-cd apps/web
-python -m http.server 8080
+npm run dev
 ```
 
-浏览器打开 `http://localhost:8080/` 即可预览全部 UI（M3-2 引擎接入前**默认 mock 模式**，不再需要 `?mock=1`；`?mock=0` 或 `?mode=engine` 为等待引擎接入的引擎模式）。ES Module 需要静态服务器，不能直接用 `file://` 打开。
+浏览器打开 `http://localhost:3000/` 即可真打（大厅选人数/难度/+4 挑战 → 开始游戏）。
+`npm run dev` / `npm start` 前会自动执行 `npm run build:web-engine`，把 TS 引擎 + AI 打包到 `js/vendor/uno-engine.js`（该产物已提交，静态服务可直接托管）。
 
-## Mock 局面
+调试参数：
 
-默认是**干净预览**：进入大厅、不显示开发工具条。`?mock=1` 或 `?dev=1` 进入**开发模式**（显示工具条、点击动作有「（演示）已提交：…」toast 与控制台日志）。工具条包含 `lobby`、`normal-play`、`ai-thinking`、`stack-response`、`wild-color-picker`、`challenge-decide`、`uno-window`、`catch-uno`、`result`、`ten-players` 和额外的 `two-players`。切换局面会直接构造对应 `GameView`。`?mock=0` 时为引擎模式：工具条隐藏，大厅按钮不生效，操作交给注册的动作处理器消费（M3-2 起启用）。
+- `?mock=1`：mock 开发模式（显示开发工具条，可切换 11 种局面；动作只打印/演示，不推进真实规则）。
+- `?test=1`：引擎模式自动化验收用快速模式（AI 思考延迟 ~15ms、UNO 窗口 120ms、事件类型打印到 console.debug）。
+- `?engine-dev=1`：引擎模式，仅打印事件/AI 决策日志。
 
-也可在控制台调用 `window.UnoApp.setMockMode(true, "normal-play")` 开启工具条；调用 `setMockMode(false)` 退出 mock。接入引擎时先调用 `setActionHandler(fn)`，再调用 `render(view)`；引擎提供的 `view.mock` 决定模式。`render` 不修改传入对象，`playEvents` 单独消费事件并回调，不自动推进回合。
+## 引擎模式（M3-2）
+
+- 入口：`js/engine/engineMode.js`（通过 `window.UnoApp` 契约渲染 view / 播放事件 / 接收动作）。
+- 启动流程：大厅 `START_GAME` → `createInitialGame(config)`（含 `challengeWild4` / 难度 / 玩家名）→ `getGameView()` → `UnoApp.render(view)` + `playEvents` → 人类操作或 AI 调度。
+- 人类操作：UI 的 UiAction → `toEngineAction()` → `applyAction`；动作合法性由引擎校验（UI 不写规则）。
+- AI 回合：本地 `decide()`（M2 四档难度）+ 按难度/设置加"思考延迟"并显示「思考中」气泡；动画播放期间 `aria-busy` 锁输入。
+- UNO 窗口：人类有 2.5s 点「UNO! / 抓他！」；超时后由当前行动者继续（引擎自动结算 AI 抓人）。
+- 结算：`getResult` → 契约 `result`（含平局）；「再来一局」沿用大厅配置，新随机种子。
+- 隐藏信息：`packages/game-core/src/public-view.ts` 统一脱敏（他人手牌 / wild4Info / 他人摸牌牌面 / AI 挑战看到的手牌），UI 只拿得到公开信息。
+
+## 动效与交互（当前阶段）
+
+- 事件队列 `js/animation/queue.js`：按事件逐条 200ms 播放，期间 `#game-screen[aria-busy=true]`、手牌/操作栏/弹窗按钮禁用，播放完恢复。
+- 动画开关：设置里的「动画」关闭时跳过队列；系统 `prefers-reduced-motion: reduce` 时也直接完成。
+- 已有 CSS 动效：卡牌悬停/合法高亮过渡、弹窗进场 `dialog-in`、UNO 按钮脉冲 `uno-pulse`、AI 思考气泡 `dots`（`js/ui/players.js` 挂 `.thinking` class）。
+- 发牌/飞牌/彩带等第二阶段复杂动效尚未实现（M6 打磨阶段）。
+- `?mock=1` 的开发工具条含「重播动画」按钮，可重放当前 mock 的 events。
+- `npm run verify:ui`：无头 Chrome 自动验收（完整对局 3 局 / 动效队列 / reduced-motion / 动画关闭 / 控制台与网络 / 弹窗与 UNO 脉冲 / 截图），报告输出到 `review-assets/ui-m32-verify.md`。
 
 ## 文件说明
 
 - `index.html`：三个屏幕和契约规定的 DOM 锚点。
 - `styles/`：设计 token、牌桌布局、卡牌、组件和基础动画。
-- `js/mock/mockView.js`：可重复使用的 mock `GameView` 数据。
+- `js/app.js`：启动、屏幕切换、动作分发（默认引擎模式；`?mock=1` 走 mock）。
+- `js/engine/engineMode.js`：M3-2 引擎模式控制器（真实对局 / AI 调度 / UNO 窗口）。
+- `js/vendor/uno-engine.js`：自动生成的浏览器引擎 ESM（`npm run build:web-engine`，请勿手改）。
+- `js/mock/mockView.js`：可重复使用的 mock `GameView` 数据（UI 回归用）。
 - `js/ui/`：按区域幂等渲染，不从 DOM 反推状态。
-- `js/animation/queue.js`：第一阶段事件队列，每条事件 200ms；尊重 reduced motion。
+- `js/animation/queue.js`：事件队列（每条事件 200ms；尊重 reduced motion / 动画开关）。
 - `js/state/`：`uno:settings` 和 `uno:stats` 的 localStorage 读写。
 
-## 实现假设
+## 实现约定
 
-- 牌面图片优先加载 `cards/{faceCode}.png`；图片失败时由卡牌节点绘制色块和短标签，不展示破图。卡面已由 `scripts/process-cards.py` 统一处理：去除原始模板外圈黑边并把图案居中（240×360，四边白边一致）。
+- 牌面图片优先加载 `cards/{faceCode}.png`；图片失败时由卡牌节点绘制色块和短标签，不展示破图。
 - 手牌排布：默认全部排开（间距 10px）；数量超出可用宽度时均匀折叠（每张至少露出 36px，仍放不下则手牌区横向滚动）；鼠标悬停/键盘聚焦时当前牌提到最上层并上浮。
-- mock 的 `START_GAME`、`RESTART`、`BACK_TO_LOBBY` 仅切换 mock view；其它动作不改变规则状态。
-- 大厅新增「规则选项 · +4 挑战」勾选框（默认开启）：`START_GAME.config` 会附带 `challengeWild4` 布尔值，供 M3-2 对接时传给引擎 `GameConfig.challengeWild4`；关闭后引擎侧 +4 直接结算摸 4，不进入挑战窗口。
-- 设置弹窗保存音效、动画、AI 速度和自动喊 UNO 四项；其余契约设置字段保留默认值。
+- 大厅「规则选项 · +4 挑战」勾选框随 `START_GAME.config.challengeWild4` 传入引擎；关闭后 +4 直接摸 4、不进入挑战窗口。
+- 设置弹窗保存音效、动画、AI 速度和自动喊 UNO；其中动画/AI 速度/自动喊 UNO 在引擎模式生效（音效待 M6）。
 - 每个 AI 的台词与思考状态在 `speech-layer` 内按 `data-seat` 呈现；座位内展示头像、名字、手牌数、UNO 和最近出牌。
-- 事件动画为短计时队列，不包含发牌、飞牌、粒子和彩带等第二阶段效果。
-- 若引擎重绘移除了弹窗原触发控件，关闭弹窗后焦点回到当前屏幕首个可用控件。
-- 音效开关仅保存偏好，第一阶段没有音频资源或音频播放；AI 速度与自动喊 UNO 设置交由后续引擎消费。
-- 战绩弹窗只展示本地缓存，不在 mock 切换或结算渲染时写入战绩。
-
-## 实际检查记录
-
-- 14 个 JavaScript 文件通过 Node 语法检查；HTML 引用的 5 个 CSS 和 1 个入口模块存在；54 个 manifest 卡面文件存在。
-- HTML/CSS/JS 外链扫描无结果；静态服务 `/`、`/cards/R7.png`、`/styles/tokens.css` 返回 200。
-- 10 个必需 mock 和额外的双人 mock 均经工具条切换、DOM 及卡面加载检查；未捕获控制台错误或警告。
-- 2/4/10 人在 1024、1280、1920 宽度经元素边界检查，无页面横向溢出、座位互相重叠或座位越界；390 宽十人布局的样式优先级冲突已修复并复测无横向溢出。
-- mock 的人数、手牌数、动作关联卡牌和 CHOOSE_COLOR 字段通过数据检查。
-
-以上属于静态检查和浏览器自动化检查，不是人类视觉或交互验收。卡牌悬停观感、颜色辨识、弹窗键盘操作体验、1024×768 密度以及触屏实机体验仍需人工确认。规则、AI、音效播放和第二阶段复杂动画不属于本次交付。
+- 音效开关仅保存偏好，当前阶段没有音频资源或音频播放。
+- 战绩弹窗只展示本地缓存；结算暂不写入战绩（M6 实现）。

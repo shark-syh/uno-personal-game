@@ -1,0 +1,220 @@
+{
+  "checks": [
+    {
+      "name": "默认入口为引擎模式（真实对局）",
+      "ok": true,
+      "detail": "getMode()=engine"
+    },
+    {
+      "name": "引擎模式标记 `data-engine=\"on\"`",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "大厅选项齐全（人数 9 档 / 难度 4 档 / AI 模式 3 档 / +4 挑战默认开）",
+      "ok": true,
+      "detail": "{\"counts\":9,\"difficulties\":4,\"modes\":3,\"challenge\":true}"
+    },
+    {
+      "name": "开局：人类 7 张手牌 + 3 个 AI 座位",
+      "ok": true,
+      "detail": "{\"hand\":7,\"opponents\":3,\"failed\":0,\"overflow\":{\"scroll\":1440,\"client\":1440}}"
+    },
+    {
+      "name": "开局卡面全部加载成功",
+      "ok": true,
+      "detail": "failed=0"
+    },
+    {
+      "name": "1440 宽无横向溢出",
+      "ok": true,
+      "detail": "{\"scroll\":1440,\"client\":1440}"
+    },
+    {
+      "name": "第 1 局完整打完并进入结算（🏆 小美 获胜）",
+      "ok": true,
+      "detail": "[\"你8 张 · 趣味分数 53\",\"老王2 张 · 趣味分数 8\",\"小美0 张 · 趣味分数 0\",\"阿强6 张 · 趣味分数 44\"]"
+    },
+    {
+      "name": "第 1 局：再来一局 / 退出回大厅可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "第 2 局完整打完并进入结算（🏆 小美 获胜）",
+      "ok": true,
+      "detail": "[\"你10 张 · 趣味分数 98\",\"老王4 张 · 趣味分数 30\",\"小美0 张 · 趣味分数 0\",\"阿强3 张 · 趣味分数 34\"]"
+    },
+    {
+      "name": "第 2 局：再来一局 / 退出回大厅可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "第 3 局完整打完并进入结算（🏆 老王 获胜）",
+      "ok": true,
+      "detail": "[\"你6 张 · 趣味分数 60\",\"老王0 张 · 趣味分数 0\"]"
+    },
+    {
+      "name": "第 3 局：再来一局 / 退出回大厅可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "引擎事件覆盖：出牌/摸牌/回合结束",
+      "ok": true,
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":92,\"REVERSE\":13,\"STACK_PUSH\":12,\"COLOR_SET\":13,\"STACK_RESOLVE\":6,\"DRAW\":36,\"SKIP\":12,\"CHALLENGE_SUCCESS\":3,\"UNO_CALLED\":7,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+    },
+    {
+      "name": "引擎事件包含叠牌/挑战/UNO 路径（随机对局统计）",
+      "ok": true,
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":92,\"REVERSE\":13,\"STACK_PUSH\":12,\"COLOR_SET\":13,\"STACK_RESOLVE\":6,\"DRAW\":36,\"SKIP\":12,\"CHALLENGE_SUCCESS\":3,\"UNO_CALLED\":7,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+    },
+    {
+      "name": "引擎模式：事件播放期间出现 aria-busy 输入锁",
+      "ok": true,
+      "detail": "busy 记录 15 次"
+    },
+    {
+      "name": "引擎模式：动画期间操作按钮被禁用",
+      "ok": true,
+      "detail": "{\"actionDisabled\":0,\"handDisabled\":7,\"busyAttr\":\"true\"}"
+    },
+    {
+      "name": "引擎模式：AI 回合显示「思考中」气泡",
+      "ok": true,
+      "detail": "thinking 出现动画名=none"
+    },
+    {
+      "name": "引擎模式：动画结束后 aria-busy 解除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "事件队列逐条播放（5 事件 ≈ 1000ms）",
+      "ok": true,
+      "detail": "elapsed=1035ms"
+    },
+    {
+      "name": "事件队列期间 aria-busy=true 且操作按钮禁用",
+      "ok": true,
+      "detail": "{\"busy\":true,\"disabled\":6}"
+    },
+    {
+      "name": "事件队列结束后 aria-busy / aria-disabled 清理",
+      "ok": true,
+      "detail": "{\"busy\":null,\"actionBarDisabled\":null}"
+    },
+    {
+      "name": "reduced-motion 下跳过动画（<100ms 完成）",
+      "ok": true,
+      "detail": "elapsed=0ms"
+    },
+    {
+      "name": "设置关闭动画后跳过动画（<100ms）",
+      "ok": true,
+      "detail": "elapsed=0ms"
+    },
+    {
+      "name": "弹窗进场动画 dialog-in 生效",
+      "ok": true,
+      "detail": "animationName=dialog-in"
+    },
+    {
+      "name": "UNO 按钮脉冲动画 uno-pulse 生效",
+      "ok": true,
+      "detail": "animationName=uno-pulse"
+    },
+    {
+      "name": "AI「思考中」气泡 dots 动画生效",
+      "ok": true,
+      "detail": "::after animationName=dots"
+    },
+    {
+      "name": "mock 结算页正常渲染（UI 回归）",
+      "ok": true,
+      "detail": "🏆 你 获胜"
+    },
+    {
+      "name": "1024 宽大厅无横向溢出",
+      "ok": true,
+      "detail": "{\"scroll\":1024,\"client\":1024}"
+    },
+    {
+      "name": "没有控制台 JS 异常",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "没有 console.error",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "没有失败的网络请求",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "没有 4xx/5xx 响应",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "所有请求同源（无外链）",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "引擎 bundle 被页面加载（js/vendor/uno-engine.js）",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "engineEvents": {
+    "DEAL": 20,
+    "START_CARD": 6,
+    "PLAY": 92,
+    "REVERSE": 13,
+    "STACK_PUSH": 12,
+    "COLOR_SET": 13,
+    "STACK_RESOLVE": 6,
+    "DRAW": 36,
+    "SKIP": 12,
+    "CHALLENGE_SUCCESS": 3,
+    "UNO_CALLED": 7,
+    "PLAYER_OUT": 3,
+    "ROUND_END": 3
+  },
+  "gameSummaries": [
+    {
+      "title": "🏆 小美 获胜",
+      "rows": [
+        "你8 张 · 趣味分数 53",
+        "老王2 张 · 趣味分数 8",
+        "小美0 张 · 趣味分数 0",
+        "阿强6 张 · 趣味分数 44"
+      ]
+    },
+    {
+      "title": "🏆 小美 获胜",
+      "rows": [
+        "你10 张 · 趣味分数 98",
+        "老王4 张 · 趣味分数 30",
+        "小美0 张 · 趣味分数 0",
+        "阿强3 张 · 趣味分数 34"
+      ]
+    },
+    {
+      "title": "🏆 老王 获胜",
+      "rows": [
+        "你6 张 · 趣味分数 60",
+        "老王0 张 · 趣味分数 0"
+      ]
+    }
+  ],
+  "consoleErrors": [],
+  "networkFailures": [],
+  "badResponses": [],
+  "pageExceptions": []
+}

@@ -6,16 +6,17 @@
 
 > ⚠️ 个人非商业练习项目。UNO® 是 Mattel 的注册商标，本项目与其无关联。
 
-## 当前状态（M0 + M1 规则引擎 + M2 本地 AI 已完成）
+## 当前状态（M0 + M1 + M2 + M3-2 已完成，浏览器可真实对战）
 
 - ✅ 调研、开发计划、UI ↔ 引擎契约（见 `开发计划.md`、`UI开发提示词.md`）
 - ✅ 54 张 CC0 卡面资源（`apps/web/cards/`）
 - ✅ 工程骨架、本地服务（静态托管 + `/api/health`、`/api/config`）、智谱连通性冒烟脚本
 - ✅ M1 规则引擎（闭环）：牌组/开局、回合主循环、动作牌完整规则、宽松叠牌、+4 挑战、UNO 喊与抓、牌堆耗尽与结算 `getResult`（含平局）
 - ✅ UI 第一阶段（mock 驱动）：大厅/牌桌/结算 + 54 张卡面；大厅含「+4 挑战」开始前勾选项
-- ✅ M2 本地 AI：候选生成 + 启发式评分 + 记牌器 + 挑战/诈唬策略 + 四档难度（休闲/简单/真实/骨灰级）+ 自对弈基准（`npm run selfplay`，700 局验收：非法动作 0、难度胜率单调、平均回合约 50）
-- ⬜ 下一步：M3-2 UI 对接引擎。**当前浏览器里仍是 mock 演示，不能真打**；引擎/AI 能力可用命令行 demo、自对弈与测试验证。
-- ✅ 已建 git 仓库并提交 MVP 基线（M0+M1+UI）与 M2 里程碑（本地版本控制，便于回滚）。
+- ✅ M2 本地 AI：候选生成 + 启发式评分 + 记牌器 + 挑战/诈唬策略 + 四档难度 + 自对弈基准（`npm run selfplay`）
+- ✅ M3-2 UI 对接引擎：**浏览器里现在可以真打了**（1 真人 + 2~9 AI，四档难度可选）；引擎/本地 AI 由 `npm run build:web-engine` 打包为浏览器 ESM；含 AI 思考延迟、UNO 2.5s 反应窗口、结算/再来一局/回大厅、隐藏信息过滤
+- ⬜ 下一步（等指令）：M4 智谱混合 AI（在线 AI 思考/台词/降级）；M5/M6 规则边界与动效打磨（发牌/飞牌/音效等第二阶段动效）
+- ✅ 已建 git 仓库（本地版本控制，便于回滚），每个模块完成后提交
 
 ## 环境要求
 
@@ -38,15 +39,17 @@ npm run dev
 
 > 也可以直接双击根目录的 **`启动服务.bat`** 一键启动（首次会自动安装依赖，关闭窗口即停止服务）。
 
-- 前端页面由 `apps/web/index.html` 提供（当前为 mock 模式，可直接点开始体验界面）。
+- 前端页面由 `apps/web/index.html` 提供；**默认直接进入真实对局**：选人数/难度/是否关闭「+4 挑战」后点「开始游戏」即可与本地 AI 打牌。
 - 服务启动日志会打印端口、前端页面状态、智谱 Key 是否已配置。
+- UI 回归/开发预览：URL 加 `?mock=1`（显示 mock 开发工具条，可切换 11 种局面）；`?test=1` 为自动化验证用的快速模式（AI 思考延迟缩短、打印事件日志）。
 
 ## 常见问题
 
 | 现象 | 原因 / 解决 |
 |------|-------------|
 | 打开 `http://localhost:3000` 什么都没有 / 无法访问 | **本地服务没有在运行**。双击 `启动服务.bat` 或命令窗执行 `npm run dev`，看到 `[uno-server] 已启动` 后再刷新页面 |
-| 网页能点但不像真实对局 | 正常：M3-2 接入引擎前 UI 为 mock 演示（点击只切画面/提示）；真实对局要等 M2 本地 AI + M3-2 对接 |
+| 浏览器能打牌但 AI 不动 / 页面报错 | 先 `Ctrl+F5` 强制刷新；若仍异常，确认 `npm run build:web-engine` 产物已生成（`apps/web/js/vendor/uno-engine.js`），或重新 `npm run dev`（启动前会自动重建） |
+| 想回到第一阶段的 mock 演示 | 打开 `http://localhost:3000/?mock=1`（顶部会出现 mock 开发工具条） |
 | 端口被占用（`EADDRINUSE`） | 改 `.env` 里的 `PORT`，或关掉占用 3000 端口的程序 |
 
 ## 常用命令
@@ -61,6 +64,8 @@ npm run dev
 | `npm run smoke:ai` | 测试智谱 Key 连通性（需先配置 `.env`） |
 | `npm run selfplay` | AI 自对弈基准（M2）：非法动作数、四档难度胜率单调性、平均回合数 |
 | `npm run profile:ai` | AI 打牌实测（M2）：每难度 5 局，统计平均用时与打牌风格 |
+| `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`；`npm run dev/start` 前会自动执行） |
+| `npm run verify:ui` | M3-2 浏览器验收：无头 Chrome 自动打完 3 局真实对局 + 动效/控制台/网络/隐藏信息检查（需服务已启动） |
 | `npm run process:cards` | 重新处理 `research/cards` 里的卡面资源 |
 
 自对弈基准示例（项目根目录）：
@@ -75,11 +80,13 @@ npm run selfplay -- --games 100 --no-mixed --seed demo
 
 ```
 uno/
-├─ apps/web/           # 前端（原生 HTML/CSS/JS，零构建；外部 Codex 产出）
+├─ apps/web/           # 前端（原生 HTML/CSS/JS，零构建；默认引擎模式）
+│  └─ js/engine/       # M3-2 引擎模式控制器（真实对局驱动 / AI 调度 / UNO 窗口）
+│  └─ js/vendor/       # 自动生成的浏览器引擎 ESM（uno-engine.js，勿手改）
 ├─ apps/server/        # 本地服务（静态托管 + 智谱 API 代理）
-├─ packages/game-core/ # 规则引擎（M1）
+├─ packages/game-core/ # 规则引擎（M1 + M3-2 公开视图）
 ├─ packages/ai/        # 本地启发式 AI（M2：四档难度 + 记牌 + 自对弈）
-├─ scripts/            # 工具脚本（卡面处理、AI 冒烟、自对弈）
+├─ scripts/            # 工具脚本（卡面处理、AI 冒烟、自对弈、浏览器引擎打包、UI 验收）
 ├─ research/           # 调研资料与原始卡面（CC0）
 ├─ 开发计划.md         # 完整开发计划（规则规格、架构、里程碑）
 ├─ UI开发提示词.md     # UI ↔ 引擎契约与分阶段提示词

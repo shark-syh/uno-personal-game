@@ -20,6 +20,12 @@ export function render(view, context) {
   if (view.screen === "game") renderTable(view, context);
   if (view.screen === "result") renderResult(view, context);
   renderDevToolbar(view, context);
-  if (view.screen === "game" && view.phase === "choose-color") context.openDialog("color", { actions: view.human.legalActions.filter((action) => action.type === "CHOOSE_COLOR") }, "auto");
-  if (view.screen === "game" && view.phase === "challenge-decide") context.openDialog("challenge", { actions: view.human.legalActions }, "auto");
+  // 只在"人类确实要操作"时自动弹窗：AI 的选色/挑战回合不能给人类弹一个空弹窗
+  const humanTurn = view.currentSeat === view.human?.seat && (view.human?.legalActions?.length || 0) > 0;
+  if (view.screen === "game" && view.phase === "choose-color" && humanTurn) {
+    context.openDialog("color", { actions: view.human.legalActions.filter((action) => action.type === "CHOOSE_COLOR") }, "auto");
+  }
+  if (view.screen === "game" && view.phase === "challenge-decide" && humanTurn) {
+    context.openDialog("challenge", { actions: view.human.legalActions }, "auto");
+  }
 }

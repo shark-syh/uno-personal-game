@@ -16,3 +16,4 @@ export * from './setup.ts';
 export * from './legal.ts';
 export * from './engine.ts';
 export * from './result.ts';
+export * from './public-view.ts';

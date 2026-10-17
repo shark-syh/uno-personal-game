@@ -16,6 +16,14 @@ export function renderPlayers(view) {
     return node;
   }));
   speechRoot.replaceChildren(...opponents.map((player) => {
-    const bubble = document.createElement("span"); bubble.dataset.seat = String(player.seat); bubble.className = "opponent-line"; bubble.textContent = player.thinking ? `${player.name}：思考中…` : view.settings?.aiChatter !== false && player.line ? `${player.name}：“${player.line}”` : ""; return bubble;
+    const bubble = document.createElement("span");
+    bubble.dataset.seat = String(player.seat);
+    bubble.className = player.thinking ? "opponent-line thinking" : "opponent-line";
+    bubble.textContent = player.thinking
+      ? `${player.name}：思考中`
+      : view.settings?.aiChatter !== false && player.line
+        ? `${player.name}：“${player.line}”`
+        : "";
+    return bubble;
   }));
 }

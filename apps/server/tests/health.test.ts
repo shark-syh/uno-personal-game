@@ -65,3 +65,23 @@ describe('未知路径', () => {
     expect(body.error).toBe('NOT_FOUND');
   });
 });
+
+describe('静态资源（M3-2 引擎模式）', () => {
+  it('GET / 返回 UNO 页面并加载 app.js', async () => {
+    const res = await fetch(`${baseUrl}/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('UNO 单机版');
+    expect(html).toContain('js/app.js');
+  });
+
+  it('GET /js/vendor/uno-engine.js 返回可用的浏览器 ES Module', async () => {
+    const res = await fetch(`${baseUrl}/js/vendor/uno-engine.js`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type') || '').toContain('javascript');
+    const text = await res.text();
+    expect(text).toContain('export {');
+    expect(text).toContain('getGameView');
+    expect(text).toContain('decide');
+  });
+});
