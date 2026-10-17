@@ -253,16 +253,26 @@ export interface GameState {
   rng: RngState;
 }
 
-/** 单个玩家的结算数据（见 `开发计划.md` 4.10） */
+/** 单个玩家的结算数据（见 `开发计划.md` 4.10；2026-10-18 起取消计分，改为操作统计图表） */
 export interface PlayerResult {
   seat: number;
   name: string;
   isHuman: boolean;
   /** 剩余手牌（结算页展示） */
   remaining: Card[];
-  /** 趣味分数：数字=面值，动作牌=20，万能牌=50（不决定胜负） */
-  score: number;
   saidUno: boolean;
+  /** 本局出牌次数（PLAY 事件数） */
+  plays: number;
+  /** 本局摸牌张数（DRAW 事件 count 之和） */
+  draws: number;
+  /** 本局叠牌次数（STACK_PUSH 事件数） */
+  stackPlays: number;
+  /** 本局成功喊 UNO 次数 */
+  unoCalls: number;
+  /** 本局被抓 UNO 次数 */
+  unoCaught: number;
+  /** 本局发起 +4 挑战次数（挑战成功/失败都算一次） */
+  challenges: number;
 }
 
 /** 对局结算结果（getResult 返回；字段对齐 UI 契约的 result，平局时 winnerSeat=null） */
@@ -273,11 +283,6 @@ export interface GameResult {
   isDraw: boolean;
   reason: 'empty-hand' | 'deck-empty';
   players: PlayerResult[];
-  /**
-   * 赢家本局得分（官方 UNO 计分口径）：对手剩余手牌趣味分之和；仅结算展示，不决定胜负。
-   * 平局（winnerSeat=null）时为 0。
-   */
-  winnerScore: number;
   /** 回合数（turnCount） */
   turns: number;
   /** 已执行动作数 */
@@ -290,6 +295,8 @@ export interface GameResult {
   stackPlays: number;
   /** 成功喊 UNO 的次数 */
   unoCalls: number;
+  /** 发起 +4 挑战的总次数 */
+  challenges: number;
   /** 对局时长（毫秒）；引擎不记录时钟，由调用方（UI）传入，默认 0 */
   durationMs: number;
 }

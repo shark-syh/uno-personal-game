@@ -43,8 +43,34 @@ export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "uno-window") return common({ name, phase: "uno-window", hand: [card("R7")], players: basePlayers(4), canCallUno: true, legalActions: [action("uno", "CALL_UNO", "UNO!")] });
   if (name === "catch-uno") { const players = basePlayers(4); players[1].handCount = 1; return common({ name, phase: "uno-window", players, canCatch: [1], legalActions: [action("catch:1", "CATCH_UNO", "抓他！", { targetSeat: 1 })], events: [{ type: "PLAY", seat: 1, card: card("B3") }] }); }
   if (name === "result") {
-    const players = basePlayers(4).map((p, i) => ({ seat: p.seat, name: p.name, remaining: i === 0 ? [] : [card(["R1", "G2", "B3", "Y4"][i]), card(["R2", "G3", "B4", "Y5"][i])], score: i === 0 ? 0 : 42 + i * 13 }));
-    return { ...common({ name, phase: "round-end", hand: [] }), result: { winnerSeat: 0, winnerScore: players.slice(1).reduce((sum, player) => sum + player.score, 0), players, turns: 23, durationMs: 184000 } };
+    const players = basePlayers(4).map((p, i) => ({
+      seat: p.seat,
+      name: p.name,
+      remaining: i === 0 ? [] : [card(["R1", "G2", "B3", "Y4"][i]), card(["R2", "G3", "B4", "Y5"][i])],
+      saidUno: i === 2,
+      plays: i === 0 ? 12 : 8 + i,
+      draws: i === 0 ? 6 : 4 + i,
+      stackPlays: i === 0 ? 3 : i,
+      unoCalls: i === 0 ? 1 : 0,
+      unoCaught: i === 1 ? 1 : 0,
+      challenges: i === 2 ? 1 : 0,
+    }));
+    return {
+      ...common({ name, phase: "round-end", hand: [] }),
+      result: {
+        winnerSeat: 0,
+        players,
+        turns: 23,
+        durationMs: 184000,
+        actions: 42,
+        plays: 28,
+        draws: 18,
+        stackPlays: 6,
+        unoCalls: 2,
+        challenges: 1,
+        reason: "empty-hand",
+      },
+    };
   }
   if (name === "ten-players") return common({ name, count: 10, players: basePlayers(10, { thinking: true }), legalActions: [] });
   return normal("normal-play", 4);

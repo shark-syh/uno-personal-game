@@ -1018,50 +1018,58 @@ function isTerminal(state) {
 }
 
 // packages/game-core/src/result.ts
-function cardScore(card) {
-  if (card.kind === "wild" || card.kind === "wild4") return 50;
-  if (card.kind === "number") return card.value ?? 0;
-  return 20;
-}
-function scoreHand(cards) {
-  return cards.reduce((sum, card) => sum + cardScore(card), 0);
+function emptyStats() {
+  return { plays: 0, draws: 0, stackPlays: 0, unoCalls: 0, unoCaught: 0, challenges: 0 };
 }
 function getResult(state, options = {}) {
   if (state.phase !== "round-end") throw new Error("\u5BF9\u5C40\u5C1A\u672A\u7ED3\u675F\uFF0C\u65E0\u6CD5\u751F\u6210\u7ED3\u7B97\u6570\u636E");
+  const stats = state.players.map(() => emptyStats());
+  for (const event of state.history) {
+    switch (event.type) {
+      case "PLAY":
+        stats[event.seat].plays += 1;
+        break;
+      case "DRAW":
+        stats[event.seat].draws += event.count;
+        break;
+      case "STACK_PUSH":
+        stats[event.seat].stackPlays += 1;
+        break;
+      case "UNO_CALLED":
+        stats[event.seat].unoCalls += 1;
+        break;
+      case "UNO_CAUGHT":
+        stats[event.seat].unoCaught += 1;
+        break;
+      case "CHALLENGE_SUCCESS":
+      case "CHALLENGE_FAIL":
+        stats[event.challenger].challenges += 1;
+        break;
+      default:
+        break;
+    }
+  }
   const players = state.players.map((player) => ({
     seat: player.seat,
     name: player.name,
     isHuman: player.isHuman,
     remaining: player.hand.map((card) => ({ ...card })),
-    score: scoreHand(player.hand),
-    saidUno: player.saidUno
+    saidUno: player.saidUno,
+    ...stats[player.seat]
   }));
-  const winnerScore = state.winnerSeat === null ? 0 : players.reduce(
-    (sum, player) => player.seat === state.winnerSeat ? sum : sum + player.score,
-    0
-  );
-  let draws = 0;
-  let plays = 0;
-  let stackPlays = 0;
-  let unoCalls = 0;
-  for (const event of state.history) {
-    if (event.type === "DRAW") draws += event.count;
-    else if (event.type === "PLAY") plays += 1;
-    else if (event.type === "STACK_PUSH") stackPlays += 1;
-    else if (event.type === "UNO_CALLED") unoCalls += 1;
-  }
+  const total = (key) => stats.reduce((sum, seatStats) => sum + seatStats[key], 0);
   return {
     winnerSeat: state.winnerSeat,
     isDraw: state.winnerSeat === null,
     reason: state.endReason ?? "empty-hand",
     players,
-    winnerScore,
     turns: state.turnCount,
     actions: state.actionCount,
-    draws,
-    plays,
-    stackPlays,
-    unoCalls,
+    draws: total("draws"),
+    plays: total("plays"),
+    stackPlays: total("stackPlays"),
+    unoCalls: total("unoCalls"),
+    challenges: total("challenges"),
     durationMs: options.durationMs ?? 0
   };
 }
@@ -1302,16 +1310,21 @@ function toPublicResult(state, durationMs = 0) {
       name: player.name,
       isHuman: player.isHuman,
       remaining: player.remaining,
-      score: player.score,
-      saidUno: player.saidUno
+      saidUno: player.saidUno,
+      plays: player.plays,
+      draws: player.draws,
+      stackPlays: player.stackPlays,
+      unoCalls: player.unoCalls,
+      unoCaught: player.unoCaught,
+      challenges: player.challenges
     })),
-    winnerScore: result.winnerScore,
     turns: result.turns,
     actions: result.actions,
     draws: result.draws,
     plays: result.plays,
     stackPlays: result.stackPlays,
     unoCalls: result.unoCalls,
+    challenges: result.challenges,
     durationMs: result.durationMs
   };
 }
@@ -2497,7 +2510,6 @@ export {
   buildMemory,
   buildPlayerNames,
   cardLabel,
-  cardScore,
   clamp01,
   colorBeforeLastWild4,
   countCards,
@@ -2542,7 +2554,6 @@ export {
   sameAction,
   sanitizeEventsForSeat,
   sanitizeHistory,
-  scoreHand,
   shuffle,
   toEngineAction,
   toPublicResult,

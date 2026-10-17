@@ -106,7 +106,7 @@ export interface PublicTableView {
   winnerSeat: number | null;
 }
 
-/** 契约 §1.2.2 result（平局时 winnerSeat = null） */
+/** 契约 §1.2.2 result（平局时 winnerSeat = null；2026-10-18 起取消计分，新增操作统计） */
 export interface PublicResult {
   winnerSeat: number | null;
   isDraw: boolean;
@@ -116,17 +116,22 @@ export interface PublicResult {
     name: string;
     isHuman: boolean;
     remaining: Card[];
-    score: number;
     saidUno: boolean;
+    /** 操作统计图表数据（由事件历史汇总，不涉及分数） */
+    plays: number;
+    draws: number;
+    stackPlays: number;
+    unoCalls: number;
+    unoCaught: number;
+    challenges: number;
   }>;
-  /** 赢家本局得分（对手剩余手牌趣味分之和；仅展示，平局为 0；M3-3 向后兼容扩展） */
-  winnerScore: number;
   turns: number;
   actions: number;
   draws: number;
   plays: number;
   stackPlays: number;
   unoCalls: number;
+  challenges: number;
   durationMs: number;
 }
 
@@ -400,7 +405,7 @@ function lastPlayedBySeat(state: GameState): Map<number, Card> {
   return map;
 }
 
-/** 结算映射（M1-7 getResult → 契约 result） */
+/** 结算映射（M1-7/M3-3 getResult → 契约 result；2026-10-18 起为操作统计，不含分数） */
 export function toPublicResult(state: GameState, durationMs = 0): PublicResult {
   const result = getResult(state, { durationMs });
   return {
@@ -412,16 +417,21 @@ export function toPublicResult(state: GameState, durationMs = 0): PublicResult {
       name: player.name,
       isHuman: player.isHuman,
       remaining: player.remaining,
-      score: player.score,
       saidUno: player.saidUno,
+      plays: player.plays,
+      draws: player.draws,
+      stackPlays: player.stackPlays,
+      unoCalls: player.unoCalls,
+      unoCaught: player.unoCaught,
+      challenges: player.challenges,
     })),
-    winnerScore: result.winnerScore,
     turns: result.turns,
     actions: result.actions,
     draws: result.draws,
     plays: result.plays,
     stackPlays: result.stackPlays,
     unoCalls: result.unoCalls,
+    challenges: result.challenges,
     durationMs: result.durationMs,
   };
 }

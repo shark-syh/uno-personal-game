@@ -319,8 +319,8 @@ describe('M3-2 公开视图：结构与契约字段', () => {
   });
 });
 
-describe('M3-2 公开视图：结算映射（含平局）', () => {
-  it('出完手牌：screen=result，result 含胜者/剩余手牌/趣味分/时长', () => {
+describe('M3-2 公开视图：结算映射（含平局；2026-10-18 起取消计分，改为操作统计）', () => {
+  it('出完手牌：screen=result，result 含胜者/剩余手牌/操作统计/时长', () => {
     const state = makeState([[num('red', 5)], [num('green', 9), num('blue', 2)]], num('red', 3));
     const played = applyAction(state, {
       type: 'PLAY_CARD',
@@ -338,13 +338,30 @@ describe('M3-2 公开视图：结算映射（含平局）', () => {
     expect(view.result!.players).toHaveLength(2);
     expect(view.result!.players[0]!.remaining).toHaveLength(0);
     expect(view.result!.players[1]!.remaining).toHaveLength(2);
-    expect(view.result!.players[1]!.score).toBeGreaterThan(0);
-    // 赢家本局得分（官方 UNO 口径）= 对手剩余手牌趣味分之和；本局只有 1 位对手
-    expect(view.result!.winnerScore).toBe(view.result!.players[1]!.score);
+    // 操作统计（图表数据）：座位 0 出 1 张；座位 1 无出牌/摸牌
+    expect(view.result!.players[0]).toMatchObject({
+      plays: 1,
+      draws: 0,
+      stackPlays: 0,
+      unoCalls: 0,
+      unoCaught: 0,
+      challenges: 0,
+    });
+    expect(view.result!.players[1]).toMatchObject({
+      plays: 0,
+      draws: 0,
+      stackPlays: 0,
+      unoCalls: 0,
+      unoCaught: 0,
+      challenges: 0,
+    });
+    expect(view.result).toMatchObject({ plays: 1, draws: 0, actions: 1 });
+    expect(view.result).not.toHaveProperty('winnerScore');
+    expect(view.result!.players[0]).not.toHaveProperty('score');
     expect(view.human.legalActions).toEqual([]);
   });
 
-  it('toPublicResult 在平局时 winnerSeat=null、isDraw=true', () => {
+  it('toPublicResult 在平局时 winnerSeat=null、isDraw=true，且不含分数', () => {
     const state = createInitialGame({ playerCount: 2, seed: 'draw-view' });
     state.phase = 'round-end';
     state.winnerSeat = null;
@@ -354,12 +371,17 @@ describe('M3-2 公开视图：结算映射（含平局）', () => {
     });
     state.discardPile = [num('red', 1)];
     state.drawPile = [];
+    state.history = [{ type: 'PLAY', seat: 0, card: num('red', 1) }];
     const result = toPublicResult(state, 500);
     expect(result.winnerSeat).toBeNull();
     expect(result.isDraw).toBe(true);
     expect(result.reason).toBe('deck-empty');
     expect(result.durationMs).toBe(500);
-    expect(result.winnerScore).toBe(0); // 平局无赢家
+    expect(result).not.toHaveProperty('winnerScore');
+    expect(result.players[0]).not.toHaveProperty('score');
+    expect(result.players[0]).toMatchObject({ plays: 1, draws: 0 });
+    expect(result.players[0]!.remaining).toHaveLength(1);
+    expect(result).toMatchObject({ plays: 1, draws: 0, actions: 0 });
   });
 });
 

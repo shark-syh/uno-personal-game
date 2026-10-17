@@ -150,18 +150,33 @@ python -m http.server 8080
 {
   winnerSeat: 0,          // null = 平局（牌堆耗尽且手牌最少者并列，M1-7 起支持）
   players: [
-    { seat: 0, name: "你", remaining: [], score: 0 },
-    { seat: 1, name: "老王", remaining: [/* Card[] */], score: 87 }
+    {
+      seat: 0, name: "你", remaining: [], saidUno: true,
+      plays: 12, draws: 6, stackPlays: 3, unoCalls: 1, unoCaught: 0, challenges: 0
+    },
+    {
+      seat: 1, name: "老王", remaining: [/* Card[] */], saidUno: false,
+      plays: 8, draws: 5, stackPlays: 2, unoCalls: 0, unoCaught: 1, challenges: 1
+    }
   ],
-  winnerScore: 202,       // 赢家本局得分 = 对手剩余手牌 score 之和（官方 UNO 计分口径；平局为 0；仅展示，不决定胜负）
   turns: 23,
+  actions: 42,            // 总动作数
+  plays: 28,              // 总出牌次数
+  draws: 18,              // 总摸牌张数
+  stackPlays: 6,          // 总叠牌次数
+  unoCalls: 2,            // 总喊 UNO 次数
+  challenges: 1,          // 总 +4 挑战次数
   durationMs: 184000
 }
 ```
 
-> M1-7 引擎 `getResult(state, { durationMs })` 额外提供（M3-2 可按需映射，不强制）：`isDraw`、`reason`（`empty-hand` / `deck-empty`）、`actions`、`draws`、`plays`、`stackPlays`、`unoCalls`。平局时结算页应显示「平局」而不是胜者。
+> M1-7 引擎 `getResult(state, { durationMs })` 额外提供：`isDraw`、`reason`（`empty-hand` / `deck-empty`）。平局时结算页应显示「平局」而不是胜者。
 >
-> 2026-10-17 追加（结算口径，向后兼容扩展）：`result.winnerScore` = 赢家获得的对手剩余手牌分值之和（官方 UNO 计分口径，仅展示不决定胜负；平局为 0）。结算页应在赢家行展示「本局得分」，非赢家行保留「趣味分数」（= 本人剩余手牌分值）。
+> **2026-10-18 用户要求（重要，契约变更）**：**取消分数计算功能**——result 中不再有 `score` / `winnerScore` 字段；结算页保留最终结算，并改为用**数据图表总结操作**：
+> - 每位玩家操作统计（`players[]` 的 `plays` / `draws` / `stackPlays` / `unoCalls` / `unoCaught` / `challenges`，由引擎按事件历史汇总）；
+> - 总览数字（回合 / 用时 / 动作 / 出牌 / 摸牌 / 叠牌 / 喊 UNO / 挑战）；
+> - 图表建议：每位玩家操作堆叠条、全体动作构成环形图、剩余手牌颜色构成堆叠条；
+> - 结算行只展示「剩余手牌 + 张数」（赢家标注「出完手牌 / 手牌最少获胜」），**任何位置都不再出现分数**。
 
 ### 1.3 UiAction —— UI 的唯一输出
 

@@ -57,7 +57,7 @@ const HELP = `UNO 回合主循环演示（M1-7 规则引擎闭环）
   --help               显示帮助
 
 说明：默认策略会尽量叠牌（+2/+4 任意互叠）、面对单张 +4 选择挑战、剩 1 张时喊 UNO；
-      AI 喊/抓 UNO 概率按难度（真实/骨灰级必喊必抓）；结算用引擎 getResult 输出趣味分数与统计。
+      AI 喊/抓 UNO 概率按难度（真实/骨灰级必喊必抓）；结算用引擎 getResult 输出每位玩家操作统计（不再计分）。
 `;
 
 function parseArgs(argv: string[]): DemoOptions {
@@ -280,10 +280,10 @@ try {
       `结果: ${result.isDraw ? '平局（牌堆耗尽，手牌最少者并列）' : `${winnerName} 获胜`} | 结束原因: ${result.reason === 'empty-hand' ? '出完手牌' : '牌堆耗尽'} | 动作数: ${result.actions} | 回合数: ${result.turns} | 用时: ${result.durationMs}ms | 全牌校验: ${countCards(state)}/108 ✔`,
     );
     console.log(
-      `剩余手牌（趣味分）: ${result.players.map((player) => `${player.name}:${player.remaining.length} 张/${player.score} 分`).join(' | ')} | 抽牌堆: ${state.drawPile.length} | 弃牌堆: ${state.discardPile.length}`,
+      `剩余手牌: ${result.players.map((player) => `${player.name}:${player.remaining.length} 张`).join(' | ')} | 抽牌堆: ${state.drawPile.length} | 弃牌堆: ${state.discardPile.length}`,
     );
     console.log(
-      `统计: 出牌 ${result.plays} | 摸牌 ${result.draws} | 叠牌 ${result.stackPlays} | 喊 UNO ${result.unoCalls}`,
+      `操作统计: 出牌 ${result.plays} | 摸牌 ${result.draws} | 叠牌 ${result.stackPlays} | 喊 UNO ${result.unoCalls} | 挑战 ${result.challenges}`,
     );
     console.log(
       `事件统计: ${[...eventCounts.entries()].map(([type, count]) => `${type}×${count}`).join(' ')}`,

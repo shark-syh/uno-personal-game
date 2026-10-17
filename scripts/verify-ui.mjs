@@ -180,35 +180,50 @@ window.__verify = {
       pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   },
-  resultScoreAudit: () => {
-    const scoreOf = (code) => {
-      if (code === 'WC' || code === 'W4') return 50;
-      if (code.length === 2 && 'BGRY'.includes(code[0]) && code[1] >= '0' && code[1] <= '9') {
-        return Number(code[1]);
-      }
-      return 20;
+  resultChartAudit: () => {
+    const content = document.querySelector('#result-content');
+    const text = content?.textContent || '';
+    // 从结算行文本里取「N 张」的数字（不用正则，避免模板字符串转义告警）
+    const shownCountOf = (rowText) => {
+      const zhang = rowText.indexOf('张');
+      if (zhang < 0) return null;
+      let end = zhang;
+      while (end > 0 && rowText[end - 1] === ' ') end -= 1;
+      let start = end;
+      while (start > 0 && rowText[start - 1] >= '0' && rowText[start - 1] <= '9') start -= 1;
+      return start < end ? Number(rowText.slice(start, end)) : null;
     };
-    return [...document.querySelectorAll('.result-row')].map((row) => {
-      const codes = [...row.querySelectorAll('.mini-card')].map((node) => node.dataset.faceCode);
-      const expected = codes.reduce((sum, code) => sum + scoreOf(code), 0);
-      const text = row.textContent.trim();
-      const index = text.indexOf('趣味分数');
-      const hasScore = index >= 0;
-      const shown = hasScore ? parseInt(text.slice(index + 4).trim(), 10) || 0 : 0;
-      const winIndex = text.indexOf('本局得分');
-      const winnerScoreShown =
-        winIndex >= 0 ? parseInt(text.slice(winIndex + 4).trim(), 10) || 0 : null;
-      return {
-        cards: codes.length,
-        expected,
-        shown,
-        hasScore,
-        winnerScoreShown,
-        isOut: text.includes('出完手牌'),
-        isWinnerRow: text.includes('出完手牌') || text.includes('手牌最少获胜'),
-        text,
-      };
+    const rows = [...document.querySelectorAll('.result-row')].map((row) => ({
+      seat: Number(row.dataset.seat),
+      cards: [...row.querySelectorAll('.mini-card')].length,
+      shownCount: shownCountOf(row.textContent || ''),
+      isWinnerRow:
+        row.textContent.includes('出完手牌') || row.textContent.includes('手牌最少获胜'),
+      text: row.textContent.trim(),
+    }));
+    const summary = {};
+    document.querySelectorAll('[data-summary]').forEach((node) => {
+      summary[node.dataset.summary] = Number(node.dataset.value);
     });
+    const playerOps = [...document.querySelectorAll('[data-chart="player-ops"] [data-seat]')].map(
+      (node) => ({ seat: Number(node.dataset.seat), metrics: JSON.parse(node.dataset.metrics || '{}') }),
+    );
+    const handColors = [...document.querySelectorAll('[data-chart="hand-colors"] [data-seat]')].map(
+      (node) => ({ seat: Number(node.dataset.seat), colors: JSON.parse(node.dataset.colors || '{}') }),
+    );
+    const mixNode = document.querySelector('[data-chart="action-mix"]');
+    return {
+      hasScoreText: text.includes('趣味分数') || text.includes('本局得分') || text.includes('得分'),
+      hasCharts: Boolean(document.querySelector('#result-charts')),
+      chartCount: document.querySelectorAll('#result-charts .result-chart').length,
+      summary,
+      playerOps,
+      handColors,
+      mix: JSON.parse((mixNode && mixNode.dataset.mix) || '{}'),
+      hasMix: Boolean(mixNode),
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      rows,
+    };
   },
   overflow: () => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }),
   failedImages: () => [...document.images].filter((image) => !image.complete || image.naturalWidth === 0).length,
@@ -484,7 +499,7 @@ async function main() {
     );
     const raceTypes = ['casual', 'easy', 'realistic', 'hardcore'];
     const gameSummaries = [];
-    const resultAudits = [];
+    const resultChartAudits = [];
     const gameStepStats = { card: 0, drawLabel: false };
     for (let gameIndex = 0; gameIndex < 3; gameIndex += 1) {
       await navigate(`${BASE_URL}/?test=1`);
@@ -591,7 +606,7 @@ async function main() {
         summary.rows.length >= 2,
         JSON.stringify(summary.rows),
       );
-      resultAudits.push(await evaluate('window.__verify.resultScoreAudit()'));
+      resultChartAudits.push(await evaluate('window.__verify.resultChartAudit()'));
 
       // 再来一局 → 再退出回大厅
       await evaluate('window.__verify.clickRestart()');
@@ -609,53 +624,86 @@ async function main() {
       await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回到大厅');
       check(`第 ${gameIndex + 1} 局：再来一局 / 退出回大厅可用`, true);
     }
-    // BUG-05：结算页趣味分数口径（= 结算时剩余手牌分值；赢家行改为出完手牌/手牌最少获胜）
-    const auditRows = resultAudits.flat();
-    const scoredRows = auditRows.filter((row) => row.hasScore);
+    // 2026-10-18 用户要求：取消分数计算，保留最终结算，结算页改为数据图表总结操作
+    const chartAudits = resultChartAudits;
     check(
-      '结算趣味分数 = 剩余手牌分值（引擎 → 公开视图 → UI 全链路一致）',
-      scoredRows.length >= 2 && scoredRows.every((row) => row.expected === row.shown),
-      JSON.stringify(scoredRows.slice(0, 4)),
+      '结算页已取消分数计算与展示（无「趣味分数 / 本局得分」文字）',
+      chartAudits.length > 0 && chartAudits.every((audit) => !audit.hasScoreText),
+      JSON.stringify(chartAudits.map((audit) => audit.rows.map((row) => row.text))),
     );
     check(
-      '结算页存在非赢家趣味分 > 0（未出现全员清零）',
-      scoredRows.some((row) => row.shown > 0),
-      `maxShown=${Math.max(0, ...scoredRows.map((row) => row.shown))}`,
+      '结算页图表齐全（每位玩家操作 / 全体动作构成 / 剩余手牌构成 + 总览数字）',
+      chartAudits.every(
+        (audit) =>
+          audit.hasCharts &&
+          audit.chartCount === 3 &&
+          audit.playerOps.length === audit.rows.length &&
+          audit.handColors.length === audit.rows.length &&
+          audit.hasMix &&
+          !audit.pageOverflow &&
+          Object.keys(audit.summary).length >= 6,
+      ),
+      JSON.stringify(
+        chartAudits.map((audit) => ({
+          charts: audit.chartCount,
+          ops: audit.playerOps.length,
+          hands: audit.handColors.length,
+          summary: Object.keys(audit.summary).length,
+        })),
+      ),
     );
     check(
-      '结算页赢家行显示「出完手牌 / 手牌最少获胜 + 本局得分」（不再显示趣味分数 0 造成误解）',
-      resultAudits.every(
-        (rows) =>
-          rows.filter((row) => row.isWinnerRow).length <= 1 &&
-          rows.every(
-            (row) =>
-              !row.isWinnerRow || (!row.hasScore && typeof row.winnerScoreShown === 'number'),
-          ),
-      ) &&
-        resultAudits.reduce((sum, rows) => sum + rows.filter((row) => row.isWinnerRow).length, 0) >=
-          1,
-      JSON.stringify(resultAudits.map((rows) => rows.map((row) => row.text))),
+      '每位玩家操作统计与总览合计一致（出牌/摸牌/叠牌/喊UNO/挑战）',
+      chartAudits.every((audit) => {
+        const sum = (key) =>
+          audit.playerOps.reduce((total, player) => total + (player.metrics[key] || 0), 0);
+        return (
+          sum('plays') === audit.summary['出牌'] &&
+          sum('draws') === audit.summary['摸牌'] &&
+          sum('stackPlays') === audit.summary['叠牌'] &&
+          sum('unoCalls') === audit.summary['喊 UNO'] &&
+          sum('challenges') === audit.summary['挑战'] &&
+          audit.summary['动作'] >= audit.summary['出牌']
+        );
+      }),
+      JSON.stringify(
+        chartAudits.map((audit) => ({ summary: audit.summary, players: audit.playerOps })),
+      ),
     );
-    // 官方 UNO 计分口径：赢家本局得分 = 对手剩余手牌分值之和
-    const winnerScoreAudits = resultAudits.map((rows) => {
-      const winnerRow = rows.find((row) => row.isWinnerRow);
-      if (!winnerRow) return null;
-      const othersScore = rows
-        .filter((row) => row !== winnerRow)
-        .reduce((sum, row) => sum + row.expected, 0);
-      return { shown: winnerRow.winnerScoreShown, expected: othersScore, text: winnerRow.text };
-    });
     check(
-      '结算页赢家「本局得分」= 对手剩余手牌分值之和（官方 UNO 计分口径）',
-      winnerScoreAudits
-        .filter(Boolean)
-        .every(
-          (item) =>
-            typeof item.shown === 'number' && item.shown === item.expected && item.shown > 0,
-        ) && winnerScoreAudits.filter(Boolean).length >= 1,
-      JSON.stringify(winnerScoreAudits),
+      '全体操作构成环形图数据自洽（各部分之和 = 五项操作合计）',
+      chartAudits.every((audit) => {
+        const mixSum = Object.values(audit.mix).reduce((total, value) => total + value, 0);
+        const expectSum = ['出牌', '摸牌', '叠牌', '喊 UNO', '挑战'].reduce(
+          (sum, label) => sum + (audit.summary[label] || 0),
+          0,
+        );
+        return mixSum === expectSum;
+      }),
+      JSON.stringify(chartAudits.map((audit) => audit.mix)),
     );
-    // BUG-06：出牌改为点击手牌后，自动化必须能通过手牌点击完成对局
+    check(
+      '剩余手牌构成图表与结算行剩余张数一致',
+      chartAudits.every((audit) =>
+        audit.rows.every((row) => {
+          const colors = audit.handColors.find((item) => item.seat === row.seat)?.colors || {};
+          return (
+            Object.values(colors).reduce((total, value) => total + value, 0) === row.cards &&
+            row.shownCount === row.cards
+          );
+        }),
+      ),
+      JSON.stringify(chartAudits.map((audit) => ({ rows: audit.rows, hands: audit.handColors }))),
+    );
+    check(
+      '结算页赢家行标注「出完手牌 / 手牌最少获胜」',
+      chartAudits.every((audit) => audit.rows.filter((row) => row.isWinnerRow).length <= 1) &&
+        chartAudits.reduce(
+          (sum, audit) => sum + audit.rows.filter((row) => row.isWinnerRow).length,
+          0,
+        ) >= 1,
+      JSON.stringify(chartAudits.map((audit) => audit.rows.map((row) => row.text))),
+    ); // BUG-06：出牌改为点击手牌后，自动化必须能通过手牌点击完成对局
     check(
       '出牌通过点击手牌完成（操作栏无出牌按钮）',
       gameStepStats.card > 0,
