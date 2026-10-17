@@ -211,6 +211,10 @@ describe('M1-7 对局结算 getResult', () => {
       );
     }
     expect(summary.players.slice(1).some((player) => player.score > 0)).toBe(true);
+    // 官方 UNO 计分口径：赢家本局得分 = 对手剩余手牌趣味分之和
+    const opponentsScore = summary.players.slice(1).reduce((sum, player) => sum + player.score, 0);
+    expect(summary.winnerScore).toBe(opponentsScore);
+    expect(summary.winnerScore).toBeGreaterThan(0);
   });
 
   it('BUG-05 UNO 路径：剩 1 张喊 UNO 后出完最后一张，同样赢家 0 分、非赢家按手牌计分', () => {
@@ -241,6 +245,7 @@ describe('M1-7 对局结算 getResult', () => {
     expect(summary.players[0]).toMatchObject({ score: 0, remaining: [], saidUno: true });
     expect(summary.players[1]!.score).toBe(scoreHand([green9]));
     expect(summary.players[1]!.score).toBeGreaterThan(0);
+    expect(summary.winnerScore).toBe(scoreHand([green9]));
   });
 
   it('BUG-05 toPublicResult 的 players[].score / remaining 与 getResult 完全一致', () => {
@@ -263,6 +268,29 @@ describe('M1-7 对局结算 getResult', () => {
     expect(publicResult.winnerSeat).toBe(0);
     expect(publicResult.players[0]).toMatchObject({ score: 0, remaining: [] });
     expect(publicResult.players[1]!.score).toBe(scoreHand(ended.state.players[1]!.hand));
+    expect(publicResult.winnerScore).toBe(engineResult.winnerScore);
+    expect(publicResult.winnerScore).toBe(scoreHand(ended.state.players[1]!.hand));
+  });
+
+  it('官方 UNO 计分：赢家本局得分 = 对手剩余手牌趣味分之和（多人局）', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [
+        [red7],
+        [num('red', 9), skip('green')], // 9 + 20 = 29
+        [wild4()], // 50
+      ],
+      num('red', 3),
+    );
+    const ended = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    const summary = getResult(ended.state);
+
+    expect(summary.winnerSeat).toBe(0);
+    expect(summary.winnerScore).toBe(9 + 20 + 50);
+    expect(summary.winnerScore).toBe(
+      summary.players.slice(1).reduce((sum, player) => sum + player.score, 0),
+    );
+    expect(summary.winnerScore).toBeGreaterThan(summary.players[1]!.score); // 是总和而非单个对手
   });
 
   it('BUG-05 牌堆耗尽/平局结算：同样按剩余手牌计分', () => {
@@ -284,6 +312,7 @@ describe('M1-7 对局结算 getResult', () => {
       );
     }
     expect(summary.players[2]!.score).toBe(9 + 1); // 黄9 + 黄1
+    expect(summary.winnerScore).toBe(0); // 平局无赢家 → 本局得分 0
   });
 });
 

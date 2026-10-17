@@ -119,6 +119,8 @@ export interface PublicResult {
     score: number;
     saidUno: boolean;
   }>;
+  /** 赢家本局得分（对手剩余手牌趣味分之和；仅展示，平局为 0；M3-3 向后兼容扩展） */
+  winnerScore: number;
   turns: number;
   actions: number;
   draws: number;
@@ -413,6 +415,7 @@ export function toPublicResult(state: GameState, durationMs = 0): PublicResult {
       score: player.score,
       saidUno: player.saidUno,
     })),
+    winnerScore: result.winnerScore,
     turns: result.turns,
     actions: result.actions,
     draws: result.draws,

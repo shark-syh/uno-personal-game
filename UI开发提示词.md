@@ -153,12 +153,15 @@ python -m http.server 8080
     { seat: 0, name: "你", remaining: [], score: 0 },
     { seat: 1, name: "老王", remaining: [/* Card[] */], score: 87 }
   ],
+  winnerScore: 202,       // 赢家本局得分 = 对手剩余手牌 score 之和（官方 UNO 计分口径；平局为 0；仅展示，不决定胜负）
   turns: 23,
   durationMs: 184000
 }
 ```
 
 > M1-7 引擎 `getResult(state, { durationMs })` 额外提供（M3-2 可按需映射，不强制）：`isDraw`、`reason`（`empty-hand` / `deck-empty`）、`actions`、`draws`、`plays`、`stackPlays`、`unoCalls`。平局时结算页应显示「平局」而不是胜者。
+>
+> 2026-10-17 追加（结算口径，向后兼容扩展）：`result.winnerScore` = 赢家获得的对手剩余手牌分值之和（官方 UNO 计分口径，仅展示不决定胜负；平局为 0）。结算页应在赢家行展示「本局得分」，非赢家行保留「趣味分数」（= 本人剩余手牌分值）。
 
 ### 1.3 UiAction —— UI 的唯一输出
 

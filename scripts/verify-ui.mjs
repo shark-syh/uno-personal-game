@@ -195,11 +195,15 @@ window.__verify = {
       const index = text.indexOf('趣味分数');
       const hasScore = index >= 0;
       const shown = hasScore ? parseInt(text.slice(index + 4).trim(), 10) || 0 : 0;
+      const winIndex = text.indexOf('本局得分');
+      const winnerScoreShown =
+        winIndex >= 0 ? parseInt(text.slice(winIndex + 4).trim(), 10) || 0 : null;
       return {
         cards: codes.length,
         expected,
         shown,
         hasScore,
+        winnerScoreShown,
         isOut: text.includes('出完手牌'),
         isWinnerRow: text.includes('出完手牌') || text.includes('手牌最少获胜'),
         text,
@@ -498,6 +502,11 @@ async function main() {
       await evaluate('window.__verify.clickStart()');
       await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
       await waitFor('window.__verify.handCount() >= 7', 5000, '人类手牌 ≥7 张');
+      // 卡面图片异步解码：最多等 8s 再统计失败数，避免把"尚未解码完成"误判为加载失败
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if ((await evaluate('window.__verify.failedImages()')) === 0) break;
+        await sleep(200);
+      }
       const setup = await evaluate(
         `({ hand: window.__verify.handCount(), opponents: window.__verify.opponentCount(), failed: window.__verify.failedImages(), overflow: window.__verify.overflow() })`,
       );
@@ -614,15 +623,37 @@ async function main() {
       `maxShown=${Math.max(0, ...scoredRows.map((row) => row.shown))}`,
     );
     check(
-      '结算页赢家行改为「出完手牌 / 手牌最少获胜」（不再显示趣味分数 0 造成误解）',
+      '结算页赢家行显示「出完手牌 / 手牌最少获胜 + 本局得分」（不再显示趣味分数 0 造成误解）',
       resultAudits.every(
         (rows) =>
           rows.filter((row) => row.isWinnerRow).length <= 1 &&
-          rows.every((row) => !row.isWinnerRow || !row.hasScore),
+          rows.every(
+            (row) =>
+              !row.isWinnerRow || (!row.hasScore && typeof row.winnerScoreShown === 'number'),
+          ),
       ) &&
         resultAudits.reduce((sum, rows) => sum + rows.filter((row) => row.isWinnerRow).length, 0) >=
           1,
       JSON.stringify(resultAudits.map((rows) => rows.map((row) => row.text))),
+    );
+    // 官方 UNO 计分口径：赢家本局得分 = 对手剩余手牌分值之和
+    const winnerScoreAudits = resultAudits.map((rows) => {
+      const winnerRow = rows.find((row) => row.isWinnerRow);
+      if (!winnerRow) return null;
+      const othersScore = rows
+        .filter((row) => row !== winnerRow)
+        .reduce((sum, row) => sum + row.expected, 0);
+      return { shown: winnerRow.winnerScoreShown, expected: othersScore, text: winnerRow.text };
+    });
+    check(
+      '结算页赢家「本局得分」= 对手剩余手牌分值之和（官方 UNO 计分口径）',
+      winnerScoreAudits
+        .filter(Boolean)
+        .every(
+          (item) =>
+            typeof item.shown === 'number' && item.shown === item.expected && item.shown > 0,
+        ) && winnerScoreAudits.filter(Boolean).length >= 1,
+      JSON.stringify(winnerScoreAudits),
     );
     // BUG-06：出牌改为点击手牌后，自动化必须能通过手牌点击完成对局
     check(
@@ -755,16 +786,22 @@ async function main() {
       `line=${llmLineSeen} clearAfter=${lineClearMs}ms`,
     );
     await waitFor('window.__verify.busy() === false', 5000, '动画结束');
-    // 等到人类回合再退出，避免 AI 回合 busy 锁吞掉确认按钮（slow AI 下可能等几轮，放宽到 30s）
-    await waitFor(
-      '!window.__verify.busy() && window.__verify.humanReady()',
-      30000,
-      '人类回合可操作',
-    );
-    await click('#quit-game');
-    await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
-    await evaluate('window.__verify.clickQuitConfirm()');
-    await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, '回大厅');
+    // 等到人类回合再退出，避免 AI 回合 busy 锁吞掉确认按钮（slow AI/UNO 窗口下可能等几轮）
+    // 若对局已经结束（结算页），直接从结算页回大厅。
+    const section3Screen = await evaluate('window.__verify.visibleScreen()');
+    if (section3Screen === 'result') {
+      await evaluate('window.__verify.clickBackToLobby()');
+    } else {
+      await waitFor(
+        '!window.__verify.busy() && window.__verify.humanReady()',
+        45000,
+        '人类回合可操作',
+      );
+      await click('#quit-game');
+      await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
+      await evaluate('window.__verify.clickQuitConfirm()');
+    }
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回大厅');
     check(
       '回大厅后 AI 台词清空（不留对话/不跨局残留）',
       (await evaluate('window.__verify.speechLines().length')) === 0,
@@ -828,11 +865,17 @@ async function main() {
       `eventFeedChanged=${fallbackActionSeen}`,
     );
     await shot('ui-m4-ai-fallback-1440.png');
-    await waitFor('!window.__verify.busy() && window.__verify.humanReady()', 30000, '人类回合');
-    await click('#quit-game');
-    await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
-    await evaluate('window.__verify.clickQuitConfirm()');
-    await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, '回大厅');
+    // 对局可能已经结束（结算页）：从结算页回大厅；否则等人类回合后退出
+    const section3bScreen = await evaluate('window.__verify.visibleScreen()');
+    if (section3bScreen === 'result') {
+      await evaluate('window.__verify.clickBackToLobby()');
+    } else {
+      await waitFor('!window.__verify.busy() && window.__verify.humanReady()', 45000, '人类回合');
+      await click('#quit-game');
+      await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
+      await evaluate('window.__verify.clickQuitConfirm()');
+    }
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回大厅');
     check(
       '回大厅后 AI 台词清空（不留对话/不跨局残留）',
       (await evaluate('window.__verify.speechLines().length')) === 0,

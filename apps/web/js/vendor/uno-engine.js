@@ -1036,6 +1036,10 @@ function getResult(state, options = {}) {
     score: scoreHand(player.hand),
     saidUno: player.saidUno
   }));
+  const winnerScore = state.winnerSeat === null ? 0 : players.reduce(
+    (sum, player) => player.seat === state.winnerSeat ? sum : sum + player.score,
+    0
+  );
   let draws = 0;
   let plays = 0;
   let stackPlays = 0;
@@ -1051,6 +1055,7 @@ function getResult(state, options = {}) {
     isDraw: state.winnerSeat === null,
     reason: state.endReason ?? "empty-hand",
     players,
+    winnerScore,
     turns: state.turnCount,
     actions: state.actionCount,
     draws,
@@ -1300,6 +1305,7 @@ function toPublicResult(state, durationMs = 0) {
       score: player.score,
       saidUno: player.saidUno
     })),
+    winnerScore: result.winnerScore,
     turns: result.turns,
     actions: result.actions,
     draws: result.draws,

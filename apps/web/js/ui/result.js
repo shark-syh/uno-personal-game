@@ -1,24 +1,35 @@
 import { renderCard } from "./hand.js";
 
-// BUG-05：结算页展示加固（不改数据结构，仅改展示文案）
-const SCORE_LEGEND = "趣味分数 = 结算时剩余手牌分值（数字面值 / 动作 20 / 万能 50），赢家出完手牌记 0 分";
+// BUG-05 / 结算口径：趣味分数 = 每人剩余手牌分值；本局得分 = 赢家获得的对手剩余手牌分值之和（官方 UNO 计分口径）
+const SCORE_LEGEND = "趣味分数 = 结算时剩余手牌分值（数字面值 / 动作 20 / 万能 50）；本局得分 = 赢家获得的对手剩余手牌分值之和（仅展示，不决定胜负）";
+
+/** 赢家本局得分：优先用引擎结果里的 winnerScore，缺失时（如 mock 数据）按对手分数求和兜底 */
+function winnerScoreOf(result) {
+  if (Number.isFinite(result.winnerScore)) return result.winnerScore;
+  if (result.winnerSeat === null) return 0;
+  return (result.players || []).reduce(
+    (sum, player) => (player.seat === result.winnerSeat ? sum : sum + (player.score || 0)),
+    0,
+  );
+}
 
 export function renderResult(view, { onAction }) {
   const root = document.querySelector("#result-content"); const result = view.result || { winnerSeat: 0, players: [], turns: 0, durationMs: 0 }; const winner = result.players.find((player) => player.seat === result.winnerSeat); const isDraw = result.winnerSeat === null;
   const header = document.createElement("div"); header.className = "result-header"; const title = document.createElement("h2"); title.id = "result-title"; title.textContent = isDraw ? "🤝 平局" : `🏆 ${winner?.name || "赢家"} 获胜`; header.append(title);
   const stats = document.createElement("div"); stats.className = "result-stats"; const reasonText = result.reason === "deck-empty" ? " · 牌堆耗尽" : ""; stats.textContent = `回合 ${result.turns} · 用时 ${Math.round((result.durationMs || 0) / 1000)} 秒${reasonText}`; header.append(stats);
   const list = document.createElement("div"); list.className = "result-list";
+  const winnerScore = winnerScoreOf(result);
   result.players.forEach((player) => {
     const isWinnerRow = !isDraw && player.seat === result.winnerSeat;
     const remainingCount = player.remaining?.length || 0;
     const row = document.createElement("div"); row.className = `result-row${isWinnerRow ? " is-winner" : ""}`;
     const name = document.createElement("strong"); name.textContent = player.name;
     const cards = document.createElement("span"); cards.className = "result-cards"; (player.remaining || []).forEach((card) => cards.append(renderCard(card, { mini: true })));
-    // 赢家行按剩余手牌区分：出完手牌 → 「0 张 · 出完手牌」；牌堆耗尽按最少手牌判胜且仍有牌
-    // → 「N 张 · 手牌最少获胜」；非赢家 → 「N 张 · 趣味分数 X」，保持趣味分数口径一致。
+    // 赢家行：出完手牌 → 「0 张 · 出完手牌 · 本局得分 X」；牌堆耗尽按最少手牌判胜 → 「N 张 · 手牌最少获胜 · 本局得分 X」；
+    // 非赢家 → 「N 张 · 趣味分数 X」（赢家本局得分 = 对手剩余手牌分值之和，按官方 UNO 计分口径）。
     const score = document.createElement("span"); score.className = "result-score";
-    if (isWinnerRow && remainingCount === 0) score.textContent = "0 张 · 出完手牌";
-    else if (isWinnerRow) score.textContent = `${remainingCount} 张 · 手牌最少获胜`;
+    if (isWinnerRow && remainingCount === 0) score.textContent = `0 张 · 出完手牌 · 本局得分 ${winnerScore}`;
+    else if (isWinnerRow) score.textContent = `${remainingCount} 张 · 手牌最少获胜 · 本局得分 ${winnerScore}`;
     else score.textContent = `${remainingCount} 张 · 趣味分数 ${player.score}`;
     row.append(name, cards, score);
     list.append(row);

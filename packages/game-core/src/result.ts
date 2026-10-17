@@ -34,6 +34,16 @@ export function getResult(state: GameState, options: { durationMs?: number } = {
     saidUno: player.saidUno,
   }));
 
+  // 赢家本局得分（官方 UNO 计分口径）：赢家获得所有对手剩余手牌趣味分之和。
+  // 仅作结算展示，不决定胜负；平局无赢家 → 0。
+  const winnerScore =
+    state.winnerSeat === null
+      ? 0
+      : players.reduce(
+          (sum, player) => (player.seat === state.winnerSeat ? sum : sum + player.score),
+          0,
+        );
+
   let draws = 0;
   let plays = 0;
   let stackPlays = 0;
@@ -50,6 +60,7 @@ export function getResult(state: GameState, options: { durationMs?: number } = {
     isDraw: state.winnerSeat === null,
     reason: state.endReason ?? 'empty-hand',
     players,
+    winnerScore,
     turns: state.turnCount,
     actions: state.actionCount,
     draws,

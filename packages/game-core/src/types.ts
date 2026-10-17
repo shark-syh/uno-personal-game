@@ -273,6 +273,11 @@ export interface GameResult {
   isDraw: boolean;
   reason: 'empty-hand' | 'deck-empty';
   players: PlayerResult[];
+  /**
+   * 赢家本局得分（官方 UNO 计分口径）：对手剩余手牌趣味分之和；仅结算展示，不决定胜负。
+   * 平局（winnerSeat=null）时为 0。
+   */
+  winnerScore: number;
   /** 回合数（turnCount） */
   turns: number;
   /** 已执行动作数 */

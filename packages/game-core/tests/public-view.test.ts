@@ -339,6 +339,8 @@ describe('M3-2 公开视图：结算映射（含平局）', () => {
     expect(view.result!.players[0]!.remaining).toHaveLength(0);
     expect(view.result!.players[1]!.remaining).toHaveLength(2);
     expect(view.result!.players[1]!.score).toBeGreaterThan(0);
+    // 赢家本局得分（官方 UNO 口径）= 对手剩余手牌趣味分之和；本局只有 1 位对手
+    expect(view.result!.winnerScore).toBe(view.result!.players[1]!.score);
     expect(view.human.legalActions).toEqual([]);
   });
 
@@ -357,6 +359,7 @@ describe('M3-2 公开视图：结算映射（含平局）', () => {
     expect(result.isDraw).toBe(true);
     expect(result.reason).toBe('deck-empty');
     expect(result.durationMs).toBe(500);
+    expect(result.winnerScore).toBe(0); // 平局无赢家
   });
 });
 
