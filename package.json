@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "smoke:ai": "tsx scripts/smoke-ai.ts",
     "selfplay": "tsx scripts/selfplay.ts",
+    "profile:ai": "tsx scripts/ai-profile.ts",
     "demo:deal": "tsx scripts/deal-demo.ts",
     "demo:turn": "tsx scripts/turn-demo.ts",
     "process:cards": "python scripts/process-cards.py"

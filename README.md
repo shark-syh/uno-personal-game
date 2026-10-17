@@ -60,6 +60,7 @@ npm run dev
 | `npm run lint` | ESLint 检查 |
 | `npm run smoke:ai` | 测试智谱 Key 连通性（需先配置 `.env`） |
 | `npm run selfplay` | AI 自对弈基准（M2）：非法动作数、四档难度胜率单调性、平均回合数 |
+| `npm run profile:ai` | AI 打牌实测（M2）：每难度 5 局，统计平均用时与打牌风格 |
 | `npm run process:cards` | 重新处理 `research/cards` 里的卡面资源 |
 
 自对弈基准示例（项目根目录）：
