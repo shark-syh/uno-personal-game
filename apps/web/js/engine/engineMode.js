@@ -27,11 +27,14 @@ import {
 } from '../vendor/uno-engine.js';
 import { aiErrorMessage, createAiClient, getServerAiConfig } from '../ai/aiClient.js';
 import { getSettings } from '../state/settings.js';
+import { clearAllLines, clearPlayerLine } from '../ui/players.js';
 
 const AI_BASE_DELAY = { casual: 900, easy: 1100, realistic: 1400, hardcore: 1700 };
 const SPEED_SCALE = { slow: 1.6, normal: 1, fast: 0.45 };
 const LLM_CHANCE = { casual: 0.3, easy: 0.6, realistic: 1, hardcore: 1 };
 const UNO_WINDOW_MS = 2500;
+/** BUG-04：AI 台词存活时间（到期只删该座位气泡并清 map，不做整页 render） */
+const AI_LINE_TTL = 2600;
 const AVATARS = ['🧑', '🤖', '🧓', '🧑‍🎨', '🧑‍🚀', '🧙', '🦸', '🧑‍🍳', '🧑‍🔬', '🧑‍🌾'];
 
 /** 当前对局运行时 */
@@ -68,6 +71,46 @@ function setTimer(rt, callback, ms) {
 function clearRuntime(rt) {
   for (const id of rt.timers) window.clearTimeout(id);
   rt.timers.clear();
+}
+
+/** 取消某个座位的台词 TTL 计时器（计时器 id 同时登记在 rt.timers 里统一清理） */
+function clearAiLineTimer(rt, seat) {
+  const id = rt.aiLineTimers.get(seat);
+  if (id === undefined) return;
+  window.clearTimeout(id);
+  rt.timers.delete(id);
+  rt.aiLineTimers.delete(seat);
+}
+
+/**
+ * BUG-04：清空所有 AI 台词（map + TTL 计时器 + 气泡 DOM）。
+ * 用于新局 / 回大厅 / stopEngineMode / 结算 / 下一次 AI 决策开始（换人即消失）。
+ */
+function clearAiLines(rt) {
+  for (const id of rt.aiLineTimers.values()) {
+    window.clearTimeout(id);
+    rt.timers.delete(id);
+  }
+  rt.aiLineTimers.clear();
+  rt.aiLines.clear();
+  clearAllLines();
+}
+
+/**
+ * BUG-04：写入一条 AI 台词并注册 TTL。
+ * 到期时只删该座位的 map 项与气泡文本（players.js 的 clearPlayerLine），
+ * 不调用 UnoApp.render，避免关闭玩家弹窗或打断事件动画。
+ */
+function showAiLine(rt, seat, line) {
+  clearAiLineTimer(rt, seat);
+  rt.aiLines.set(seat, line);
+  const timerId = setTimer(rt, () => {
+    rt.aiLineTimers.delete(seat);
+    if (rt.aiLines.get(seat) !== line) return;
+    rt.aiLines.delete(seat);
+    clearPlayerLine(seat);
+  }, AI_LINE_TTL);
+  rt.aiLineTimers.set(seat, timerId);
 }
 
 /** 补 UI 侧字段（设置 / 头像 / 台词 / AI 运行时状态） */
@@ -116,6 +159,8 @@ function applyAndRender(rt, engineAction) {
     return;
   }
   rt.state = applied.state;
+  // BUG-04：对局结束/进入结算页时清空 AI 台词（map + 定时器 + 气泡）
+  if (isGameOver(rt.state)) clearAiLines(rt);
   renderAndPlay(rt, currentView(rt), () => continueGame(rt));
 }
 
@@ -272,7 +317,7 @@ async function runAiAction(rt, seat) {
         if (candidate) {
           rt.aiRuntime = 'zhipu';
           rt.lastLlmModel = result.model || rt.lastLlmModel;
-          if (result.line) rt.aiLines.set(seat, result.line);
+          if (result.line) showAiLine(rt, seat, result.line);
           if (isDevMode()) {
             console.debug('[uno-engine] llm-decision', {
               seat,
@@ -311,11 +356,13 @@ async function runAiAction(rt, seat) {
   applyAndRender(rt, action);
 }
 
-/** AI 回合：先显示思考气泡，再走混合决策 */
+/** AI 回合：先清掉上一轮台词，再显示思考气泡，最后走混合决策 */
 function scheduleAi(rt) {
   if (runtime !== rt || isGameOver(rt.state)) return;
   const seat = rt.state.currentSeat;
   if (seat === rt.humanSeat) return;
+  // BUG-04：下一次 AI 决策开始时清空旧台词（换人即消失）
+  clearAiLines(rt);
   window.UnoApp.render(currentView(rt, { thinkingSeat: seat }));
   void runAiAction(rt, seat);
 }
@@ -367,6 +414,8 @@ function continueGame(rt) {
 
 function startGame(lobbyConfig = {}) {
   stopEngineMode();
+  // BUG-04：新局从零开始，兜底清掉上一局可能残留的台词气泡
+  clearAllLines();
   lastLobbyConfig = {
     playerCount: 4,
     difficulty: 'realistic',
@@ -413,6 +462,8 @@ function startGame(lobbyConfig = {}) {
     aiConfigPromise: null,
     aiRuntime: lastLobbyConfig.aiMode === 'local' ? 'local' : null,
     aiLines: new Map(),
+    /** BUG-04：每个座位台词 TTL 的 timerId（id 同时登记在 rt.timers 中） */
+    aiLineTimers: new Map(),
     aiFailureNotified: false,
     lastLlmModel: null,
   };
@@ -469,11 +520,16 @@ export function startEngineMode(options = {}) {
   renderLobby();
 }
 
-/** 退出引擎模式（切 mock / 页面销毁时清理定时器，避免 AI 在后台继续行动） */
+/** 退出引擎模式（切 mock / 页面销毁时清理定时器与台词，避免 AI 在后台继续行动） */
 export function stopEngineMode() {
   if (runtime) {
+    // BUG-04：清 map + TTL 定时器 + 气泡 DOM，再统一清理运行时定时器
+    clearAiLines(runtime);
     clearRuntime(runtime);
     runtime = null;
+  } else {
+    // 无运行时也兜底清一次 DOM，避免切换模式后残留上一次的气泡
+    clearAllLines();
   }
   document.documentElement.dataset.engine = 'off';
 }

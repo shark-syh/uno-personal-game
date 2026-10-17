@@ -6,6 +6,7 @@ import {
   getAiView,
   getDifficultyProfile,
   estimateChallengeIllegalProbability,
+  estimateExpectedDraws,
 } from '../src/index.ts';
 import type { AiView } from '../src/index.ts';
 import { draw2, makeState, num, wild, wild4 } from './helpers.ts';
@@ -208,5 +209,66 @@ describe('M2 特征提取：挑战概率估计', () => {
       profile.challenge.priorIllegal,
       5,
     );
+  });
+});
+
+describe('M3-3 摸牌规则变更：drawCost = 期望摸牌数', () => {
+  function drawCandidate(state: GameState) {
+    const candidate = candidatesFor(state, 0, 'realistic').find((item) => item.kind === 'draw');
+    if (!candidate) throw new Error('摸牌候选不存在');
+    return candidate;
+  }
+
+  it('未知牌中可出的牌比例越高，期望摸牌数越小、摸牌代价越低', () => {
+    // 局面 A：只公开了 1 张红牌 → 剩余红牌/万能牌充足，摸 1 张大概率就能出
+    const richState = makeState([[num('blue', 5)], [num('green', 9)]], num('red', 3));
+    // 局面 B：弃牌堆已公开 21 张红牌 → 红牌/万能牌所剩无几，要摸很多张才能出
+    const poorState = makeState([[num('blue', 5)], [num('green', 9)]], num('red', 3), {
+      discardPile: [
+        num('red', 3),
+        ...Array.from({ length: 20 }, (_, index) => num('red', index % 10)),
+      ],
+    });
+
+    const richView = getAiView(richState, 0);
+    const poorView = getAiView(poorState, 0);
+    const richExpected = estimateExpectedDraws(richView, buildMemory(richView));
+    const poorExpected = estimateExpectedDraws(poorView, buildMemory(poorView));
+
+    expect(richExpected).toBe(1);
+    expect(poorExpected).toBeGreaterThan(richExpected);
+    expect(drawCandidate(poorState).features.drawCost).toBeGreaterThan(
+      drawCandidate(richState).features.drawCost,
+    );
+  });
+
+  it('drawCost 是自适应值而非旧规则的固定 1', () => {
+    const state = makeState([[num('blue', 5)], [num('green', 9)]], num('red', 3));
+    const cost = drawCandidate(state).features.drawCost;
+    expect(cost).toBeGreaterThan(0);
+    expect(cost).toBeLessThan(1);
+  });
+
+  it('极端局面（几乎没有可出牌）期望摸牌数有上限，特征仍在 0~1', () => {
+    const state = makeState([[num('blue', 5)], [num('green', 9)]], num('red', 3), {
+      discardPile: [
+        num('red', 3),
+        ...Array.from({ length: 24 }, (_, index) => num('red', index % 10)),
+        wild(),
+        wild(),
+        wild(),
+        wild4(),
+        wild4(),
+        wild4(),
+        wild4(),
+      ],
+    });
+    const view = getAiView(state, 0);
+    const expected = estimateExpectedDraws(view, buildMemory(view));
+    expect(expected).toBeLessThanOrEqual(12);
+    expect(expected).toBeGreaterThanOrEqual(1);
+    const cost = drawCandidate(state).features.drawCost;
+    expect(cost).toBeGreaterThanOrEqual(0);
+    expect(cost).toBeLessThanOrEqual(1);
   });
 });

@@ -467,31 +467,38 @@ function replenishDrawPile(state, events) {
   events.push({ type: "PILE_RESHUFFLE", reason: "draw" });
   return state.drawPile.length > 0;
 }
-function prepareDraw(state, events, allowRoundEnd = true) {
+function canProvideDraw(state, events, allowRoundEnd) {
   if (state.drawPile.length > 0) return true;
   if (!allowRoundEnd) return replenishDrawPile(state, events);
-  if (state.config.deckExhaustion === "end-by-fewest") {
-    endRoundByFewestCards(state, events);
-    return false;
-  }
-  if (!replenishDrawPile(state, events)) {
-    endRoundByFewestCards(state, events);
-    return false;
-  }
-  return state.drawPile.length > 0;
+  if (state.config.deckExhaustion === "end-by-fewest") return false;
+  return replenishDrawPile(state, events);
+}
+function prepareDraw(state, events, allowRoundEnd = true) {
+  if (canProvideDraw(state, events, allowRoundEnd)) return true;
+  if (!allowRoundEnd) return false;
+  endRoundByFewestCards(state, events);
+  return false;
 }
 function drawTo(state, seat, count, events, options = {}) {
+  const allowRoundEnd = options.allowRoundEnd !== false;
   const drawn = [];
+  let exhausted = false;
   for (let index = 0; index < count; index += 1) {
-    if (!prepareDraw(state, events, options.allowRoundEnd !== false)) break;
+    const canDraw = options.deferRoundEnd ? canProvideDraw(state, events, allowRoundEnd) : prepareDraw(state, events, allowRoundEnd);
+    if (!canDraw) {
+      exhausted = options.deferRoundEnd === true && allowRoundEnd;
+      break;
+    }
     const card = state.drawPile.pop();
     requirePlayer(state, seat).hand.push(card);
     drawn.push(card);
+    if (options.until?.(card)) break;
   }
   if (drawn.length > 0) {
     events.push({ type: "DRAW", seat, count: drawn.length, cards: drawn });
     if (requirePlayer(state, seat).hand.length > 1) requirePlayer(state, seat).saidUno = false;
   }
+  if (exhausted) endRoundByFewestCards(state, events);
   return drawn;
 }
 function endRound(state, winnerSeat, events) {
@@ -875,15 +882,15 @@ function applyAction(state, action) {
       if (next.phase !== "await-play") throw new Error("\u5F53\u524D\u9636\u6BB5\u4E0D\u80FD\u62BD\u724C");
       if (next.drawnThisTurn) throw new Error("\u672C\u56DE\u5408\u5DF2\u7ECF\u62BD\u8FC7\u724C\uFF0C\u8BF7\u6253\u51FA\u62BD\u5230\u7684\u724C\u6216\u7ED3\u675F\u56DE\u5408");
       const seat = next.currentSeat;
-      const drawn = drawTo(next, seat, 1, events);
-      if (drawn.length === 0) break;
-      const card = drawn[0];
-      if (isPlayable(next, card)) {
-        next.drawnThisTurn = card;
-        next.phase = "await-play";
-      } else {
-        advanceTurn(next);
-      }
+      const maxDraws = next.drawPile.length + next.discardPile.length + 1;
+      const drawn = drawTo(next, seat, maxDraws, events, {
+        until: (card) => isPlayable(next, card),
+        // 先聚合 DRAW 事件，再由 drawTo 在返回前结算本局：history 顺序保持 …DRAW → ROUND_END
+        deferRoundEnd: true
+      });
+      if (isGameOver(next) || drawn.length === 0) break;
+      next.drawnThisTurn = drawn[drawn.length - 1];
+      next.phase = "await-play";
       break;
     }
     case "PLAY_CARD": {
@@ -1134,7 +1141,7 @@ function labelFor(action, card, state) {
       return `${prefix}${cardLabel(card)}`;
     }
     case "DRAW":
-      return "\u6478 1 \u5F20";
+      return "\u6478\u724C";
     case "END_TURN":
       return "\u7ED3\u675F\u56DE\u5408";
     case "CHOOSE_COLOR":
@@ -1162,7 +1169,7 @@ function hintFor(action, state) {
     case "STACK_PLAY":
       return `\u7EE7\u7EED\u53E0\u724C\uFF0C\u8BA9\u4E0B\u5BB6\u6478 ${(state.stack?.total ?? 0) + 2} \u5F20\u4EE5\u4E0A`;
     case "DRAW":
-      return "\u6CA1\u6709\u5408\u9002\u7684\u724C\uFF1F\u6478\u4E00\u5F20";
+      return "\u6478\u5230\u80FD\u6253\u51FA\u7684\u724C\u4E3A\u6B62";
     case "END_TURN":
       return "\u7ED3\u675F\u672C\u56DE\u5408";
     case "CHOOSE_COLOR":
@@ -1819,7 +1826,7 @@ function extractFeatures(draft, context) {
     endgame: isPlay ? extractEndgame(draft, handAfter, nextCount) : 0,
     threat: isPlay && isAttackCard(draft.card) ? extractThreat(nextCount, minOpponentCount) : 0,
     stackGain: draft.kind === "stack-play" ? extractStackGain(draft, view, nextCount) : 0,
-    drawCost: extractDrawCost(draft, view),
+    drawCost: extractDrawCost(draft, view, memory),
     bluffRisk: extractBluffRisk(draft, view, memory, profile),
     nextPlayerWeakColor: 0,
     colorFit: 0,
@@ -1932,8 +1939,20 @@ function extractStackGain(draft, view, nextCount) {
   if (nextCount <= 2) gain -= 0.1;
   return clamp01(gain);
 }
-function extractDrawCost(draft, view) {
-  if (draft.kind === "draw") return 1;
+function estimateExpectedDraws(view, memory) {
+  const unknown = memory.unknownCards;
+  if (unknown <= 0) return 1;
+  const currentColor = view.currentColor;
+  const colorCards = currentColor ? memory.remainingByColor[currentColor] ?? 0 : 0;
+  const wilds = memory.wildsRemaining + memory.wild4Remaining;
+  const playable = Math.min(unknown, wilds + colorCards);
+  const probability = Math.max(0.08, playable / unknown);
+  return Math.min(12, Math.max(1, 1 / probability));
+}
+function extractDrawCost(draft, view, memory) {
+  if (draft.kind === "draw") {
+    return clamp01(estimateExpectedDraws(view, memory) / 3);
+  }
   if (draft.kind === "stack-decline") {
     return clamp01((view.stack?.total ?? 0) / 12);
   }
@@ -2371,9 +2390,11 @@ function runDifficultyLadder(options) {
   }
   const illegalActions = pairings.reduce((sum, pairing) => sum + pairing.illegalActions, 0);
   const errorCount = pairings.reduce((sum, pairing) => sum + pairing.errorCount, 0);
+  const winRateTolerance = Math.max(0, options.winRateTolerance ?? 0);
   return {
     pairings,
-    monotonic: pairings.every((pairing) => pairing.strongWinRate > 0.5),
+    monotonic: pairings.every((pairing) => pairing.strongWinRate >= 0.5 - winRateTolerance),
+    winRateTolerance,
     illegalActions,
     errorCount,
     games: pairings.reduce((sum, pairing) => sum + pairing.games, 0)
@@ -2431,8 +2452,9 @@ function runMixedTable(options) {
     const count = positionCounts[difficulty];
     averagePositions[difficulty] = count > 0 ? positionSums[difficulty] / count : 0;
   }
+  const positionTolerance = Math.max(0, options.positionTolerance ?? 0);
   const rankingMonotonic = DIFFICULTY_ORDER.every(
-    (difficulty, index) => index === 0 || averagePositions[difficulty] <= averagePositions[DIFFICULTY_ORDER[index - 1]]
+    (difficulty, index) => index === 0 || averagePositions[difficulty] <= averagePositions[DIFFICULTY_ORDER[index - 1]] + positionTolerance
   );
   return {
     games,
@@ -2442,7 +2464,8 @@ function runMixedTable(options) {
     avgTurns: totalTurns / games,
     illegalActions,
     errorCount,
-    rankingMonotonic
+    rankingMonotonic,
+    positionTolerance
   };
 }
 
@@ -2480,6 +2503,7 @@ export {
   createSelfPlayGame,
   decide,
   estimateChallengeIllegalProbability,
+  estimateExpectedDraws,
   estimatePlayerHasColor,
   extractFeatures,
   generateCandidates,

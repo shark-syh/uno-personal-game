@@ -40,6 +40,7 @@ interface StateOptions {
   drawPile?: Card[];
   currentColor?: Color | null;
   direction?: 1 | -1;
+  config?: Partial<GameState['config']>;
 }
 
 /** 构造一个可控的测试局面（手牌/顶牌/牌堆可指定） */
@@ -73,7 +74,7 @@ function makeState(hands: Card[][], top: Card, options: StateOptions = {}): Game
   state.winnerSeat = null;
   state.turnCount = 0;
   // M1-6 起：出牌剩 1 张会进入 UNO 窗口；旧用例默认自动喊 UNO，避免窗口干扰
-  state.config = { ...state.config, autoCallUno: true };
+  state.config = { ...state.config, autoCallUno: true, ...options.config };
   return state;
 }
 
@@ -244,15 +245,22 @@ describe('出牌与效果结算', () => {
 });
 
 describe('抽牌与回合结束', () => {
-  it('抽到可出的牌：可立即打出或结束回合', () => {
+  it('第一张就摸到可出牌：摸到即停并可立即打出或结束回合', () => {
     const top = num('red', 3);
     const blue5 = num('blue', 5);
     const red9 = num('red', 9);
+    // pop 顺序：red9（颜色匹配，第一张就可出）
     const state = makeState(threeHands([blue5]), top, { drawPile: [num('green', 1), red9] });
     const result = applyAction(state, { type: 'DRAW' });
 
     expect(result.state.drawnThisTurn?.id).toBe(red9.id);
     expect(result.state.currentSeat).toBe(0);
+    expect(result.state.turnCount).toBe(0); // 摸到可出即停，不推进回合
+    expect(result.state.players[0]!.hand).toHaveLength(2);
+    const drawEvents = result.events.filter((event) => event.type === 'DRAW');
+    expect(drawEvents).toHaveLength(1);
+    expect(drawEvents[0]).toMatchObject({ seat: 0, count: 1 });
+
     const actions = getLegalActions(result.state);
     expect(actions).toHaveLength(2); // 打出刚抽的牌 + 结束回合
     expect(actions.some((action) => action.type === 'PLAY_DRAWN')).toBe(true);
@@ -264,15 +272,162 @@ describe('抽牌与回合结束', () => {
     expect(played.state.drawnThisTurn).toBeNull();
   });
 
-  it('抽到不可出的牌：自动结束回合', () => {
-    const state = makeState(threeHands([num('blue', 5)]), num('red', 3), {
-      drawPile: [num('green', 1)],
+  it('摸到不可出的牌：继续摸直到摸到可出的牌（聚合 count=2，回合不推进）', () => {
+    const top = num('red', 3);
+    const green1 = num('green', 1);
+    const red9 = num('red', 9);
+    // pop 顺序：green1（不可出）→ red9（颜色匹配，停止）
+    const state = makeState(threeHands([num('blue', 5)]), top, { drawPile: [red9, green1] });
+    const result = applyAction(state, { type: 'DRAW' });
+
+    expect(result.state.players[0]!.hand).toHaveLength(3); // 1 + 摸到的 2 张都留在手里
+    expect(result.state.drawnThisTurn?.id).toBe(red9.id);
+    expect(result.state.phase).toBe('await-play');
+    expect(result.state.currentSeat).toBe(0); // currentSeat 不变（合法动作仅 PLAY_DRAWN/END_TURN）
+    expect(result.state.turnCount).toBe(0);
+
+    // 一次 DRAW 动作聚合为 1 个事件：count=实际张数、cards=全部摸到的牌
+    const drawEvents = result.events.filter((event) => event.type === 'DRAW');
+    expect(drawEvents).toHaveLength(1);
+    expect(drawEvents[0]).toMatchObject({ seat: 0, count: 2 });
+    expect(
+      drawEvents[0]!.type === 'DRAW' ? drawEvents[0]!.cards.map((card) => card.id) : [],
+    ).toEqual([green1.id, red9.id]);
+
+    const actions = getLegalActions(result.state);
+    expect(actions.map((action) => action.type).sort()).toEqual(['END_TURN', 'PLAY_DRAWN']);
+    expect(actions.some((action) => action.type === 'DRAW')).toBe(false); // 本回合不能再摸
+  });
+
+  it('连续 3 张不可出后摸到可出牌：count=4，其余牌留在手里', () => {
+    const top = num('red', 3);
+    const green1 = num('green', 1);
+    const yellow2 = num('yellow', 2);
+    const blue4 = num('blue', 4);
+    const red9 = num('red', 9);
+    // pop 顺序：blue4 → yellow2 → green1（均不可出）→ red9（颜色匹配，停止）
+    const state = makeState(threeHands([num('blue', 5)]), top, {
+      drawPile: [red9, green1, yellow2, blue4],
     });
     const result = applyAction(state, { type: 'DRAW' });
 
-    expect(result.state.players[0]!.hand).toHaveLength(2);
+    expect(result.state.players[0]!.hand).toHaveLength(5); // 1 + 4
+    expect(result.state.drawnThisTurn?.id).toBe(red9.id);
+    expect(result.state.currentSeat).toBe(0);
+    const drawEvent = result.events.find((event) => event.type === 'DRAW');
+    expect(drawEvent).toMatchObject({ seat: 0, count: 4 });
+    expect(drawEvent?.type === 'DRAW' ? drawEvent.cards.map((card) => card.id) : []).toEqual([
+      blue4.id,
+      yellow2.id,
+      green1.id,
+      red9.id,
+    ]);
+  });
+
+  it('摸到可出牌前牌堆耗尽（默认 reshuffle）：洗回弃牌堆继续摸并停在可出牌', () => {
+    const top = num('red', 3);
+    const green1 = num('green', 1);
+    const red9 = num('red', 9);
+    const state = makeState(threeHands([num('blue', 5)]), top, { drawPile: [green1] });
+    state.discardPile = [red9, top]; // 弃牌堆可回收 red9（保留顶牌 red3）
+    const result = applyAction(state, { type: 'DRAW' });
+
+    expect(result.state.phase).toBe('await-play');
+    expect(result.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(true);
+    expect(result.state.players[0]!.hand).toHaveLength(3); // 1 + green1 + red9
+    expect(result.state.drawnThisTurn?.id).toBe(red9.id);
+    expect(result.state.currentSeat).toBe(0);
+    expect(result.events.find((event) => event.type === 'DRAW')).toMatchObject({
+      seat: 0,
+      count: 2,
+    });
+    expect(result.state.drawPile).toHaveLength(0);
+    expect(result.state.discardPile).toHaveLength(1); // 只保留顶牌
+    expect(countCards(result.state)).toBe(countCards(state));
+  });
+
+  it('摸到可出牌前牌堆耗尽且弃牌堆不足：结束本局且不推进回合', () => {
+    const top = num('red', 3);
+    const green1 = num('green', 1);
+    const state = makeState(threeHands([num('blue', 5)]), top, { drawPile: [green1] });
+    // 弃牌堆只剩顶牌：洗回也不够继续摸
+    const result = applyAction(state, { type: 'DRAW' });
+
+    expect(result.state.phase).toBe('round-end');
+    expect(result.state.endReason).toBe('deck-empty');
+    expect(result.state.winnerSeat).toBeNull(); // 座位 1/2 并列最少（各 1 张）→ 平局
+    expect(result.state.currentSeat).toBe(0); // 不推进回合
+    expect(result.state.turnCount).toBe(0);
     expect(result.state.drawnThisTurn).toBeNull();
-    expect(result.state.currentSeat).toBe(1);
+    // 已经摸到的牌仍然产生一条聚合 DRAW 事件
+    expect(result.events.find((event) => event.type === 'DRAW')).toMatchObject({
+      seat: 0,
+      count: 1,
+    });
+    expect(result.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(false);
+    expect(
+      result.events.some((event) => event.type === 'ROUND_END' && event.reason === 'deck-empty'),
+    ).toBe(true);
+    // 事件顺序：先聚合 DRAW，再 ROUND_END（事件流/结算页顺序正确）
+    expect(result.events.map((event) => event.type)).toEqual(['DRAW', 'ROUND_END']);
+  });
+
+  it('end-by-fewest：摸牌中途牌堆耗尽立即结束本局，不推进回合、不洗回', () => {
+    const top = num('red', 3);
+    const green1 = num('green', 1);
+    const red9 = num('red', 9);
+    const state = makeState(threeHands([num('blue', 5)]), top, {
+      drawPile: [green1],
+      config: { deckExhaustion: 'end-by-fewest' },
+    });
+    state.discardPile = [red9, top]; // 弃牌堆本来可洗回，但 end-by-fewest 不洗
+    const result = applyAction(state, { type: 'DRAW' });
+
+    expect(result.state.phase).toBe('round-end');
+    expect(result.state.endReason).toBe('deck-empty');
+    expect(result.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(false);
+    expect(result.state.players[0]!.hand).toHaveLength(2); // 只摸到不可出的 green1
+    expect(result.state.players[1]!.hand).toHaveLength(1); // 未被摸牌改变
+    expect(result.state.currentSeat).toBe(0);
+    expect(result.state.drawnThisTurn).toBeNull();
+    // 事件顺序：先聚合 DRAW，再按 end-by-fewest 结束本局
+    expect(result.events.map((event) => event.type)).toEqual(['DRAW', 'ROUND_END']);
+  });
+
+  it('极端局面：整副牌都不可出也必然终止（摸空两堆后按 4.9 结算，不死循环）', () => {
+    const top = num('red', 3);
+    // 只构造当前颜色/数字/图案都匹配不上的牌：蓝色且面值不含 3（避开与顶牌 red3 的数字匹配）
+    const values = [1, 2, 4, 5, 6, 7, 8, 9];
+    const makeUnplayableBlue = (index: number): Card => num('blue', values[index % values.length]!);
+    const unplayableDrawPile = Array.from({ length: 20 }, (_, index) => makeUnplayableBlue(index));
+    const unplayableDiscard = Array.from({ length: 30 }, (_, index) =>
+      num('green', values[index % values.length]!),
+    );
+    const state = makeState([[num('blue', 5)], [num('green', 9)], [num('yellow', 9)]], top, {
+      drawPile: unplayableDrawPile,
+    });
+    state.discardPile = [...unplayableDiscard, top];
+
+    const result = applyAction(state, { type: 'DRAW' });
+
+    // 有限步内终止：先摸空抽牌堆 20 张（均不可出）→ 洗回 30 张弃牌继续摸 → 两堆都空后结束本局
+    expect(result.state.phase).toBe('round-end');
+    expect(result.state.endReason).toBe('deck-empty');
+    expect(result.state.currentSeat).toBe(0); // 牌堆耗尽结束不推进回合
+    expect(result.events.find((event) => event.type === 'DRAW')).toMatchObject({
+      seat: 0,
+      count: 20 + 30,
+    });
+    // history 顺序：洗回事件 → 聚合 DRAW → ROUND_END
+    expect(result.events.map((event) => event.type)).toEqual([
+      'PILE_RESHUFFLE',
+      'DRAW',
+      'ROUND_END',
+    ]);
+    expect(result.state.players[0]!.hand).toHaveLength(1 + 50);
+    expect(result.state.drawPile).toHaveLength(0);
+    expect(result.state.discardPile).toHaveLength(1); // 只保留顶牌
+    expect(countCards(result.state)).toBe(countCards(state));
   });
 
   it('没有抽牌时不能结束回合；抽牌后可结束回合', () => {
@@ -287,15 +442,17 @@ describe('抽牌与回合结束', () => {
     expect(ended.events.some((event) => event.type === 'PLAY')).toBe(false);
   });
 
-  it('抽牌堆耗尽：弃牌堆洗回抽牌堆继续', () => {
+  it('抽牌堆耗尽：弃牌堆洗回抽牌堆继续摸到可出牌', () => {
     const state = makeState(threeHands([num('blue', 5)]), num('red', 3), { drawPile: [] });
-    state.discardPile = [num('blue', 7), num('red', 3)]; // 顶部 red3
+    state.discardPile = [num('red', 7), num('red', 3)]; // 顶部 red3
     const result = applyAction(state, { type: 'DRAW' });
 
     expect(result.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(true);
     expect(result.state.drawPile.length).toBe(0);
     expect(result.state.discardPile).toHaveLength(1);
     expect(result.state.players[0]!.hand).toHaveLength(2);
+    expect(result.state.drawnThisTurn?.id).toBe(state.discardPile[0]!.id); // 洗回的 red7
+    expect(result.state.currentSeat).toBe(0);
   });
 });
 

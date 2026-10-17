@@ -58,6 +58,18 @@ function replenishDrawPile(state: GameState, events: GameEvent[]): boolean {
 }
 
 /**
+ * 牌堆是否还能供一张牌（不结算本局），见 prepareDraw。
+ * 抽牌堆非空 → 可摸；`allowRoundEnd=false` → 能洗就洗；`end-by-fewest` → 一空即不可摸；
+ * 默认 reshuffle → 把弃牌堆除顶牌外洗回。
+ */
+function canProvideDraw(state: GameState, events: GameEvent[], allowRoundEnd: boolean): boolean {
+  if (state.drawPile.length > 0) return true;
+  if (!allowRoundEnd) return replenishDrawPile(state, events);
+  if (state.config.deckExhaustion === 'end-by-fewest') return false;
+  return replenishDrawPile(state, events);
+}
+
+/**
  * 摸牌前准备一张可摸的牌（M1-7，见 `开发计划.md` 4.9）。
  * - 抽牌堆非空：直接可摸；
  * - `deckExhaustion='end-by-fewest'`：抽牌堆一空即结束本局（按手牌最少者/平局），不洗回；
@@ -65,39 +77,53 @@ function replenishDrawPile(state: GameState, events: GameEvent[]): boolean {
  * - `allowRoundEnd=false`：胜负已定后的仪式性摸牌，能洗就洗、洗不出来就少摸，不再改胜负。
  */
 function prepareDraw(state: GameState, events: GameEvent[], allowRoundEnd = true): boolean {
-  if (state.drawPile.length > 0) return true;
-  if (!allowRoundEnd) return replenishDrawPile(state, events);
-  if (state.config.deckExhaustion === 'end-by-fewest') {
-    endRoundByFewestCards(state, events);
-    return false;
-  }
-  if (!replenishDrawPile(state, events)) {
-    endRoundByFewestCards(state, events);
-    return false;
-  }
-  return state.drawPile.length > 0;
+  if (canProvideDraw(state, events, allowRoundEnd)) return true;
+  if (!allowRoundEnd) return false;
+  endRoundByFewestCards(state, events);
+  return false;
 }
 
-/** 给某玩家摸 n 张牌；牌堆耗尽时按规则结束本局（见 prepareDraw） */
+/**
+ * 给某玩家摸 n 张牌；牌堆耗尽时按规则结束本局（见 prepareDraw）。
+ *
+ * `until` 供 BUG-01 的主动摸牌规则使用：每摸到一张牌（已进入手牌）判定一次，
+ * 命中即提前停止；无论摸了几张，本次摸牌仍聚合为一条 DRAW 事件。
+ * `deferRoundEnd`：牌堆耗尽时先返回、由调用方在发出 DRAW 事件后再结算本局，
+ * 保证 history 顺序为 …DRAW → ROUND_END。
+ */
 function drawTo(
   state: GameState,
   seat: number,
   count: number,
   events: GameEvent[],
-  options: { allowRoundEnd?: boolean } = {},
+  options: {
+    allowRoundEnd?: boolean;
+    until?: (card: Card) => boolean;
+    deferRoundEnd?: boolean;
+  } = {},
 ): Card[] {
+  const allowRoundEnd = options.allowRoundEnd !== false;
   const drawn: Card[] = [];
+  let exhausted = false;
   for (let index = 0; index < count; index += 1) {
-    if (!prepareDraw(state, events, options.allowRoundEnd !== false)) break;
+    const canDraw = options.deferRoundEnd
+      ? canProvideDraw(state, events, allowRoundEnd)
+      : prepareDraw(state, events, allowRoundEnd);
+    if (!canDraw) {
+      exhausted = options.deferRoundEnd === true && allowRoundEnd;
+      break;
+    }
     const card = state.drawPile.pop()!;
     requirePlayer(state, seat).hand.push(card);
     drawn.push(card);
+    if (options.until?.(card)) break;
   }
   if (drawn.length > 0) {
     events.push({ type: 'DRAW', seat, count: drawn.length, cards: drawn });
     // 手牌多于 1 张时 UNO 状态失效：下次再出到 1 张需要重新喊（M1-6）
     if (requirePlayer(state, seat).hand.length > 1) requirePlayer(state, seat).saidUno = false;
   }
+  if (exhausted) endRoundByFewestCards(state, events);
   return drawn;
 }
 
@@ -649,19 +675,24 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       if (next.drawnThisTurn) throw new Error('本回合已经抽过牌，请打出抽到的牌或结束回合');
 
       const seat = next.currentSeat;
-      // 统一走 drawTo：负责牌堆耗尽处理、DRAW 事件、以及"手牌 >1 时清除 UNO 状态"
-      // （曾因本分支手写摸牌，导致"喊过 UNO 的人摸牌后 UNO 标记仍挂着"）
-      const drawn = drawTo(next, seat, 1, events);
-      if (drawn.length === 0) break;
-      const card = drawn[0]!;
+      // BUG-01（见 `开发计划.md` 4.4）：主动摸牌改为「持续摸牌，直到摸到第一张当前可打出的牌」。
+      // 过程中摸到的其余牌留在手里；停下的那张记为 drawnThisTurn，合法动作只剩打出它或结束回合。
+      //
+      // 终止性：每次成功摸牌都会让「抽牌堆 + 弃牌堆」总张数减 1（洗回只是把弃牌堆搬到
+      // 抽牌堆，不增加总张数），所以循环次数上界是两堆张数之和 + 1；谓词始终不满足时，
+      // prepareDraw 会在两堆都无法供牌时按 4.9 结束本局（round-end）并返回 false。
+      const maxDraws = next.drawPile.length + next.discardPile.length + 1;
+      const drawn = drawTo(next, seat, maxDraws, events, {
+        until: (card) => isPlayable(next, card),
+        // 先聚合 DRAW 事件，再由 drawTo 在返回前结算本局：history 顺序保持 …DRAW → ROUND_END
+        deferRoundEnd: true,
+      });
+      // 摸牌过程中牌堆耗尽 → 本局已按 4.9 结算（可能平局）：保持 round-end / endReason，
+      // 不推进回合、不设置 drawnThisTurn，避免破坏结算。
+      if (isGameOver(next) || drawn.length === 0) break;
 
-      if (isPlayable(next, card)) {
-        // 抽到能出的牌：可以选择立即打出或结束回合
-        next.drawnThisTurn = card;
-        next.phase = 'await-play';
-      } else {
-        advanceTurn(next);
-      }
+      next.drawnThisTurn = drawn[drawn.length - 1]!; // 停下的最后一张必为当前可出牌
+      next.phase = 'await-play';
       break;
     }
 

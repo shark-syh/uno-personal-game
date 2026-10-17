@@ -481,18 +481,22 @@ describe('M1-6 UNO 与叠牌 / 挑战 / 2 人规则', () => {
 });
 
 describe('M3-2 修 bug：喊过 UNO 后摸牌，UNO 状态必须清除', () => {
-  it('剩 1 张且已喊 UNO 的玩家主动摸牌（摸到不可出）：手牌变 2、saidUno 清除', () => {
+  it('剩 1 张且已喊 UNO 的玩家主动摸牌（摸到可出为止）：saidUno 清除、回合不推进', () => {
+    const green8 = num('green', 8);
     const state = makeState([[num('red', 5)], [num('green', 9)]], num('green', 3), {
-      drawPile: [num('yellow', 9)],
+      // pop 顺序：yellow9（不可出）→ green8（颜色匹配，停止）
+      drawPile: [green8, num('yellow', 9)],
     });
     state.players[0]!.saidUno = true;
 
     const result = applyAction(state, { type: 'DRAW' });
-    expect(result.state.players[0]!.hand).toHaveLength(2);
+    expect(result.state.players[0]!.hand).toHaveLength(3); // 1 + 摸到的 2 张
     expect(result.state.players[0]!.saidUno).toBe(false);
     expect(eventTypes(result.state)).toContain('DRAW');
-    // 摸到不可出的牌 → 本回合结束，轮到下家
-    expect(result.state.currentSeat).toBe(1);
+    // 摸到可出为止：停在 await-play，由玩家决定打出刚摸到的牌或结束回合
+    expect(result.state.phase).toBe('await-play');
+    expect(result.state.currentSeat).toBe(0);
+    expect(result.state.drawnThisTurn?.id).toBe(green8.id);
   });
 
   it('摸牌后抽到可出的牌，打出后剩 1 张会重新进入 UNO 判定（不沿用旧状态）', () => {

@@ -143,7 +143,7 @@ export function extractFeatures(draft: CandidateDraft, context: FeatureContext):
     endgame: isPlay ? extractEndgame(draft, handAfter, nextCount) : 0,
     threat: isPlay && isAttackCard(draft.card) ? extractThreat(nextCount, minOpponentCount) : 0,
     stackGain: draft.kind === 'stack-play' ? extractStackGain(draft, view, nextCount) : 0,
-    drawCost: extractDrawCost(draft, view),
+    drawCost: extractDrawCost(draft, view, memory),
     bluffRisk: extractBluffRisk(draft, view, memory, profile),
     nextPlayerWeakColor: 0,
     colorFit: 0,
@@ -293,8 +293,33 @@ function extractStackGain(draft: CandidateDraft, view: AiView, nextCount: number
   return clamp01(gain);
 }
 
-function extractDrawCost(draft: CandidateDraft, view: AiView): number {
-  if (draft.kind === 'draw') return 1;
+/**
+ * 一次「主动摸牌」的期望张数（M3-3 规则变更，见 `开发计划.md` 4.4）：
+ * 摸牌会一直摸到出现可打出的牌为止，因此代价不再是固定的 1 张。
+ *
+ * 只用公开信息估计"随机一张未知牌可打出"的概率 p：
+ * - 万能牌（Wild / Wild4）永远可出；
+ * - 当前颜色的剩余牌一定可出；
+ * - 同数字 / 同图案的跨色匹配无法从公开信息精确拆分，保守忽略（宁可低估 p、高估代价）。
+ *
+ * 未知牌 = 抽牌堆 + 其他玩家手牌；期望张数 E ≈ 1/p（几何分布），夹在 [1, 12] 防止极端值。
+ */
+export function estimateExpectedDraws(view: AiView, memory: AiMemory): number {
+  const unknown = memory.unknownCards;
+  if (unknown <= 0) return 1;
+  const currentColor = view.currentColor;
+  const colorCards = currentColor ? (memory.remainingByColor[currentColor] ?? 0) : 0;
+  const wilds = memory.wildsRemaining + memory.wild4Remaining;
+  const playable = Math.min(unknown, wilds + colorCards);
+  const probability = Math.max(0.08, playable / unknown);
+  return Math.min(12, Math.max(1, 1 / probability));
+}
+
+function extractDrawCost(draft: CandidateDraft, view: AiView, memory: AiMemory): number {
+  if (draft.kind === 'draw') {
+    // 以"期望摸 3 张"为 1 个代价单位（与旧规则 drawCost=1 ≈ 摸 1 张的手感对齐）
+    return clamp01(estimateExpectedDraws(view, memory) / 3);
+  }
   if (draft.kind === 'stack-decline') {
     return clamp01((view.stack?.total ?? 0) / 12);
   }

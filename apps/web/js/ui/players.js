@@ -1,5 +1,27 @@
 import { renderCard } from "./hand.js";
 
+/**
+ * BUG-04：AI 台词 TTL 到期时只清对应座位的气泡文本。
+ * 这里刻意不做整页 render：避免把玩家刚打开的设置/战绩弹窗关掉，
+ * 也避免打断正在播放的事件动画（render 会 cancelEvents）。
+ */
+export function clearPlayerLine(seat) {
+  const root = document.querySelector("#speech-layer");
+  if (!root || seat === null || seat === undefined) return;
+  const bubble = root.querySelector(`[data-seat="${seat}"]`);
+  if (!bubble) return;
+  bubble.textContent = "";
+}
+
+/** 清空 speech-layer 内所有座位的气泡文本（新局 / 回大厅 / 退出引擎模式时调用） */
+export function clearAllLines() {
+  const root = document.querySelector("#speech-layer");
+  if (!root) return;
+  root.querySelectorAll("[data-seat]").forEach((bubble) => {
+    bubble.textContent = "";
+  });
+}
+
 export function renderPlayers(view) {
   const root = document.querySelector("#opponents");
   const speechRoot = document.querySelector("#speech-layer");

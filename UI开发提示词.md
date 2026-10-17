@@ -197,6 +197,8 @@ UI 在 `legalActions` 里拿到的每个动作都带 `id` 和展示信息：
 | `BACK_TO_LOBBY` | — | 回大厅 |
 
 > 2026-10-17 追加：大厅新增「+4 挑战」勾选框（默认开启），`START_GAME.config` 附带 `challengeWild4` 布尔值，对接时传给引擎 `GameConfig.challengeWild4`。该字段为契约的向后兼容扩展（只增不改），其余字段与 DOM 锚点不变。
+>
+> 2026-10-17 追加（M3-3 用户反馈 UI 修正，契约向后兼容）：①「UNO!」改为**单击一次立即 `CALL_UNO`**（不再二次确认弹窗），按钮显著放大；② AI 台词只短暂展示（约 2.6s），换人 / 新局 / 回大厅即清空；③ 左上角 `#color-indicator` / `#color-label` 明显放大；④ 删除「你的手牌 / N 张」标题（`#hand-count` 已移除）；⑤ `#action-bar` 不再渲染 `PLAY_CARD` / `PLAY_DRAWN` / `STACK_PLAY` 按钮（出牌改为鼠标点击手牌），其余功能动作按钮不变；⑥ `#hint-bar` 正常回合为空、仅叠牌/挑战/选色/UNO 等特殊阶段显示提示。`window.UnoApp` API、GameView/UiAction/GameEvent 字段与 DOM 锚点均未变。
 
 **UI 只做一件事：把动作原样交给 `onAction(action)`。** 不判断合法性、不自己算摸牌数。
 
@@ -375,8 +377,8 @@ B) 牌桌 [data-screen="game"]
    - 中央：抽牌堆（显示剩余张数）、弃牌堆（显示顶牌图片）、当前颜色光环、叠牌累计徽标（如「+8」）、方向指示
    - 事件流：最近 3 条中文事件（如「老王打出 蓝3」「你摸了 2 张」）
    - 人类手牌区：横向重叠排列；合法牌高亮可点、非法牌压暗；刚抽到的牌要标记
-   - 操作栏 #action-bar：只渲染 view.human.legalActions 里的按钮；wild/wild4 点击后弹出四色选择（选项来自同一 cardId 的 legalActions）
-   - 提示条 #hint-bar：显示当前要做什么（如「上家出了 +4，选择摸 4 张或挑战」）
+   - 操作栏 #action-bar：只渲染 `view.human.legalActions` 里的**功能动作**按钮（M3-3 起不再渲染出牌按钮，出牌点击手牌；wild/wild4 点击后弹出四色选择）
+   - 提示条 #hint-bar：显示当前要做什么（如「上家出了 +4，选择摸 4 张或挑战」）；M3-3 起正常回合为空（不占高度）
 C) 结算 [data-screen="result"]
    - 胜者、各玩家剩余手牌缩略、趣味分数、回合数、用时
    - 按钮：再来一局（RESTART）、回大厅（BACK_TO_LOBBY）

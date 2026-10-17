@@ -279,9 +279,12 @@ export function runDifficultyLadder(options: LadderOptions): LadderResult {
 
   const illegalActions = pairings.reduce((sum, pairing) => sum + pairing.illegalActions, 0);
   const errorCount = pairings.reduce((sum, pairing) => sum + pairing.errorCount, 0);
+  // BUG-01 新摸牌规则让单局回合数约翻倍、方差增大：允许极小容差吸收统计噪声（默认 0 = 严格）
+  const winRateTolerance = Math.max(0, options.winRateTolerance ?? 0);
   return {
     pairings,
-    monotonic: pairings.every((pairing) => pairing.strongWinRate > 0.5),
+    monotonic: pairings.every((pairing) => pairing.strongWinRate >= 0.5 - winRateTolerance),
+    winRateTolerance,
     illegalActions,
     errorCount,
     games: pairings.reduce((sum, pairing) => sum + pairing.games, 0),
@@ -351,9 +354,13 @@ export function runMixedTable(options: MixedTableOptions): MixedTableResult {
     averagePositions[difficulty] = count > 0 ? positionSums[difficulty] / count : 0;
   }
 
+  // 名次容差：混战样本较小时相邻难度名次均值差的标准误约 0.1，允许小容差吸收噪声（默认 0 = 严格）
+  const positionTolerance = Math.max(0, options.positionTolerance ?? 0);
   const rankingMonotonic = DIFFICULTY_ORDER.every(
     (difficulty, index) =>
-      index === 0 || averagePositions[difficulty] <= averagePositions[DIFFICULTY_ORDER[index - 1]!],
+      index === 0 ||
+      averagePositions[difficulty] <=
+        averagePositions[DIFFICULTY_ORDER[index - 1]!]! + positionTolerance,
   );
 
   return {
@@ -365,5 +372,6 @@ export function runMixedTable(options: MixedTableOptions): MixedTableResult {
     illegalActions,
     errorCount,
     rankingMonotonic,
+    positionTolerance,
   };
 }

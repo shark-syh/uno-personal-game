@@ -57,8 +57,10 @@ export function renderCard(card, { mini = false, legal = false, drawn = false, o
 export function renderHand(view, { onAction, openDialog }) {
   const root = document.querySelector("#hand");
   const legal = view.human.legalActions || [];
+  // 出牌类动作只承载在「点手牌」路径上（BUG-06：操作栏不再渲染出牌按钮）。
   const cardTypes = ["PLAY_CARD", "PLAY_DRAWN", "STACK_PLAY"];
-  const playable = legal.filter((item) => cardTypes.includes(item.type) && !item.disabled);
+  const isCardAction = (item) => cardTypes.includes(item.type);
+  const playable = legal.filter((item) => isCardAction(item) && !item.disabled);
   const legalIds = new Set(playable.map((item) => item.cardId));
   root.replaceChildren(...view.human.hand.map((card) => renderCard(card, { legal: legalIds.has(card.id), drawn: view.human.drawnThisTurn?.id === card.id, onSelect: () => {
     const actions = playable.filter((item) => item.cardId === card.id);
@@ -66,11 +68,18 @@ export function renderHand(view, { onAction, openDialog }) {
     if (actions.length > 1 || card.kind === "wild" || card.kind === "wild4") openDialog("color", { cardId: card.id, actions });
     else onAction(actions[0]);
   } })));
-  document.querySelector("#hand-count").textContent = `${view.human.hand.length} 张`;
+  // 操作栏只保留功能动作：摸牌 / 结束回合 / 叠牌弃权 / UNO / 抓 UNO / 选色兜底 / +4 挑战。
   const actionRoot = document.querySelector("#action-bar");
-  actionRoot.replaceChildren(...legal.map((item) => {
+  actionRoot.replaceChildren(...legal.filter((item) => !isCardAction(item)).map((item) => {
     const button = document.createElement("button"); button.type = "button"; button.className = `btn${item.type === "CALL_UNO" ? " uno-button" : ""}`; button.dataset.actionId = item.id; button.textContent = item.label; button.disabled = Boolean(item.disabled); button.setAttribute("aria-label", item.label);
-    button.addEventListener("click", () => { if (item.type === "CHOOSE_COLOR") openDialog("color", { actions: legal.filter((candidate) => candidate.type === "CHOOSE_COLOR") }); else if (cardTypes.includes(item.type) && item.cardId && (item.colorChoice || item.cardId.startsWith("WC") || item.cardId.startsWith("W4"))) openDialog("color", { cardId: item.cardId, actions: legal.filter((candidate) => candidate.cardId === item.cardId && cardTypes.includes(candidate.type)) }); else if (item.type === "CALL_UNO") openDialog("uno", item, "auto"); else if (item.type === "CATCH_UNO") openDialog("catch", item, "auto"); else if (item.type === "CHALLENGE_W4" || item.type === "DECLINE_CHALLENGE") openDialog("challenge", { actions: legal }, "auto"); else onAction(item); });
+    button.addEventListener("click", () => {
+      if (item.type === "CHOOSE_COLOR") openDialog("color", { actions: legal.filter((candidate) => candidate.type === "CHOOSE_COLOR") });
+      // BUG-02：UNO 一击即喊，不再弹二次确认框
+      else if (item.type === "CALL_UNO") onAction(item);
+      else if (item.type === "CATCH_UNO") openDialog("catch", item, "auto");
+      else if (item.type === "CHALLENGE_W4" || item.type === "DECLINE_CHALLENGE") openDialog("challenge", { actions: legal }, "auto");
+      else onAction(item);
+    });
     return button;
   }));
   ensureHandLayoutObserver();

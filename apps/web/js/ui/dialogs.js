@@ -91,8 +91,9 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
     show("+4 挑战", paragraph("上家出了 +4。接受摸牌，或挑战并查看手牌。"), actions.map((action) => button(action.label, () => submit(action), action.type === "CHALLENGE_W4" ? "btn btn-primary" : "btn", action)), source);
     return;
   }
-  if (kind === "uno" || kind === "catch") {
-    show(kind === "uno" ? "UNO!" : "抓 UNO", paragraph(kind === "uno" ? "只剩最后一张！" : "有人忘了喊 UNO。"), [button(payload.label, () => submit(payload), kind === "uno" ? "btn btn-primary btn-large uno-button" : "btn btn-primary", payload)], source);
+  // BUG-02：CALL_UNO 已改为单击直接喊（不弹确认框），这里只保留「抓 UNO」确认弹窗。
+  if (kind === "catch") {
+    show("抓 UNO", paragraph("有人忘了喊 UNO。"), [button(payload.label, () => submit(payload), "btn btn-primary", payload)], source);
     return;
   }
   if (kind === "confirm-quit") {

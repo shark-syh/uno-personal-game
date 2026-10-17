@@ -16,7 +16,7 @@
       "detail": "{\"counts\":9,\"difficulties\":4,\"modes\":3,\"challenge\":true}"
     },
     {
-      "name": "开局：人类 7 张手牌 + 3 个 AI 座位",
+      "name": "开局：人类 7~9 张手牌（起手 +2 可能 9 张）+ 3 个 AI 座位",
       "ok": true,
       "detail": "{\"hand\":7,\"opponents\":3,\"failed\":0,\"overflow\":{\"scroll\":1440,\"client\":1440}}"
     },
@@ -31,9 +31,29 @@
       "detail": "{\"scroll\":1440,\"client\":1440}"
     },
     {
-      "name": "第 1 局完整打完并进入结算（🏆 阿强 获胜）",
+      "name": "手牌区不再显示「你的手牌 / N 张」",
       "ok": true,
-      "detail": "[\"你6 张 · 趣味分数 36\",\"老王4 张 · 趣味分数 30\",\"小美7 张 · 趣味分数 57\",\"阿强0 张 · 趣味分数 0\"]"
+      "detail": "{\"heading\":false,\"count\":false,\"text\":\"\"}"
+    },
+    {
+      "name": "操作栏不再有出牌按钮（出牌改为点击手牌）",
+      "ok": true,
+      "detail": "[{\"text\":\"摸牌\",\"disabled\":false}]"
+    },
+    {
+      "name": "正常回合无冗余状态提示文字",
+      "ok": true,
+      "detail": "hint="
+    },
+    {
+      "name": "当前颜色明显放大（色点 ≥20px、文字 ≥17px、不溢出）",
+      "ok": true,
+      "detail": "{\"dotW\":22,\"dotH\":22,\"labelFont\":18,\"labelRect\":{\"top\":24,\"right\":139},\"viewportW\":1440,\"topBarOverflow\":false,\"pageOverflow\":false}"
+    },
+    {
+      "name": "第 1 局完整打完并进入结算（🏆 你 获胜）",
+      "ok": true,
+      "detail": "[\"你0 张 · 出完手牌\",\"老王3 张 · 趣味分数 14\",\"小美11 张 · 趣味分数 98\",\"阿强10 张 · 趣味分数 58\"]"
     },
     {
       "name": "第 1 局：再来一局 / 退出回大厅可用",
@@ -43,7 +63,7 @@
     {
       "name": "第 2 局完整打完并进入结算（🏆 老王 获胜）",
       "ok": true,
-      "detail": "[\"你6 张 · 趣味分数 46\",\"老王0 张 · 趣味分数 0\",\"小美13 张 · 趣味分数 97\",\"阿强2 张 · 趣味分数 11\"]"
+      "detail": "[\"你6 张 · 趣味分数 35\",\"老王0 张 · 出完手牌\",\"小美9 张 · 趣味分数 40\",\"阿强2 张 · 趣味分数 26\"]"
     },
     {
       "name": "第 2 局：再来一局 / 退出回大厅可用",
@@ -51,9 +71,9 @@
       "detail": ""
     },
     {
-      "name": "第 3 局完整打完并进入结算（🏆 老王 获胜）",
+      "name": "第 3 局完整打完并进入结算（🏆 你 获胜）",
       "ok": true,
-      "detail": "[\"你10 张 · 趣味分数 83\",\"老王0 张 · 趣味分数 0\"]"
+      "detail": "[\"你0 张 · 出完手牌\",\"老王4 张 · 趣味分数 15\"]"
     },
     {
       "name": "第 3 局：再来一局 / 退出回大厅可用",
@@ -61,19 +81,44 @@
       "detail": ""
     },
     {
+      "name": "结算趣味分数 = 剩余手牌分值（引擎 → 公开视图 → UI 全链路一致）",
+      "ok": true,
+      "detail": "[{\"cards\":3,\"expected\":14,\"shown\":14,\"hasScore\":true,\"isOut\":false,\"isWinnerRow\":false,\"text\":\"老王3 张 · 趣味分数 14\"},{\"cards\":11,\"expected\":98,\"shown\":98,\"hasScore\":true,\"isOut\":false,\"isWinnerRow\":false,\"text\":\"小美11 张 · 趣味分数 98\"},{\"cards\":10,\"expected\":58,\"shown\":58,\"hasScore\":true,\"isOut\":false,\"isWinnerRow\":false,\"text\":\"阿强10 张 · 趣味分数 58\"},{\"cards\":6,\"expected\":35,\"shown\":35,\"hasScore\":true,\"isOut\":false,\"isWinnerRow\":false,\"text\":\"你6 张 · 趣味分数 35\"}]"
+    },
+    {
+      "name": "结算页存在非赢家趣味分 > 0（未出现全员清零）",
+      "ok": true,
+      "detail": "maxShown=98"
+    },
+    {
+      "name": "结算页赢家行改为「出完手牌 / 手牌最少获胜」（不再显示趣味分数 0 造成误解）",
+      "ok": true,
+      "detail": "[[\"你0 张 · 出完手牌\",\"老王3 张 · 趣味分数 14\",\"小美11 张 · 趣味分数 98\",\"阿强10 张 · 趣味分数 58\"],[\"你6 张 · 趣味分数 35\",\"老王0 张 · 出完手牌\",\"小美9 张 · 趣味分数 40\",\"阿强2 张 · 趣味分数 26\"],[\"你0 张 · 出完手牌\",\"老王4 张 · 趣味分数 15\"]]"
+    },
+    {
+      "name": "出牌通过点击手牌完成（操作栏无出牌按钮）",
+      "ok": true,
+      "detail": "cardClicks=40"
+    },
+    {
+      "name": "摸牌按钮文案为「摸牌」（BUG-01 新规则：摸到可出为止）",
+      "ok": true,
+      "detail": "sawDrawLabel=true"
+    },
+    {
       "name": "引擎事件覆盖：出牌/摸牌/回合结束",
       "ok": true,
-      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"SKIP\":13,\"DRAW\":51,\"PLAY\":106,\"COLOR_SET\":11,\"STACK_PUSH\":13,\"CHALLENGE_FAIL\":1,\"STACK_RESOLVE\":5,\"CHALLENGE_SUCCESS\":2,\"UNO_CALLED\":7,\"REVERSE\":9,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":152,\"SKIP\":18,\"DRAW\":40,\"STACK_PUSH\":19,\"STACK_RESOLVE\":11,\"REVERSE\":10,\"COLOR_SET\":13,\"CHALLENGE_SUCCESS\":2,\"UNO_CALLED\":5,\"PLAYER_OUT\":3,\"ROUND_END\":3,\"PILE_RESHUFFLE\":1}"
     },
     {
       "name": "引擎事件包含叠牌/挑战/UNO 路径（随机对局统计）",
       "ok": true,
-      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"SKIP\":13,\"DRAW\":51,\"PLAY\":106,\"COLOR_SET\":11,\"STACK_PUSH\":13,\"CHALLENGE_FAIL\":1,\"STACK_RESOLVE\":5,\"CHALLENGE_SUCCESS\":2,\"UNO_CALLED\":7,\"REVERSE\":9,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":152,\"SKIP\":18,\"DRAW\":40,\"STACK_PUSH\":19,\"STACK_RESOLVE\":11,\"REVERSE\":10,\"COLOR_SET\":13,\"CHALLENGE_SUCCESS\":2,\"UNO_CALLED\":5,\"PLAYER_OUT\":3,\"ROUND_END\":3,\"PILE_RESHUFFLE\":1}"
     },
     {
       "name": "引擎模式：事件播放期间出现 aria-busy 输入锁",
       "ok": true,
-      "detail": "busy 记录 47 次"
+      "detail": "busy 记录 41 次"
     },
     {
       "name": "引擎模式：动画期间操作按钮被禁用",
@@ -83,7 +128,7 @@
     {
       "name": "引擎模式：AI 回合显示「思考中」气泡",
       "ok": true,
-      "detail": "thinking 出现动画名=none"
+      "detail": "thinking 出现动画名=dots"
     },
     {
       "name": "引擎模式：动画结束后 aria-busy 解除",
@@ -98,27 +143,57 @@
     {
       "name": "M4 智谱台词：AI 气泡展示 LLM line",
       "ok": true,
-      "detail": "line=老王：“看我的”"
+      "detail": "line=阿强：“看我的”"
+    },
+    {
+      "name": "AI 台词只短暂展示：TTL/换人后自动消失（不跨回合残留）",
+      "ok": true,
+      "detail": "line=阿强：“看我的” clearAfter=2332ms"
+    },
+    {
+      "name": "回大厅后 AI 台词清空（不留对话/不跨局残留）",
+      "ok": true,
+      "detail": "[]"
     },
     {
       "name": "M4 智谱失败自动降级：状态栏显示「本地·降级」+ 提示 toast",
       "ok": true,
-      "detail": "智谱免费模型繁忙，已自动降级本地 AI"
+      "detail": "degradeSeen=true toast=智谱免费模型繁忙，已自动降级本地 AI"
     },
     {
       "name": "M4 降级后本地 AI 继续行动（对局不中断）",
       "ok": true,
-      "detail": ""
+      "detail": "eventFeedChanged=true"
+    },
+    {
+      "name": "回大厅后 AI 台词清空（不留对话/不跨局残留）",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "mock 牌桌：手牌区无「你的手牌 / N 张」",
+      "ok": true,
+      "detail": "{\"heading\":false,\"count\":false,\"text\":\"\"}"
+    },
+    {
+      "name": "mock 牌桌：操作栏只剩功能按钮（无出牌按钮）",
+      "ok": true,
+      "detail": "[{\"text\":\"摸牌\",\"disabled\":false}]"
+    },
+    {
+      "name": "mock 牌桌：正常回合无冗余提示文字",
+      "ok": true,
+      "detail": "hint="
     },
     {
       "name": "事件队列逐条播放（5 事件 ≈ 1000ms）",
       "ok": true,
-      "detail": "elapsed=1038ms"
+      "detail": "elapsed=1059ms"
     },
     {
       "name": "事件队列期间 aria-busy=true 且操作按钮禁用",
       "ok": true,
-      "detail": "{\"busy\":true,\"disabled\":6}"
+      "detail": "{\"busy\":true,\"disabled\":1}"
     },
     {
       "name": "事件队列结束后 aria-busy / aria-disabled 清理",
@@ -141,6 +216,16 @@
       "detail": "animationName=dialog-in"
     },
     {
+      "name": "UNO 按钮显著放大（高度 ≥56px、字号 ≥20px）",
+      "ok": true,
+      "detail": "{\"w\":123,\"h\":64,\"font\":22,\"text\":\"UNO!\"}"
+    },
+    {
+      "name": "UNO 单击一次即喊出（不再二次确认弹窗）",
+      "ok": true,
+      "detail": "{\"dialogOpen\":false,\"toast\":\"（演示）已提交：UNO!\"}"
+    },
+    {
       "name": "UNO 按钮脉冲动画 uno-pulse 生效",
       "ok": true,
       "detail": "animationName=uno-pulse"
@@ -159,6 +244,16 @@
       "name": "1024 宽大厅无横向溢出",
       "ok": true,
       "detail": "{\"scroll\":1024,\"client\":1024}"
+    },
+    {
+      "name": "1024 宽牌桌无横向溢出、放大的当前颜色不遮挡/不溢出",
+      "ok": true,
+      "detail": "{\"dotW\":22,\"dotH\":22,\"labelFont\":18,\"labelRect\":{\"top\":24,\"right\":139},\"viewportW\":1024,\"topBarOverflow\":false,\"pageOverflow\":false}"
+    },
+    {
+      "name": "1024 牌桌操作栏无出牌按钮",
+      "ok": true,
+      "detail": "[{\"text\":\"摸牌\",\"disabled\":false}]"
     },
     {
       "name": "没有控制台 JS 异常",
@@ -194,43 +289,43 @@
   "engineEvents": {
     "DEAL": 20,
     "START_CARD": 6,
-    "SKIP": 13,
-    "DRAW": 51,
-    "PLAY": 106,
-    "COLOR_SET": 11,
-    "STACK_PUSH": 13,
-    "CHALLENGE_FAIL": 1,
-    "STACK_RESOLVE": 5,
+    "PLAY": 152,
+    "SKIP": 18,
+    "DRAW": 40,
+    "STACK_PUSH": 19,
+    "STACK_RESOLVE": 11,
+    "REVERSE": 10,
+    "COLOR_SET": 13,
     "CHALLENGE_SUCCESS": 2,
-    "UNO_CALLED": 7,
-    "REVERSE": 9,
+    "UNO_CALLED": 5,
     "PLAYER_OUT": 3,
-    "ROUND_END": 3
+    "ROUND_END": 3,
+    "PILE_RESHUFFLE": 1
   },
   "gameSummaries": [
     {
-      "title": "🏆 阿强 获胜",
+      "title": "🏆 你 获胜",
       "rows": [
-        "你6 张 · 趣味分数 36",
-        "老王4 张 · 趣味分数 30",
-        "小美7 张 · 趣味分数 57",
-        "阿强0 张 · 趣味分数 0"
+        "你0 张 · 出完手牌",
+        "老王3 张 · 趣味分数 14",
+        "小美11 张 · 趣味分数 98",
+        "阿强10 张 · 趣味分数 58"
       ]
     },
     {
       "title": "🏆 老王 获胜",
       "rows": [
-        "你6 张 · 趣味分数 46",
-        "老王0 张 · 趣味分数 0",
-        "小美13 张 · 趣味分数 97",
-        "阿强2 张 · 趣味分数 11"
+        "你6 张 · 趣味分数 35",
+        "老王0 张 · 出完手牌",
+        "小美9 张 · 趣味分数 40",
+        "阿强2 张 · 趣味分数 26"
       ]
     },
     {
-      "title": "🏆 老王 获胜",
+      "title": "🏆 你 获胜",
       "rows": [
-        "你10 张 · 趣味分数 83",
-        "老王0 张 · 趣味分数 0"
+        "你0 张 · 出完手牌",
+        "老王4 张 · 趣味分数 15"
       ]
     }
   ],

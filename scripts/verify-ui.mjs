@@ -148,7 +148,64 @@ window.__verify = {
   dialogs: () => [...document.querySelectorAll('#dialog-root.is-open button')].map((button) => button.textContent.trim()).filter(Boolean),
   actionLabels: () => [...document.querySelectorAll('#action-bar button')].map((button) => ({ text: button.textContent.trim(), disabled: button.disabled })),
   busy: () => document.querySelector('#game-screen').getAttribute('aria-busy') === 'true',
-  humanReady: () => document.querySelectorAll('#action-bar button:not(:disabled)').length > 0,
+  humanReady: () =>
+    document.querySelectorAll('#hand .card.is-legal, #action-bar button:not(:disabled)').length > 0,
+  speechLines: () =>
+    [...document.querySelectorAll('#speech-layer .opponent-line')]
+      .map((node) => node.textContent.trim())
+      .filter(Boolean),
+  hintText: () => (document.querySelector('#hint-bar')?.textContent || '').trim(),
+  handHeading: () => ({
+    heading: Boolean(document.querySelector('.hand-heading')),
+    count: Boolean(document.querySelector('#hand-count')),
+    text: document.querySelector('#hand')?.textContent || '',
+  }),
+  colorMetrics: () => {
+    const dot = document.querySelector('#color-indicator');
+    const label = document.querySelector('#color-label');
+    const topBar = document.querySelector('#top-bar');
+    if (!dot || !label) return null;
+    const dotRect = dot.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    return {
+      dotW: Math.round(dotRect.width),
+      dotH: Math.round(dotRect.height),
+      labelFont: parseFloat(getComputedStyle(label).fontSize),
+      labelRect: {
+        top: Math.round(labelRect.top),
+        right: Math.round(labelRect.right),
+      },
+      viewportW: window.innerWidth,
+      topBarOverflow: topBar ? topBar.scrollWidth > topBar.clientWidth : false,
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
+  resultScoreAudit: () => {
+    const scoreOf = (code) => {
+      if (code === 'WC' || code === 'W4') return 50;
+      if (code.length === 2 && 'BGRY'.includes(code[0]) && code[1] >= '0' && code[1] <= '9') {
+        return Number(code[1]);
+      }
+      return 20;
+    };
+    return [...document.querySelectorAll('.result-row')].map((row) => {
+      const codes = [...row.querySelectorAll('.mini-card')].map((node) => node.dataset.faceCode);
+      const expected = codes.reduce((sum, code) => sum + scoreOf(code), 0);
+      const text = row.textContent.trim();
+      const index = text.indexOf('趣味分数');
+      const hasScore = index >= 0;
+      const shown = hasScore ? parseInt(text.slice(index + 4).trim(), 10) || 0 : 0;
+      return {
+        cards: codes.length,
+        expected,
+        shown,
+        hasScore,
+        isOut: text.includes('出完手牌'),
+        isWinnerRow: text.includes('出完手牌') || text.includes('手牌最少获胜'),
+        text,
+      };
+    });
+  },
   overflow: () => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }),
   failedImages: () => [...document.images].filter((image) => !image.complete || image.naturalWidth === 0).length,
   animations: () => ({
@@ -162,25 +219,36 @@ window.__verify = {
   }),
   engineOn: () => document.documentElement.dataset.engine === 'on',
   autoStep: () => {
-    if (document.querySelector('#result-screen.is-active')) return { step: 'result' };
-    if (document.querySelector('#game-screen').getAttribute('aria-busy') === 'true') return { step: 'busy' };
+    const drawLabel = [...document.querySelectorAll('#action-bar button')].some(
+      (button) => button.textContent.trim() === '摸牌',
+    );
+    if (document.querySelector('#result-screen.is-active')) return { step: 'result', drawLabel };
+    if (document.querySelector('#game-screen').getAttribute('aria-busy') === 'true')
+      return { step: 'busy', drawLabel };
     const dialog = document.querySelector('#dialog-root.is-open');
     if (dialog) {
       const actionable = [...dialog.querySelectorAll('button:not(:disabled)')].filter((button) => button.dataset.actionId);
       if (actionable.length) {
         const button = actionable[Math.floor(Math.random() * actionable.length)];
         button.click();
-        return { step: 'dialog', clicked: button.textContent.trim() };
+        return { step: 'dialog', clicked: button.textContent.trim(), drawLabel };
       }
-      return { step: 'dialog-idle' };
+      return { step: 'dialog-idle', drawLabel };
+    }
+    // 出牌一律通过点击手牌（操作栏已不再渲染出牌按钮）
+    const playableCards = [...document.querySelectorAll('#hand .card.is-legal')];
+    if (playableCards.length) {
+      const card = playableCards[Math.floor(Math.random() * playableCards.length)];
+      card.click();
+      return { step: 'card', clicked: card.dataset.cardId, drawLabel };
     }
     const buttons = [...document.querySelectorAll('#action-bar button:not(:disabled)')];
     if (buttons.length) {
       const button = buttons[Math.floor(Math.random() * buttons.length)];
       button.click();
-      return { step: 'action', clicked: button.textContent.trim() };
+      return { step: 'action', clicked: button.textContent.trim(), drawLabel };
     }
-    return { step: 'wait' };
+    return { step: 'wait', drawLabel };
   },
   clickStart: () => {
     const button = document.querySelector('#lobby-form button[type="submit"]');
@@ -317,6 +385,7 @@ async function main() {
     // M4：把智谱接口 mock 成"在线成功"（避免自动验收消耗真实额度；同时验证 LLM 台词/状态展示）
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `(() => {
+        window.__llmMock = { stop: false, calls: 0 };
         const realFetch = window.fetch.bind(window);
         window.fetch = async (input, init) => {
           const url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -324,6 +393,10 @@ async function main() {
             return new Response(JSON.stringify({ aiEnabled: true, aiDecisionImplemented: true, model: 'glm-mock', aiTimeoutMs: 8000 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
           }
           if (url.includes('/api/ai/decide')) {
+            window.__llmMock.calls += 1;
+            if (window.__llmMock.stop) {
+              return new Response(JSON.stringify({ ok: false, code: 'RATE_LIMIT', message: 'mock stop（用于验证台词 TTL）' }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+            }
             let actionId = '';
             try {
               const body = JSON.parse(init && init.body ? init.body : '{}');
@@ -400,8 +473,15 @@ async function main() {
     await shot('ui-m32-lobby-1440.png');
 
     // ---------------- 2. 完整对局（快速模式，3 局） ----------------
+    // BUG-01 新规则（摸到可出为止）让对局变长：这一段的目的是"完整打完对局"，
+    // 因此关闭动画、AI 快速，控制总时长；动效本身在第 3/4 节单独验证。
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
+    );
     const raceTypes = ['casual', 'easy', 'realistic', 'hardcore'];
     const gameSummaries = [];
+    const resultAudits = [];
+    const gameStepStats = { card: 0, drawLabel: false };
     for (let gameIndex = 0; gameIndex < 3; gameIndex += 1) {
       await navigate(`${BASE_URL}/?test=1`);
       await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅可见');
@@ -417,14 +497,14 @@ async function main() {
       }
       await evaluate('window.__verify.clickStart()');
       await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
-      await waitFor('window.__verify.handCount() === 7', 5000, '人类手牌 7 张');
+      await waitFor('window.__verify.handCount() >= 7', 5000, '人类手牌 ≥7 张');
       const setup = await evaluate(
         `({ hand: window.__verify.handCount(), opponents: window.__verify.opponentCount(), failed: window.__verify.failedImages(), overflow: window.__verify.overflow() })`,
       );
       if (gameIndex === 0) {
         check(
-          '开局：人类 7 张手牌 + 3 个 AI 座位',
-          setup.hand === 7 && setup.opponents === 3,
+          '开局：人类 7~9 张手牌（起手 +2 可能 9 张）+ 3 个 AI 座位',
+          setup.hand >= 7 && setup.hand <= 9 && setup.opponents === 3,
           JSON.stringify(setup),
         );
         check('开局卡面全部加载成功', setup.failed === 0, `failed=${setup.failed}`);
@@ -434,18 +514,62 @@ async function main() {
           JSON.stringify(setup.overflow),
         );
         await shot('ui-m32-game-start-1440.png');
+        // BUG-06 用户要求：删除「你的手牌 / N 张」；操作栏只留功能按钮（出牌改为点手牌）；无冗余提示文字
+        await waitFor(
+          '!window.__verify.busy() && window.__verify.humanReady()',
+          20000,
+          '首个玩家回合',
+        );
+        const uiState = await evaluate(
+          `({ heading: window.__verify.handHeading(), hint: window.__verify.hintText(), labels: window.__verify.actionLabels(), color: window.__verify.colorMetrics() })`,
+        );
+        check(
+          '手牌区不再显示「你的手牌 / N 张」',
+          !uiState.heading.heading &&
+            !uiState.heading.count &&
+            !uiState.heading.text.includes('你的手牌') &&
+            uiState.heading.text.trim() === '',
+          JSON.stringify(uiState.heading),
+        );
+        check(
+          '操作栏不再有出牌按钮（出牌改为点击手牌）',
+          !uiState.labels.some(
+            (item) => item.text.startsWith('出 ') || item.text.startsWith('叠 '),
+          ),
+          JSON.stringify(uiState.labels),
+        );
+        check(
+          '正常回合无冗余状态提示文字',
+          !uiState.hint.includes('轮到你了') &&
+            !uiState.hint.includes('高亮的牌可以打出') &&
+            !uiState.hint.includes('正在行动') &&
+            !uiState.hint.includes('摸一张'),
+          `hint=${uiState.hint}`,
+        );
+        check(
+          '当前颜色明显放大（色点 ≥20px、文字 ≥17px、不溢出）',
+          Boolean(uiState.color) &&
+            uiState.color.dotW >= 20 &&
+            uiState.color.labelFont >= 17 &&
+            !uiState.color.topBarOverflow &&
+            !uiState.color.pageOverflow &&
+            uiState.color.labelRect.right <= uiState.color.viewportW,
+          JSON.stringify(uiState.color),
+        );
       }
 
       const startedAt = Date.now();
       let lastStep = 'wait';
-      while (Date.now() - startedAt < 90000) {
+      while (Date.now() - startedAt < 240000) {
         const result = await evaluate('window.__verify.autoStep()');
         lastStep = result.step;
+        if (result.step === 'card') gameStepStats.card += 1;
+        if (result.drawLabel) gameStepStats.drawLabel = true;
         if (result.step === 'result') break;
-        await sleep(60);
+        await sleep(30);
       }
       if (lastStep !== 'result')
-        throw new Error(`第 ${gameIndex + 1} 局未在 90s 内结束（最后步骤 ${lastStep}）`);
+        throw new Error(`第 ${gameIndex + 1} 局未在 240s 内结束（最后步骤 ${lastStep}）`);
       await waitFor('document.querySelector("#result-title") !== null', 5000, '结算页渲染');
       await waitFor('window.__verify.busy() === false', 5000, '结算动画结束');
       const summary = await evaluate(
@@ -458,11 +582,12 @@ async function main() {
         summary.rows.length >= 2,
         JSON.stringify(summary.rows),
       );
+      resultAudits.push(await evaluate('window.__verify.resultScoreAudit()'));
 
       // 再来一局 → 再退出回大厅
       await evaluate('window.__verify.clickRestart()');
       await waitFor('window.__verify.visibleScreen() === "game"', 10000, '再来一局进入牌桌');
-      await waitFor('window.__verify.handCount() === 7', 5000, '重开后手牌 7 张');
+      await waitFor('window.__verify.handCount() >= 7', 5000, '重开后手牌 ≥7 张');
       // 等到人类回合再操作：AI 回合的 busy 输入锁会吞掉弹窗按钮点击
       await waitFor(
         '!window.__verify.busy() && window.__verify.humanReady()',
@@ -475,6 +600,41 @@ async function main() {
       await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回到大厅');
       check(`第 ${gameIndex + 1} 局：再来一局 / 退出回大厅可用`, true);
     }
+    // BUG-05：结算页趣味分数口径（= 结算时剩余手牌分值；赢家行改为出完手牌/手牌最少获胜）
+    const auditRows = resultAudits.flat();
+    const scoredRows = auditRows.filter((row) => row.hasScore);
+    check(
+      '结算趣味分数 = 剩余手牌分值（引擎 → 公开视图 → UI 全链路一致）',
+      scoredRows.length >= 2 && scoredRows.every((row) => row.expected === row.shown),
+      JSON.stringify(scoredRows.slice(0, 4)),
+    );
+    check(
+      '结算页存在非赢家趣味分 > 0（未出现全员清零）',
+      scoredRows.some((row) => row.shown > 0),
+      `maxShown=${Math.max(0, ...scoredRows.map((row) => row.shown))}`,
+    );
+    check(
+      '结算页赢家行改为「出完手牌 / 手牌最少获胜」（不再显示趣味分数 0 造成误解）',
+      resultAudits.every(
+        (rows) =>
+          rows.filter((row) => row.isWinnerRow).length <= 1 &&
+          rows.every((row) => !row.isWinnerRow || !row.hasScore),
+      ) &&
+        resultAudits.reduce((sum, rows) => sum + rows.filter((row) => row.isWinnerRow).length, 0) >=
+          1,
+      JSON.stringify(resultAudits.map((rows) => rows.map((row) => row.text))),
+    );
+    // BUG-06：出牌改为点击手牌后，自动化必须能通过手牌点击完成对局
+    check(
+      '出牌通过点击手牌完成（操作栏无出牌按钮）',
+      gameStepStats.card > 0,
+      `cardClicks=${gameStepStats.card}`,
+    );
+    check(
+      '摸牌按钮文案为「摸牌」（BUG-01 新规则：摸到可出为止）',
+      gameStepStats.drawLabel,
+      `sawDrawLabel=${gameStepStats.drawLabel}`,
+    );
     check(
       '引擎事件覆盖：出牌/摸牌/回合结束',
       ['PLAY', 'DRAW', 'ROUND_END'].every((type) => engineEventTypes.has(type)),
@@ -487,11 +647,15 @@ async function main() {
     );
 
     // ---------------- 3. 引擎模式动效（动画开启） ----------------
+    // AI 速度调到 slow，让 LLM 台词有更长的可见窗口（BUG-04 的台词生命周期仍按 TTL 断言）
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'slow', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
+    );
     await navigate(BASE_URL + '/');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅可见');
     await evaluate('window.__verify.clickStart()');
     await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
-    await waitFor('window.__verify.handCount() === 7', 5000, '手牌渲染');
+    await waitFor('window.__verify.handCount() >= 7', 5000, '手牌渲染');
     await evaluate(`(() => {
       window.__busyLog = [];
       window.__thinkingSeen = false;
@@ -511,7 +675,7 @@ async function main() {
     const engineStart = Date.now();
     while (Date.now() - engineStart < 15000) {
       const state = await evaluate(
-        `({ busy: window.__verify.busy(), thinking: Boolean(document.querySelector('.opponent-line.thinking')), screen: window.__verify.visibleScreen(), line: document.querySelector('.opponent-line')?.textContent || '', indicator: document.querySelector('#ai-mode-indicator')?.textContent || '' })`,
+        `({ busy: window.__verify.busy(), thinking: Boolean(document.querySelector('.opponent-line.thinking')), thinkingAnimation: (() => { const node = document.querySelector('.opponent-line.thinking'); return node ? getComputedStyle(node, '::after').animationName : ''; })(), screen: window.__verify.visibleScreen(), line: window.__verify.speechLines().filter((text) => !text.includes('思考中')).join(' | '), indicator: document.querySelector('#ai-mode-indicator')?.textContent || '' })`,
       );
       if (state.screen === 'result') break;
       if (state.indicator.includes('智谱')) llmIndicator = state.indicator;
@@ -528,9 +692,7 @@ async function main() {
       }
       if (state.thinking && !sawThinking) {
         sawThinking = true;
-        thinkingAnimation = await evaluate(
-          `getComputedStyle(document.querySelector('.opponent-line.thinking')).animationName`,
-        );
+        thinkingAnimation = state.thinkingAnimation || '';
         await shot('ui-m32-ai-thinking-1440.png');
       }
       if (state.busy || state.thinking) await sleep(80);
@@ -572,22 +734,51 @@ async function main() {
       llmLineSeen.includes('看我的'),
       `line=${llmLineSeen}`,
     );
+    // BUG-04：台词只短暂展示。停掉 mock LLM（后续决策返回 429、降级本地 AI，不再产生新台词），
+    // 旧台词应在 TTL/换人清除逻辑下自动消失，不得跨回合残留。
+    if (llmLineSeen) await evaluate('window.__llmMock.stop = true; true');
+    else check('M4 台词 mock 未生效（后续台词 TTL 断言跳过）', false, 'llmLineSeen 为空');
+    let lineClearMs = -1;
+    {
+      const started = Date.now();
+      while (Date.now() - started < 8000) {
+        if ((await evaluate('window.__verify.speechLines().length')) === 0) {
+          lineClearMs = Date.now() - started;
+          break;
+        }
+        await sleep(150);
+      }
+    }
+    check(
+      'AI 台词只短暂展示：TTL/换人后自动消失（不跨回合残留）',
+      llmLineSeen.includes('看我的') && lineClearMs >= 0 && lineClearMs <= 7000,
+      `line=${llmLineSeen} clearAfter=${lineClearMs}ms`,
+    );
     await waitFor('window.__verify.busy() === false', 5000, '动画结束');
-    // 等到人类回合再退出，避免 AI 回合 busy 锁吞掉确认按钮
+    // 等到人类回合再退出，避免 AI 回合 busy 锁吞掉确认按钮（slow AI 下可能等几轮，放宽到 30s）
     await waitFor(
       '!window.__verify.busy() && window.__verify.humanReady()',
-      15000,
+      30000,
       '人类回合可操作',
     );
     await click('#quit-game');
     await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
     await evaluate('window.__verify.clickQuitConfirm()');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, '回大厅');
+    check(
+      '回大厅后 AI 台词清空（不留对话/不跨局残留）',
+      (await evaluate('window.__verify.speechLines().length')) === 0,
+      JSON.stringify(await evaluate('window.__verify.speechLines()')),
+    );
 
     // ---------------- 3b. M4：智谱失败自动降级（拦截 decide → 429） ----------------
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `(() => { const previous = window.fetch.bind(window); window.fetch = async (input, init) => { const url = typeof input === 'string' ? input : (input && input.url) || ''; if (url.includes('/api/ai/decide')) { return new Response(JSON.stringify({ ok: false, code: 'RATE_LIMIT', message: 'busy' }), { status: 429, headers: { 'Content-Type': 'application/json' } }); } return previous(input, init); }; })();`,
     });
+    // 本段只验证降级链路：快速 AI + 关闭动画，避免等待人类回合超时
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
+    );
     await navigate(BASE_URL + '/');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅');
     await evaluate(
@@ -595,38 +786,82 @@ async function main() {
     );
     await evaluate('window.__verify.clickStart()');
     await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
-    await waitFor(
-      `document.querySelector('#ai-mode-indicator')?.textContent.includes('降级')`,
-      20000,
-      'AI 状态栏显示降级',
-    );
+    // 降级只会在「AI 实际尝试调用 /api/ai/decide」后出现：若先轮到人类，需先操作推进对局。
+    let degradeSeen = false;
+    const degradeDeadline = Date.now() + 30000;
+    while (Date.now() < degradeDeadline) {
+      const indicator = await evaluate(
+        `document.querySelector('#ai-mode-indicator')?.textContent || ''`,
+      );
+      if (indicator.includes('降级')) {
+        degradeSeen = true;
+        break;
+      }
+      await evaluate('window.__verify.autoStep()');
+      await sleep(150);
+    }
     const fallbackToast = await evaluate(
       `document.querySelector('#toast-region')?.textContent || ''`,
     );
     check(
       'M4 智谱失败自动降级：状态栏显示「本地·降级」+ 提示 toast',
-      fallbackToast.includes('智谱') && fallbackToast.includes('降级'),
-      fallbackToast.trim(),
+      degradeSeen && fallbackToast.includes('智谱') && fallbackToast.includes('降级'),
+      `degradeSeen=${degradeSeen} toast=${fallbackToast.trim()}`,
     );
     const initialFeed = await evaluate(`document.querySelector('#event-feed')?.textContent || ''`);
-    await waitFor(
-      `(document.querySelector('#event-feed')?.textContent || '') !== ${JSON.stringify(initialFeed)}`,
-      15000,
-      '降级后 AI 仍在行动',
+    // 降级后必须能继续对局：若轮到人类，先自动出一手，随后观察事件流是否继续变化（本地 AI 接管）
+    let fallbackActionSeen = false;
+    const fallbackDeadline = Date.now() + 25000;
+    while (Date.now() < fallbackDeadline) {
+      const feed = await evaluate(`document.querySelector('#event-feed')?.textContent || ''`);
+      if (feed !== initialFeed) {
+        fallbackActionSeen = true;
+        break;
+      }
+      const step = await evaluate('window.__verify.autoStep()');
+      if (step.step === 'result') break;
+      await sleep(120);
+    }
+    check(
+      'M4 降级后本地 AI 继续行动（对局不中断）',
+      fallbackActionSeen,
+      `eventFeedChanged=${fallbackActionSeen}`,
     );
-    check('M4 降级后本地 AI 继续行动（对局不中断）', true);
     await shot('ui-m4-ai-fallback-1440.png');
-    await waitFor('!window.__verify.busy() && window.__verify.humanReady()', 15000, '人类回合');
+    await waitFor('!window.__verify.busy() && window.__verify.humanReady()', 30000, '人类回合');
     await click('#quit-game');
     await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
     await evaluate('window.__verify.clickQuitConfirm()');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, '回大厅');
+    check(
+      '回大厅后 AI 台词清空（不留对话/不跨局残留）',
+      (await evaluate('window.__verify.speechLines().length')) === 0,
+      JSON.stringify(await evaluate('window.__verify.speechLines()')),
+    );
 
     // ---------------- 4. 动画队列机制（mock 模式，避免 AI 干扰） ----------------
+    // 3b 为了等待人类回合关闭了动画，这里恢复动画开启再验证事件队列
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
+    );
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'mock 大厅');
     await evaluate('window.__verify.selectMock("normal-play")');
     await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 牌桌');
+    const mockUi = await evaluate(
+      `({ heading: window.__verify.handHeading(), hint: window.__verify.hintText(), labels: window.__verify.actionLabels() })`,
+    );
+    check(
+      'mock 牌桌：手牌区无「你的手牌 / N 张」',
+      !mockUi.heading.heading && !mockUi.heading.count && mockUi.heading.text.trim() === '',
+      JSON.stringify(mockUi.heading),
+    );
+    check(
+      'mock 牌桌：操作栏只剩功能按钮（无出牌按钮）',
+      !mockUi.labels.some((item) => item.text.startsWith('出 ') || item.text.startsWith('叠 ')),
+      JSON.stringify(mockUi.labels),
+    );
+    check('mock 牌桌：正常回合无冗余提示文字', mockUi.hint === '', `hint=${mockUi.hint}`);
     const queueMeasure = await evaluate(`(async () => {
       const events = Array.from({ length: 5 }, () => ({ type: 'DRAW', seat: 1, count: 1, cards: [] }));
       const startedAt = performance.now();
@@ -710,6 +945,25 @@ async function main() {
     await evaluate(`document.querySelector('#dialog-root.is-open .dialog-close').click(); true`);
     await evaluate('window.__verify.selectMock("uno-window")');
     await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock UNO 局面');
+    // BUG-02：UNO 按钮显著放大 + 单击一次即喊出（无二次确认弹窗）
+    const unoButton = await evaluate(
+      `(() => { const button = document.querySelector('.uno-button'); if (!button) return null; const rect = button.getBoundingClientRect(); return { w: Math.round(rect.width), h: Math.round(rect.height), font: parseFloat(getComputedStyle(button).fontSize), text: button.textContent.trim() }; })()`,
+    );
+    check(
+      'UNO 按钮显著放大（高度 ≥56px、字号 ≥20px）',
+      Boolean(unoButton) && unoButton.h >= 56 && unoButton.font >= 20,
+      JSON.stringify(unoButton),
+    );
+    await evaluate(`document.querySelector('.uno-button').click(); true`);
+    await sleep(250);
+    const unoClick = await evaluate(
+      `({ dialogOpen: Boolean(document.querySelector('#dialog-root.is-open')), toast: document.querySelector('#toast-region')?.textContent || '' })`,
+    );
+    check(
+      'UNO 单击一次即喊出（不再二次确认弹窗）',
+      !unoClick.dialogOpen && unoClick.toast.includes('UNO'),
+      JSON.stringify(unoClick),
+    );
     const unoAnimation = await evaluate('window.__verify.animations()');
     check(
       'UNO 按钮脉冲动画 uno-pulse 生效',
@@ -750,6 +1004,27 @@ async function main() {
       '1024 宽大厅无横向溢出',
       overflow1024.scroll <= overflow1024.client,
       JSON.stringify(overflow1024),
+    );
+    // 1024 牌桌（mock）布局 + 放大的当前颜色不溢出/不遮挡
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, '1024 牌桌');
+    const game1024 = await evaluate(
+      `({ overflow: window.__verify.overflow(), color: window.__verify.colorMetrics(), labels: window.__verify.actionLabels() })`,
+    );
+    check(
+      '1024 宽牌桌无横向溢出、放大的当前颜色不遮挡/不溢出',
+      game1024.overflow.scroll <= game1024.overflow.client &&
+        Boolean(game1024.color) &&
+        !game1024.color.pageOverflow &&
+        !game1024.color.topBarOverflow &&
+        game1024.color.labelRect.right <= game1024.color.viewportW &&
+        game1024.color.dotW >= 20,
+      JSON.stringify(game1024.color),
+    );
+    check(
+      '1024 牌桌操作栏无出牌按钮',
+      !game1024.labels.some((item) => item.text.startsWith('出 ') || item.text.startsWith('叠 ')),
+      JSON.stringify(game1024.labels),
     );
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
@@ -796,7 +1071,7 @@ async function main() {
     const passed = checks.filter((item) => item.ok).length;
     const failed = checks.length - passed;
     const lines = [
-      '# M3-2 浏览器验收报告（自动生成）',
+      '# M3-3 体验修正 + M3-2/M4 浏览器验收报告（自动生成）',
       '',
       `> 时间：${new Date().toISOString()} ｜ 入口：${BASE_URL} ｜ 浏览器：${version.Browser}`,
       `> 结果：**${passed} / ${checks.length} 通过**${failed > 0 ? `，${failed} 项失败` : ''}`,

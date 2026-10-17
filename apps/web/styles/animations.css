@@ -1,5 +1,9 @@
 @keyframes dialog-in { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-@keyframes uno-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,170,0,.35); } 50% { box-shadow: 0 0 0 8px rgba(255,170,0,0); } }
+/* BUG-02：UNO 按钮脉冲加强（扩散光环 + 轻微放大）；动画名保持不变 */
+@keyframes uno-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 2px rgba(255, 255, 255, .32), 0 0 14px rgba(255, 170, 0, .55), 0 8px 18px rgba(255, 102, 0, .35); }
+  50% { transform: scale(1.045); box-shadow: 0 0 0 12px rgba(255, 170, 0, 0), 0 0 30px 6px rgba(255, 170, 0, .9), 0 10px 26px rgba(255, 102, 0, .55); }
+}
 @keyframes dots { 0% { content: ""; } 33% { content: "."; } 66% { content: ".."; } 100% { content: "..."; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 html[data-animation="false"] *, html[data-animation="false"] *::before, html[data-animation="false"] *::after { animation: none !important; transition: none !important; }

@@ -6,6 +6,7 @@ import {
   createInitialGame,
   getResult,
   scoreHand,
+  toPublicResult,
 } from '../src/index.ts';
 import type { Card, CardKind, Color, EngineAction, GameEvent, GameState } from '../src/types.ts';
 
@@ -152,8 +153,10 @@ describe('M1-7 对局结算 getResult', () => {
     const red7 = num('red', 7);
     const red9 = num('red', 9);
     const green5 = num('green', 5);
+    const red8 = num('red', 8);
+    // pop 顺序：green5（不可出）→ red8（当前颜色红，可出，停止）
     const state = makeState([[red7, red9], [num('green', 9)]], num('red', 3), {
-      drawPile: [green5],
+      drawPile: [red8, green5],
     });
 
     let current = state;
@@ -169,21 +172,118 @@ describe('M1-7 对局结算 getResult', () => {
     expect(first.state.players[0]!.saidUno).toBe(true); // autoCallUno=true
     expect(first.events.map((event) => event.type)).toEqual(['PLAY', 'UNO_CALLED']);
 
-    const second = play({ type: 'DRAW' }); // 座位 1 摸到绿 5，但顶牌/当前颜色是红 → 不可出，自动结束回合
+    const second = play({ type: 'DRAW' }); // 座位 1 摸绿 5 不可出 → 继续摸红 8 可出即停
     expect(second.events.map((event) => event.type)).toEqual(['DRAW']);
+    expect(second.events[0]).toMatchObject({ seat: 1, count: 2 });
+    expect(second.state.currentSeat).toBe(1); // 停在 await-play，需要主动结束回合
 
-    const third = play({ type: 'PLAY_CARD', cardId: red9.id });
-    expect(third.events.map((event) => event.type)).toEqual(['PLAY', 'PLAYER_OUT', 'ROUND_END']);
+    const third = play({ type: 'END_TURN' });
+    expect(third.events).toEqual([]);
+
+    const fourth = play({ type: 'PLAY_CARD', cardId: red9.id });
+    expect(fourth.events.map((event) => event.type)).toEqual(['PLAY', 'PLAYER_OUT', 'ROUND_END']);
 
     const summary = getResult(current);
     expect(summary.winnerSeat).toBe(0);
     expect(summary.turns).toBe(2);
-    expect(summary.actions).toBe(3);
+    expect(summary.actions).toBe(4);
     expect(summary.plays).toBe(2);
-    expect(summary.draws).toBe(1);
+    expect(summary.draws).toBe(2);
     expect(summary.stackPlays).toBe(0);
     expect(summary.unoCalls).toBe(1);
-    expect(steps).toHaveLength(3);
+    expect(steps).toHaveLength(4);
+  });
+
+  it('BUG-05 结算分数：赢家 0 分/空手牌，非赢家按剩余手牌计分且至少一位 >0', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [[red7], [num('red', 9), skip('green'), wild()], [wild4(), draw2('blue')]],
+      num('red', 3),
+    );
+    const ended = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    const summary = getResult(ended.state);
+
+    expect(summary.players[0]).toMatchObject({ score: 0, remaining: [] });
+    for (const player of summary.players.slice(1)) {
+      expect(player.score).toBe(scoreHand(ended.state.players[player.seat]!.hand));
+      expect(player.remaining.map((card) => card.id)).toEqual(
+        ended.state.players[player.seat]!.hand.map((card) => card.id),
+      );
+    }
+    expect(summary.players.slice(1).some((player) => player.score > 0)).toBe(true);
+  });
+
+  it('BUG-05 UNO 路径：剩 1 张喊 UNO 后出完最后一张，同样赢家 0 分、非赢家按手牌计分', () => {
+    const red7 = num('red', 7);
+    const red5 = num('red', 5);
+    const wildCard = wild();
+    const green9 = num('green', 9);
+    const state = makeState(
+      [
+        [red7, red5],
+        [wildCard, green9],
+      ],
+      num('red', 3),
+    );
+
+    // 座位 0 出到 1 张（autoCallUno=true 自动喊 UNO）→ 座位 1 出 Wild 选红 → 座位 0 出完最后一张。
+    let current = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id }).state;
+    current = applyAction(current, {
+      type: 'PLAY_CARD',
+      cardId: wildCard.id,
+      colorChoice: 'red',
+    }).state;
+    const ended = applyAction(current, { type: 'PLAY_CARD', cardId: red5.id });
+    expect(ended.state.winnerSeat).toBe(0);
+
+    const summary = getResult(ended.state);
+    expect(summary.unoCalls).toBe(2); // 两位玩家各在剩 1 张时喊过 UNO
+    expect(summary.players[0]).toMatchObject({ score: 0, remaining: [], saidUno: true });
+    expect(summary.players[1]!.score).toBe(scoreHand([green9]));
+    expect(summary.players[1]!.score).toBeGreaterThan(0);
+  });
+
+  it('BUG-05 toPublicResult 的 players[].score / remaining 与 getResult 完全一致', () => {
+    const red7 = num('red', 7);
+    const state = makeState([[red7], [num('blue', 9), skip('red')]], num('red', 3));
+    const ended = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    const engineResult = getResult(ended.state, { durationMs: 777 });
+    const publicResult = toPublicResult(ended.state, 777);
+
+    expect(publicResult.players).toEqual(
+      engineResult.players.map((player) => ({
+        seat: player.seat,
+        name: player.name,
+        isHuman: player.isHuman,
+        remaining: player.remaining,
+        score: player.score,
+        saidUno: player.saidUno,
+      })),
+    );
+    expect(publicResult.winnerSeat).toBe(0);
+    expect(publicResult.players[0]).toMatchObject({ score: 0, remaining: [] });
+    expect(publicResult.players[1]!.score).toBe(scoreHand(ended.state.players[1]!.hand));
+  });
+
+  it('BUG-05 牌堆耗尽/平局结算：同样按剩余手牌计分', () => {
+    const state = makeState(
+      [[num('blue', 5)], [num('green', 9)], [num('yellow', 9), num('yellow', 1)]],
+      num('red', 3),
+      { drawPile: [], discardPile: [num('red', 3)] },
+    );
+    const ended = applyAction(state, { type: 'DRAW' });
+    const summary = getResult(ended.state);
+
+    expect(ended.state.phase).toBe('round-end');
+    expect(summary.isDraw).toBe(true);
+    expect(summary.reason).toBe('deck-empty');
+    for (const player of summary.players) {
+      expect(player.score).toBe(scoreHand(ended.state.players[player.seat]!.hand));
+      expect(player.remaining.map((card) => card.id)).toEqual(
+        ended.state.players[player.seat]!.hand.map((card) => card.id),
+      );
+    }
+    expect(summary.players[2]!.score).toBe(9 + 1); // 黄9 + 黄1
   });
 });
 
@@ -192,8 +292,10 @@ describe('M1-7 事件日志完整性', () => {
     const red7 = num('red', 7);
     const red9 = num('red', 9);
     const green5 = num('green', 5);
+    const red8 = num('red', 8);
+    // pop 顺序：green5（不可出）→ red8（可出，停止）
     const state = makeState([[red7, red9], [num('green', 9)]], num('red', 3), {
-      drawPile: [green5],
+      drawPile: [red8, green5],
     });
 
     let current = state;
@@ -201,6 +303,7 @@ describe('M1-7 事件日志完整性', () => {
     const actions: EngineAction[] = [
       { type: 'PLAY_CARD', cardId: red7.id },
       { type: 'DRAW' },
+      { type: 'END_TURN' },
       { type: 'PLAY_CARD', cardId: red9.id },
     ];
     for (const action of actions) {

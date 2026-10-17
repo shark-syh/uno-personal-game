@@ -83,13 +83,14 @@ function makeState(hands: Card[][], top: Card, options: StateOptions = {}): Game
 const eventTypes = (state: GameState): string[] => state.events.map((event) => event.type);
 
 describe('M1-7 牌堆耗尽（默认 reshuffle 策略）', () => {
-  it('抽牌堆空、弃牌堆可回收：洗回弃牌堆（保留顶牌）后继续摸牌', () => {
+  it('抽牌堆空、弃牌堆可回收：洗回弃牌堆（保留顶牌）后继续摸到可出牌', () => {
     const state = makeState(
       [[num('blue', 5)], [num('green', 9)], [num('yellow', 9)]],
       num('red', 3),
       {
         drawPile: [],
-        discardPile: [num('green', 1), num('blue', 2), num('red', 3)],
+        // 回收 red7 后可出（红色匹配），摸到即停，避免继续把牌摸空
+        discardPile: [num('red', 7), num('red', 3)],
       },
     );
     const result = applyAction(state, { type: 'DRAW' });
@@ -98,9 +99,11 @@ describe('M1-7 牌堆耗尽（默认 reshuffle 策略）', () => {
     expect(
       result.events.some((event) => event.type === 'PILE_RESHUFFLE' && event.reason === 'draw'),
     ).toBe(true);
-    expect(result.state.players[0]!.hand).toHaveLength(2);
+    expect(result.state.players[0]!.hand).toHaveLength(2); // 原 1 张 + 洗回摸到的 red7
+    expect(result.state.drawnThisTurn?.id).toBe(state.discardPile[0]!.id); // red7
+    expect(result.state.currentSeat).toBe(0); // 摸到可出即停，不推进回合
     expect(result.state.discardPile).toHaveLength(1); // 只保留顶牌
-    expect(result.state.discardPile[0]).toMatchObject({ id: state.discardPile[2]!.id });
+    expect(result.state.discardPile[0]).toMatchObject({ id: state.discardPile[1]!.id });
     expect(countCards(result.state)).toBe(countCards(state));
   });
 

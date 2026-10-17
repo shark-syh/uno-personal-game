@@ -31,7 +31,14 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 .top-status { flex-wrap: wrap; }
 .status-chip { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-muted); font-size: 13px; }
 .status-chip strong { color: var(--ink); }
-.color-dot { width: 14px; height: 14px; border: 2px solid #fffc; border-radius: 50%; background: var(--red); }
+/* BUG-03：左上角当前颜色放大（色点 22px + 白边/发光，文字 18px 加粗） */
+.status-color { gap: 8px; padding: 2px 12px 2px 7px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff0d; }
+.color-dot { width: 22px; height: 22px; flex: none; border: 2px solid #fff; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px rgba(0, 0, 0, .3), 0 0 10px 1px rgba(255, 255, 255, .6); }
+.color-dot[data-color="red"] { box-shadow: 0 0 0 2px rgba(0, 0, 0, .3), 0 0 12px 2px rgba(255, 85, 85, .9); }
+.color-dot[data-color="yellow"] { box-shadow: 0 0 0 2px rgba(0, 0, 0, .3), 0 0 12px 2px rgba(255, 170, 0, .95); }
+.color-dot[data-color="green"] { box-shadow: 0 0 0 2px rgba(0, 0, 0, .3), 0 0 12px 2px rgba(85, 170, 85, .95); }
+.color-dot[data-color="blue"] { box-shadow: 0 0 0 2px rgba(0, 0, 0, .3), 0 0 12px 2px rgba(85, 85, 255, .95); }
+#color-label { color: var(--ink); font-size: 18px; font-weight: 800; min-width: 1.4em; text-align: center; }
 
 #table-area { position: relative; display: grid; grid-template-rows: 96px minmax(192px, 1fr) 54px 28px; min-width: 0; }
 #opponents { position: absolute; inset: 0; pointer-events: none; }
@@ -71,10 +78,11 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 .opponent-line:empty { display: none; }
 
 #hand-zone { position: relative; display: grid; gap: 8px; min-width: 0; }
-.hand-heading { display: flex; justify-content: space-between; padding-inline: 4px; color: var(--ink-muted); font-size: 13px; }
 #hand { min-height: 188px; display: flex; justify-content: safe center; align-items: end; column-gap: var(--hand-gap, 10px); padding: 26px 12px 8px; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 #action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 44px; }
 #hint-bar { min-height: 30px; padding: 5px 12px; color: var(--ink-muted); text-align: center; font-size: 13px; }
+/* BUG-06：正常回合没有提示文本时整块不占位（特殊阶段仍显示提示） */
+#hint-bar:empty { display: none; }
 
 #result-screen { padding: 28px; background: linear-gradient(145deg, var(--felt-800), var(--felt-900)); }
 #result-screen.is-active { display: grid; place-items: center; }
@@ -86,6 +94,10 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 .result-row { display: grid; grid-template-columns: minmax(70px, 1fr) 1fr auto; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid var(--line); }
 .result-row.is-winner { background: #ffaa001a; }
 .result-cards { display: flex; flex-wrap: wrap; gap: 5px; }
+.result-score { color: var(--ink-muted); font-size: 13px; white-space: nowrap; }
+.result-row.is-winner .result-score { color: #ffd86b; font-weight: 800; }
+/* BUG-05：趣味分数说明（列表下的小字） */
+.result-legend { margin: -12px 0 22px; color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
 .result-actions { display: flex; gap: 10px; }
 
 @media (hover: hover) and (pointer: fine) { .choice-grid button:hover { background: #ffffff20; } }

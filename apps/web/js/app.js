@@ -27,6 +27,8 @@ function toast(message) {
   region.append(node);
   window.setTimeout(() => node.remove(), 2600);
 }
+// BUG-06：正常回合不再显示冗余状态文字（#hint-bar 为空时由 layout.css 的 :empty 收起高度），
+// 只保留特殊阶段必要的操作提示（叠牌响应 / +4 挑战 / 选色 / UNO 窗口）。
 function hintFor(current) {
   if (current.phase === "stack-response") {
     return `上家出了叠牌，选择继续叠加或摸 ${current.table.stack?.total || 0} 张`;
@@ -36,10 +38,7 @@ function hintFor(current) {
   if (current.phase === "uno-window") {
     return current.human.canCallUno ? "只剩一张牌，别忘了喊 UNO" : "发现有人忘了喊 UNO？抓住机会";
   }
-  if (current.currentSeat !== 0) return `${current.players[current.currentSeat]?.name || "AI"} 正在行动`;
-  // 引擎/动作自带 hint 时优先展示（如"红色数字牌可以出"），否则用通用引导
-  const actionHint = (current.human.legalActions || []).find((action) => action.hint)?.hint;
-  return actionHint || "轮到你了，选择一张高亮的牌，或摸一张";
+  return "";
 }
 function draw() {
   render(view, {

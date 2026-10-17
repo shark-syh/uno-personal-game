@@ -64,7 +64,7 @@
     <section id="game-screen" class="screen" data-screen="game" aria-label="牌桌">
       <header id="top-bar">
         <div class="top-status">
-          <span class="status-chip"><span id="color-indicator" class="color-dot" data-color="red"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
+          <span class="status-chip status-color"><span id="color-indicator" class="color-dot" data-color="red" aria-hidden="true"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
           <span class="status-chip"><span id="direction-indicator" data-direction="1" aria-label="顺时针">↻</span><span id="direction-label">顺时针</span></span>
           <span class="status-chip"><strong>AI</strong><span id="ai-mode-indicator">自动</span></span>
         </div>
@@ -93,7 +93,6 @@
       </div>
 
       <div id="hand-zone">
-        <div class="hand-heading"><span>你的手牌</span><span id="hand-count"></span></div>
         <div id="hand" data-seat="0" aria-label="你的手牌"></div>
         <div id="action-bar" aria-label="可用操作"></div>
         <div id="hint-bar" role="status"></div>

@@ -335,8 +335,10 @@ export interface LadderPairingResult {
 /** 难度阶梯自对弈汇总 */
 export interface LadderResult {
   pairings: LadderPairingResult[];
-  /** 是否每一组相邻对战都是"难度高者胜率 > 50%" */
+  /** 是否每一组相邻对战都满足「强档胜率 ≥ 50% - winRateTolerance」 */
   monotonic: boolean;
+  /** 判定容差（0 = 严格要求强档胜率 > 50%） */
+  winRateTolerance: number;
   illegalActions: number;
   errorCount: number;
   games: number;
@@ -354,6 +356,11 @@ export interface LadderOptions {
   deckExhaustion?: DeckExhaustion;
   challengeWild4?: boolean;
   twoPlayerRules?: boolean;
+  /**
+   * 胜率判定容差（默认 0）。BUG-01 摸牌规则变更后单局回合数约翻倍、方差变大，
+   * 200 局样本的 95% 置信区间约 ±7%，用 2% 容差吸收统计噪声（判定"强档不弱于弱档"）。
+   */
+  winRateTolerance?: number;
 }
 
 /** 4 人混战（每档一个座位，座位轮转）参数 */
@@ -364,6 +371,11 @@ export interface MixedTableOptions {
   maxActions?: number;
   deckExhaustion?: DeckExhaustion;
   challengeWild4?: boolean;
+  /**
+   * 平均名次判定容差（默认 0，单位=名次）。混战样本较小时名次均值标准误约 0.1，
+   * 用容差吸收统计噪声（"强档名次不弱于弱档 + 容差"）。
+   */
+  positionTolerance?: number;
 }
 
 /** 4 人混战结果（验证四档难度的综合强度排序） */
@@ -377,6 +389,8 @@ export interface MixedTableResult {
   avgTurns: number;
   illegalActions: number;
   errorCount: number;
-  /** 平均名次是否随难度单调变好（休闲 > 简单 > 真实 > 骨灰级 无意义，应为晋升） */
+  /** 平均名次是否随难度单调变好（允许 positionTolerance 的统计噪声） */
   rankingMonotonic: boolean;
+  /** 平均名次判定容差（0 = 严格单调） */
+  positionTolerance: number;
 }

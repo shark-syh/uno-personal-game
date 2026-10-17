@@ -23,7 +23,7 @@ function common({ name = "normal-play", count = 4, phase = "await-play", players
 
 function normal(name = "normal-play", count = 4) {
   const hand = humanHand();
-  const legal = [action("play:R7#0", "PLAY_CARD", "出 红7", { cardId: "R7#0", hint: "红色数字牌可以出" }), ...colorActions("PLAY_CARD", "WC#0"), action("draw", "DRAW", "摸 1 张", { hint: "没有合适的牌？摸一张" })];
+  const legal = [action("play:R7#0", "PLAY_CARD", "出 红7", { cardId: "R7#0", hint: "红色数字牌可以出" }), ...colorActions("PLAY_CARD", "WC#0"), action("draw", "DRAW", "摸牌", { hint: "摸到能打出的牌为止" })];
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 

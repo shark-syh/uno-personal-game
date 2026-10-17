@@ -233,7 +233,7 @@ function labelFor(action: EngineAction, card: Card | null, state: GameState): st
       return `${prefix}${cardLabel(card)}`;
     }
     case 'DRAW':
-      return '摸 1 张';
+      return '摸牌';
     case 'END_TURN':
       return '结束回合';
     case 'CHOOSE_COLOR':
@@ -263,7 +263,7 @@ function hintFor(action: EngineAction, state: GameState): string {
     case 'STACK_PLAY':
       return `继续叠牌，让下家摸 ${(state.stack?.total ?? 0) + 2} 张以上`;
     case 'DRAW':
-      return '没有合适的牌？摸一张';
+      return '摸到能打出的牌为止';
     case 'END_TURN':
       return '结束本回合';
     case 'CHOOSE_COLOR':
