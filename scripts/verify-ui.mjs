@@ -480,13 +480,14 @@ async function main() {
     check('默认入口为引擎模式（真实对局）', modeAtLobby === 'engine', `getMode()=${modeAtLobby}`);
     check('引擎模式标记 `data-engine="on"`', engineOn === true);
     const lobbyCounts = await evaluate(
-      `({ counts: document.querySelectorAll('#player-count-options button').length, difficulties: document.querySelectorAll('#difficulty-options button').length, modes: document.querySelectorAll('#ai-mode-options button').length, challenge: document.querySelector('#challenge-wild4')?.checked })`,
+      `({ counts: document.querySelectorAll('#player-count-options button').length, difficulties: document.querySelectorAll('#difficulty-options button').length, modes: document.querySelectorAll('#ai-mode-options button').length, challenge: document.querySelector('#challenge-wild4')?.checked, playerName: Boolean(document.querySelector('#player-name')) })`,
     );
     check(
-      '大厅选项齐全（人数 9 档 / 难度 4 档 / AI 模式 3 档 / +4 挑战默认开）',
+      '大厅选项齐全（人数 9 档 / 难度 4 档 / AI 模式 3 档 / +4 挑战默认开 / 无用户名输入）',
       lobbyCounts.counts === 9 &&
         lobbyCounts.difficulties === 4 &&
         lobbyCounts.modes === 3 &&
+        lobbyCounts.playerName === false &&
         lobbyCounts.challenge === true,
       JSON.stringify(lobbyCounts),
     );
@@ -498,6 +499,8 @@ async function main() {
     await evaluate(
       `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
     );
+    const statsBefore = await evaluate(`JSON.parse(localStorage.getItem('uno:stats') || '{}')`);
+
     const raceTypes = ['casual', 'easy', 'realistic', 'hardcore'];
     const gameSummaries = [];
     const resultChartAudits = [];
@@ -637,6 +640,30 @@ async function main() {
       await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '回到大厅');
       check(`第 ${gameIndex + 1} 局：再来一局 / 退出回大厅可用`, true);
     }
+    // M6 复验：本地战绩写入 + 战绩弹窗显示
+    const statsAfter = await evaluate(`JSON.parse(localStorage.getItem('uno:stats') || '{}')`);
+    check(
+      '本地战绩：打完 3 局后写入 uno:stats（对局 +3、获胜数合法）',
+      Number(statsAfter.games || 0) >= Number(statsBefore.games || 0) + 3 &&
+        Number(statsAfter.wins || 0) >= Number(statsBefore.wins || 0) &&
+        Number(statsAfter.wins || 0) <= Number(statsAfter.games || 0),
+      JSON.stringify({ before: statsBefore, after: statsAfter }),
+    );
+    await evaluate(
+      `document.querySelector('.screen.is-active [data-open-dialog="stats"]').click(); true`,
+    );
+    await waitFor('window.__verify.activeDialogTitle() === "本地战绩"', 5000, '本地战绩弹窗');
+    const statsDialogText = await evaluate(
+      `document.querySelector('#dialog-root.is-open')?.textContent || ''`,
+    );
+    await evaluate(`document.querySelector('#dialog-root.is-open .dialog-close').click(); true`);
+    check(
+      '本地战绩弹窗：显示已记录的对局/获胜数',
+      statsDialogText.includes('对局') &&
+        statsDialogText.includes(String(Number(statsAfter.games || 0))),
+      statsDialogText,
+    );
+
     // ---------------- 2b. M5-05：6 / 10 人真实引擎对局布局与轮转 ----------------
     const layoutProbe = `(() => {
       const opponents = [...document.querySelectorAll('#opponents .opponent')].map((node) => {
@@ -1170,6 +1197,42 @@ async function main() {
       JSON.stringify(replayFx),
     );
     await sleep(900);
+    // ---------------- 4a2. M6 复验：结算彩带从屏幕最顶部完整飘到最底部 ----------------
+    await evaluate(`(() => {
+      const token = window.__m6conf = { done: false, max: 0, minTop: 9999 };
+      const poll = setInterval(() => {
+        const nodes = [...document.querySelectorAll('#effect-layer .fx-confetti')];
+        token.max = Math.max(token.max, nodes.length);
+        for (const node of nodes) token.minTop = Math.min(token.minTop, Math.round(node.getBoundingClientRect().top));
+        if (token.done) clearInterval(poll);
+      }, 30);
+      window.UnoApp.playEvents([{ type: 'ROUND_END', winnerSeat: 0 }], () => { token.done = true; });
+      return true;
+    })()`);
+    await sleep(320);
+    const confettiDuring = await evaluate(
+      `({ count: document.querySelectorAll('#effect-layer .fx-confetti').length, max: window.__m6conf.max, minTop: window.__m6conf.minTop })`,
+    );
+    await waitFor('window.__m6conf && window.__m6conf.done === true', 4000, '结算彩带事件队列完成');
+    await sleep(120);
+    const confettiAfterQueue = await evaluate(
+      `document.querySelectorAll('#effect-layer .fx-confetti').length`,
+    );
+    check(
+      '结算彩带：获胜后全屏彩带出现（≥10 个同屏）且从屏幕顶部开始飘落',
+      confettiDuring.max >= 10 && confettiDuring.count >= 5 && confettiDuring.minTop <= 60,
+      JSON.stringify(confettiDuring),
+    );
+    check(
+      '结算彩带：事件队列结束后彩带继续自然飘落（不被提前清空）',
+      confettiAfterQueue > 0,
+      `count=${confettiAfterQueue}`,
+    );
+    await sleep(3200);
+    const confettiEnd = await evaluate(
+      `document.querySelectorAll('#effect-layer .fx-confetti').length`,
+    );
+    check('结算彩带：完整飘到屏幕底部后自动清理', confettiEnd === 0, `count=${confettiEnd}`);
 
     // reduced-motion：应跳过动画、立即完成
     await cdp.send('Emulation.setEmulatedMedia', {

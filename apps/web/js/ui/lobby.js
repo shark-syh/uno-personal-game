@@ -27,5 +27,5 @@ export function renderLobby(view, { onAction, openDialog }) {
   choices(modeRoot, modeOptions, state.aiMode, (value) => { state.aiMode = value; });
   if (challengeInput) { challengeInput.checked = challengeWild4; challengeInput.onchange = () => { challengeWild4 = challengeInput.checked; }; }
   const form = document.querySelector("#lobby-form");
-  form.onsubmit = (event) => { event.preventDefault(); onAction({ type: "START_GAME", config: { playerName: document.querySelector("#player-name").value.trim() || "你", playerCount: state.playerCount, difficulty: state.difficulty, aiMode: state.aiMode, challengeWild4 } }); };
+  form.onsubmit = (event) => { event.preventDefault(); onAction({ type: "START_GAME", config: { playerName: "你", playerCount: state.playerCount, difficulty: state.difficulty, aiMode: state.aiMode, challengeWild4 } }); };
 }

@@ -73,7 +73,7 @@ function handleAction(action) {
   if (action.type === "START_GAME") {
     const next = createMockView("normal-play", action.config.playerCount);
     next.config = action.config;
-    next.players[0].name = action.config.playerName;
+    next.players[0].name = action.config.playerName || "你";
     rerender(next);
     return;
   }

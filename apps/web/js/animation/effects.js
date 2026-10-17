@@ -192,33 +192,43 @@ function flash(duration = 320) {
 
 function confetti(count = 24) {
   const colors = ["#ff5555", "#ffaa00", "#55aa55", "#5555ff", "#ffffff", "#ffd86b"];
+  const travel = window.innerHeight + 48;
   for (let index = 0; index < count; index += 1) {
     const node = document.createElement("div");
     node.className = "fx-confetti";
     node.style.background = colors[index % colors.length];
     node.style.left = `${Math.round(Math.random() * (window.innerWidth - 12))}px`;
-    node.style.top = "-20px";
+    // 从屏幕最顶部开始，完整飘到屏幕最底部再消失
+    node.style.top = "-24px";
     layer().append(node);
-    const drift = Math.round((Math.random() - 0.5) * 220);
-    const duration = 1100 + Math.round(Math.random() * 900);
+    const drift = Math.round((Math.random() - 0.5) * 200);
+    const duration = 1200 + Math.round(Math.random() * 700);
     node.animate(
       [
         { transform: "translate(0, 0) rotate(0deg)", opacity: 1 },
-        { transform: `translate(${drift}px, ${window.innerHeight + 60}px) rotate(${360 + Math.round(Math.random() * 360)}deg)`, opacity: 0.2 },
+        { offset: 0.82, transform: `translate(${Math.round(drift * 0.8)}px, ${Math.round(travel * 0.82)}px) rotate(${Math.round(220 + Math.random() * 220)}deg)`, opacity: 1 },
+        { transform: `translate(${drift}px, ${travel}px) rotate(${Math.round(420 + Math.random() * 300)}deg)`, opacity: 0 },
       ],
-      { duration: scaled(duration), delay: scaled(index * 24), easing: "ease-in", fill: "both" },
+      { duration: scaled(duration), delay: scaled(index * 22), easing: "linear", fill: "both" },
     ).onfinish = () => node.remove();
-    later(() => node.remove(), duration + index * 24 + 300);
+    later(() => node.remove(), duration + index * 22 + 400);
   }
-  return 900;
+  return 1200;
 }
 
-/** 清理动效层与临时定时器（队列结束 / 被打断 / 屏幕切换时调用） */
-export function cleanupEffects() {
-  clearLater();
+/**
+ * 清理动效层与临时定时器（队列结束 / 被打断 / 屏幕切换时调用）。
+ * `keepConfetti`：正常播放完成时保留彩带，让它从屏幕顶部自然飘到底部
+ * （结算页彩带需要完整飘落；新渲染/取消时才强制清掉）。
+ */
+export function cleanupEffects({ keepConfetti = false } = {}) {
   const root = document.querySelector("#effect-layer");
-  if (!root) return;
-  root.querySelectorAll(".fx-card, .fx-badge, .fx-banner, .fx-flash, .fx-confetti").forEach((node) => node.remove());
+  if (!keepConfetti) {
+    clearLater();
+    if (root) root.querySelectorAll(".fx-card, .fx-badge, .fx-banner, .fx-flash, .fx-confetti").forEach((node) => node.remove());
+  } else if (root) {
+    root.querySelectorAll(".fx-card, .fx-badge, .fx-banner, .fx-flash").forEach((node) => node.remove());
+  }
   document
     .querySelectorAll(".fx-seat-shake, .fx-pulse")
     .forEach((node) => node.classList.remove("fx-seat-shake", "fx-pulse"));
@@ -342,7 +352,7 @@ export function applyEventEffect(event) {
     }
     case "ROUND_END": {
       if (event.winnerSeat !== null && event.winnerSeat !== undefined) confetti();
-      return event.winnerSeat === null ? 280 : 520;
+      return event.winnerSeat === null ? 280 : 600;
     }
     case "PILE_RESHUFFLE": {
       shake(document.querySelector("#draw-pile"), 300);

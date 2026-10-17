@@ -27,12 +27,15 @@ import {
 } from '../vendor/uno-engine.js';
 import { aiErrorMessage, createAiClient, getServerAiConfig } from '../ai/aiClient.js';
 import { getSettings } from '../state/settings.js';
+import { recordResult } from '../state/stats.js';
 import { clearAllLines, clearPlayerLine } from '../ui/players.js';
 
 const AI_BASE_DELAY = { casual: 900, easy: 1100, realistic: 1400, hardcore: 1700 };
 const SPEED_SCALE = { slow: 1.6, normal: 1, fast: 0.45 };
 const LLM_CHANCE = { casual: 0.3, easy: 0.6, realistic: 1, hardcore: 1 };
 const UNO_WINDOW_MS = 2500;
+/** M6 复验：即使智谱/预取返回很快，也让「思考中」至少展示这么久，避免 AI 瞬间出牌 */
+const MIN_LLM_THINKING_MS = 500;
 /** BUG-04：AI 台词存活时间（到期只删该座位气泡并清 map，不做整页 render） */
 const AI_LINE_TTL = 2600;
 const AVATARS = ['🧑', '🤖', '🧓', '🧑‍🎨', '🧑‍🚀', '🧙', '🦸', '🧑‍🍳', '🧑‍🔬', '🧑‍🌾'];
@@ -120,6 +123,7 @@ function decorate(view, rt, thinkingSeat = null) {
   if (!view.dev) view.dev = {};
   view.runtimeAiMode = rt.aiRuntime;
   view.aiModel = rt.lastLlmModel;
+  if (rt.lastLlmLatencyMs) view.aiLatencyMs = rt.lastLlmLatencyMs;
   view.players.forEach((player) => {
     if (!player.avatar) player.avatar = AVATARS[player.seat % AVATARS.length] || '🤖';
     player.line = rt.aiLines.get(player.seat) || '';
@@ -148,6 +152,13 @@ function renderAndPlay(rt, view, after) {
   });
 }
 
+/** 本地战绩：每局结束只写一次（games/wins，不涉及任何分数） */
+function recordStatsIfNeeded(rt) {
+  if (rt.statsRecorded || !isGameOver(rt.state)) return;
+  rt.statsRecorded = true;
+  recordResult({ winnerSeat: rt.state.winnerSeat });
+}
+
 function applyAndRender(rt, engineAction) {
   if (runtime !== rt) return;
   let applied;
@@ -159,8 +170,14 @@ function applyAndRender(rt, engineAction) {
     return;
   }
   rt.state = applied.state;
+  rt.prefetch = null; // 局面已变化：旧预取作废
   // BUG-04：对局结束/进入结算页时清空 AI 台词（map + 定时器 + 气泡）
-  if (isGameOver(rt.state)) clearAiLines(rt);
+  if (isGameOver(rt.state)) {
+    clearAiLines(rt);
+    recordStatsIfNeeded(rt);
+  }
+  // M6 复验优化：动画播放期间并行预取下一位 AI 的智谱决策，减少在线模式等待
+  startPrefetch(rt);
   renderAndPlay(rt, currentView(rt), () => continueGame(rt));
 }
 
@@ -287,59 +304,114 @@ async function shouldUseLlm(rt) {
   return nextFloat(rt.aiRng) < chance;
 }
 
-/** 一次 AI 行动：优先智谱（候选约束），失败降级本地 */
+/** 等待「思考中」达到最短展示时长（仅智谱成功路径使用；真实网络慢时无额外等待） */
+async function ensureThinkingVisible(rt) {
+  const startedAt = rt.thinkingStartedAt;
+  if (!startedAt) return;
+  const remaining = MIN_LLM_THINKING_MS - (performance.now() - startedAt);
+  if (remaining > 0) await sleep(remaining);
+}
+
+/**
+ * 准备一次「是否走智谱 + 决策结果」。抽出来供"动画期间预取"和"即时决策"共用，
+ * 避免重复计算调用频率/重复请求。
+ */
+async function prepareLlmDecision(rt, seat) {
+  const useLlm = await shouldUseLlm(rt);
+  if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) {
+    return { cancelled: true };
+  }
+  if (!useLlm) return { useLlm: false, seat };
+
+  let built;
+  try {
+    built = buildLlmPayload(rt, seat);
+  } catch (error) {
+    console.error('[uno-engine] 构造 AI 候选失败，降级本地', error);
+    return { useLlm: true, seat, built: null, result: { ok: false, code: 'AI_PAYLOAD_FAILED' } };
+  }
+  if (isDevMode()) {
+    console.debug('[uno-engine] llm-request', {
+      seat,
+      difficulty: rt.state.config.aiDifficulty,
+      candidates: built.payload.candidates.length,
+    });
+  }
+  const result = await rt.aiClient.decide(built.payload);
+  return { useLlm: true, seat, built, result };
+}
+
+/**
+ * M6 复验优化：上一步动作结算后，若下一位是 AI，则在上一步动画播放期间
+ * 并行预取智谱决策（{ seat, actionCount } 作为局面校验，局面变化即作废）。
+ * 网络等待与动画重叠后，在线模式（真实/骨灰级）的手感明显变快。
+ */
+function startPrefetch(rt) {
+  rt.prefetch = null;
+  if (runtime !== rt || isGameOver(rt.state)) return;
+  const state = rt.state;
+  if (state.currentSeat === rt.humanSeat || state.phase === 'round-end') return;
+  const seat = state.currentSeat;
+  const actionCount = state.actionCount;
+  const promise = prepareLlmDecision(rt, seat).catch((error) => {
+    console.error('[uno-engine] AI 预取失败，改用即时决策', error);
+    return { cancelled: true };
+  });
+  rt.prefetch = { seat, actionCount, promise };
+}
+
+/** 若存在与当前局面匹配的预取结果则取用（否则返回 null） */
+function takePrefetch(rt, seat) {
+  const prefetched = rt.prefetch;
+  if (!prefetched) return null;
+  rt.prefetch = null;
+  if (prefetched.seat !== seat || prefetched.actionCount !== rt.state.actionCount) return null;
+  return prefetched.promise;
+}
+
+/** 一次 AI 行动：优先智谱（候选约束，优先用预取结果），失败降级本地 */
 async function runAiAction(rt, seat) {
   if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
 
-  const useLlm = await shouldUseLlm(rt);
+  const prefetched = takePrefetch(rt, seat);
+  const decision = prefetched
+    ? await prefetched
+    : await prepareLlmDecision(rt, seat);
+  if (!decision || decision.cancelled) return;
   if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
 
-  if (useLlm) {
-    let built;
-    try {
-      built = buildLlmPayload(rt, seat);
-    } catch (error) {
-      console.error('[uno-engine] 构造 AI 候选失败，降级本地', error);
-      built = null;
-    }
-    if (built) {
-      if (isDevMode()) {
-        console.debug('[uno-engine] llm-request', {
-          seat,
-          difficulty: rt.state.config.aiDifficulty,
-          candidates: built.payload.candidates.length,
-        });
-      }
-      const result = await rt.aiClient.decide(built.payload);
-      if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
-      if (result.ok) {
-        const candidate = built.candidateMap.get(result.actionId);
-        if (candidate) {
-          rt.aiRuntime = 'zhipu';
-          rt.lastLlmModel = result.model || rt.lastLlmModel;
-          if (result.line) showAiLine(rt, seat, result.line);
-          if (isDevMode()) {
-            console.debug('[uno-engine] llm-decision', {
-              seat,
-              action: candidate.action.type,
-              model: result.model,
-              latencyMs: result.latencyMs,
-              reason: result.reason,
-              line: result.line,
-            });
-          }
-          applyAndRender(rt, candidate.action);
-          return;
+  if (decision.useLlm && decision.built && decision.result) {
+    const { built, result } = decision;
+    if (result.ok) {
+      const candidate = built.candidateMap.get(result.actionId);
+      if (candidate) {
+        rt.aiRuntime = 'zhipu';
+        rt.lastLlmModel = result.model || rt.lastLlmModel;
+        rt.lastLlmLatencyMs = Number(result.latencyMs) || rt.lastLlmLatencyMs;
+        if (result.line) showAiLine(rt, seat, result.line);
+        if (isDevMode()) {
+          console.debug('[uno-engine] llm-decision', {
+            seat,
+            action: candidate.action.type,
+            model: result.model,
+            latencyMs: result.latencyMs,
+            reason: result.reason,
+            line: result.line,
+          });
         }
-        result.code = 'AI_INVALID_ACTION';
+        await ensureThinkingVisible(rt);
+        if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
+        applyAndRender(rt, candidate.action);
+        return;
       }
-      rt.aiRuntime = 'degraded';
-      if (!rt.aiFailureNotified) {
-        rt.aiFailureNotified = true;
-        if (typeof toast === 'function') toast(aiErrorMessage(result.code));
-      }
-      if (isDevMode()) console.debug('[uno-engine] llm-fallback', result);
+      result.code = 'AI_INVALID_ACTION';
     }
+    rt.aiRuntime = 'degraded';
+    if (!rt.aiFailureNotified) {
+      rt.aiFailureNotified = true;
+      if (typeof toast === 'function') toast(aiErrorMessage(result.code));
+    }
+    if (isDevMode()) console.debug('[uno-engine] llm-fallback', result);
   }
 
   // 本地 AI 兜底（保留思考延迟，避免瞬间出牌）
@@ -363,6 +435,7 @@ function scheduleAi(rt) {
   if (seat === rt.humanSeat) return;
   // BUG-04：下一次 AI 决策开始时清空旧台词（换人即消失）
   clearAiLines(rt);
+  rt.thinkingStartedAt = performance.now();
   window.UnoApp.render(currentView(rt, { thinkingSeat: seat }));
   void runAiAction(rt, seat);
 }
@@ -474,12 +547,18 @@ function startGame(lobbyConfig = {}) {
     aiLineTimers: new Map(),
     aiFailureNotified: false,
     lastLlmModel: null,
+    lastLlmLatencyMs: null,
+    /** M6 复验：彩带/统计/预取状态 */
+    statsRecorded: false,
+    prefetch: null,
+    thinkingStartedAt: null,
   };
   runtime = rt;
   document.documentElement.dataset.engine = 'on';
 
   window.UnoApp.setActionHandler(handleAction);
   if (isDevMode()) console.debug('[uno-engine] game-start', { seed, config: rt.state.config });
+  startPrefetch(rt);
   renderAndPlay(rt, currentView(rt), () => continueGame(rt));
 }
 

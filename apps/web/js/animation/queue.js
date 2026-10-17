@@ -29,10 +29,10 @@ function isAiLookedEvent(event) {
 }
 
 /** 清理当前播放的定时器与临时禁用状态（不触发完成回调） */
-function clearRun() {
+function clearRun({ keepConfetti = false } = {}) {
   clearTimeout(timer);
   timer = null;
-  cleanupEffects();
+  cleanupEffects({ keepConfetti });
   hideChallengeHand();
   document.querySelector("#game-screen")?.removeAttribute("aria-busy");
   document.querySelector("#action-bar")?.removeAttribute("aria-disabled");
@@ -44,7 +44,7 @@ function clearRun() {
 function finish() {
   const done = completion;
   completion = null;
-  clearRun();
+  clearRun({ keepConfetti: true });
   done?.();
 }
 
