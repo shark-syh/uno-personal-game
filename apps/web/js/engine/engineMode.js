@@ -1,33 +1,36 @@
 /**
- * M3-2 引擎模式：把真实规则引擎 + 本地 AI 接到现有 UI 上（原生 JS，零构建）。
+ * 引擎模式：把真实规则引擎 + 本地/智谱混合 AI 接到现有 UI 上（原生 JS，零构建）。
  *
- * 架构：
- * - 引擎/AI 的 TS 由 `npm run build:web-engine` 打包成 `js/vendor/uno-engine.js`（ESM），这里直接 import；
- * - 渲染仍然只走 `window.UnoApp.render(view)` / `playEvents(events, done)` / `setActionHandler(fn)` 契约；
- * - 人类动作：UI 的 UiAction → `toEngineAction()` → `applyAction` → 新 view + events → render + 播动画 → 继续；
- * - AI 回合：`decide()` 本地决策（瞬间完成），UI 侧按难度加"思考延迟"再执行，期间显示思考气泡；
- * - UNO 窗口：给人类 2.5s 反应时间（喊 UNO / 抓人），超时后由当前行动者继续（引擎会自动结算 AI 抓人）。
+ * M3-2：大厅 START_GAME → createInitialGame → getGameView → render + playEvents；AI 本地决策 + 思考延迟；
+ *        UNO 窗口 2.5s；结算/再来一局/回大厅；默认入口为引擎模式，mock 保留 ?mock=1。
+ * M4：AI 回合先尝试「本地候选 → 服务端 /api/ai/decide（智谱）→ 校验 → 应用」，失败/超时/限流
+ *      自动降级 M2 本地 AI；台词写入玩家气泡；状态栏显示 智谱 / 本地 / 本地·降级。
  *
- * 调试参数：
- * - `?test=1`：AI 思考延迟压到 ~15ms、打印事件日志（自动化验证用，不用于正常游玩）；
- * - `?engine-dev=1`：只打印事件日志。
+ * 调试参数：?test=1（快速模式：AI 延迟 15ms、不走智谱、打印事件日志）；?engine-dev=1（仅打印日志）。
  */
 import {
   applyAction,
+  buildMemory,
   buildPlayerNames,
   createInitialGame,
   createLobbyView,
   createRng,
   decide,
+  generateCandidates,
+  getAiView,
+  getDifficultyProfile,
   getGameView,
   isGameOver,
+  nextFloat,
   normalizeGameConfig,
   toEngineAction,
 } from '../vendor/uno-engine.js';
+import { aiErrorMessage, createAiClient, getServerAiConfig } from '../ai/aiClient.js';
 import { getSettings } from '../state/settings.js';
 
 const AI_BASE_DELAY = { casual: 900, easy: 1100, realistic: 1400, hardcore: 1700 };
 const SPEED_SCALE = { slow: 1.6, normal: 1, fast: 0.45 };
+const LLM_CHANCE = { casual: 0.3, easy: 0.6, realistic: 1, hardcore: 1 };
 const UNO_WINDOW_MS = 2500;
 const AVATARS = ['🧑', '🤖', '🧓', '🧑‍🎨', '🧑‍🚀', '🧙', '🦸', '🧑‍🍳', '🧑‍🔬', '🧑‍🌾'];
 
@@ -49,6 +52,10 @@ function isDevMode() {
   return isTestMode() || params().get('engine-dev') === '1';
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 function setTimer(rt, callback, ms) {
   const id = window.setTimeout(() => {
     rt.timers.delete(id);
@@ -63,14 +70,16 @@ function clearRuntime(rt) {
   rt.timers.clear();
 }
 
-/** 补 UI 侧字段（设置 / 头像 / 思考气泡），engine view 只给引擎事实 */
-function decorate(view, thinkingSeat = null) {
+/** 补 UI 侧字段（设置 / 头像 / 台词 / AI 运行时状态） */
+function decorate(view, rt, thinkingSeat = null) {
   view.mock = false;
   view.settings = getSettings();
   if (!view.dev) view.dev = {};
+  view.runtimeAiMode = rt.aiRuntime;
+  view.aiModel = rt.lastLlmModel;
   view.players.forEach((player) => {
     if (!player.avatar) player.avatar = AVATARS[player.seat % AVATARS.length] || '🤖';
-    if (typeof player.line !== 'string') player.line = '';
+    player.line = rt.aiLines.get(player.seat) || '';
     if (thinkingSeat === player.seat) player.thinking = true;
   });
   return view;
@@ -80,7 +89,7 @@ function currentView(rt, options = {}) {
   const durationMs =
     rt.state.phase === 'round-end' ? Math.round(performance.now() - rt.startedAt) : 0;
   const view = getGameView(rt.state, rt.humanSeat, { durationMs, settings: getSettings() });
-  return decorate(view, options.thinkingSeat ?? null);
+  return decorate(view, rt, options.thinkingSeat ?? null);
 }
 
 function logEvents(rt, events) {
@@ -110,15 +119,43 @@ function applyAndRender(rt, engineAction) {
   renderAndPlay(rt, currentView(rt), () => continueGame(rt));
 }
 
-function pickAiAction(rt, seat) {
+/** 服务端 AI 配置（每局只取一次） */
+function ensureAiConfig(rt) {
+  if (rt.aiConfig) return Promise.resolve(rt.aiConfig);
+  if (!rt.aiConfigPromise) {
+    rt.aiConfigPromise = getServerAiConfig()
+      .then((config) => {
+        rt.aiConfig = config;
+        if (runtime === rt && !rt.aiRuntime) {
+          rt.aiRuntime = config.aiEnabled ? 'zhipu' : 'degraded';
+        }
+        return config;
+      })
+      .catch(() => {
+        rt.aiConfig = { aiEnabled: false, error: true };
+        if (runtime === rt && !rt.aiRuntime) rt.aiRuntime = 'degraded';
+        return rt.aiConfig;
+      });
+  }
+  return rt.aiConfigPromise;
+}
+
+/** 本地 AI 决策（M2；与 M3-2 相同，按难度加思考延迟） */
+function scheduleLocalThinkingDelay(rt) {
+  const settings = getSettings();
+  const base = AI_BASE_DELAY[rt.state.config.aiDifficulty] ?? 1200;
+  const scale = SPEED_SCALE[settings.aiSpeed] ?? 1;
+  return isTestMode() ? 15 : Math.max(120, Math.round(base * scale));
+}
+
+function pickLocalAction(rt, seat) {
   const decision = decide(rt.state, seat, {
     difficulty: rt.state.config.aiDifficulty,
     rng: rt.aiRng,
   });
   if (isDevMode()) {
-    console.debug('[uno-engine] ai-decision', {
+    console.debug('[uno-engine] ai-local', {
       seat,
-      difficulty: rt.state.config.aiDifficulty,
       action: decision.action.type,
       reason: decision.reason,
     });
@@ -126,35 +163,161 @@ function pickAiAction(rt, seat) {
   return decision.action;
 }
 
+/** 把当前局面裁剪成 LLM 请求体（仅公开信息 + 自己手牌 + 候选） */
+function buildLlmPayload(rt, seat) {
+  const state = rt.state;
+  const profile = getDifficultyProfile(state.config.aiDifficulty);
+  const view = getAiView(state, seat);
+  const memory = buildMemory(view);
+  const candidates = generateCandidates({ state, seat, view, memory, profile });
+  const candidateMap = new Map();
+  const llmCandidates = candidates.map((candidate) => {
+    candidateMap.set(candidate.id, candidate);
+    return {
+      id: candidate.id,
+      kind: candidate.kind,
+      action: candidate.action.type,
+      card: candidate.card ? candidate.card.faceCode : null,
+      color: candidate.colorChoice || null,
+      score: Number.isFinite(candidate.rawScore) ? Math.round(candidate.rawScore * 100) / 100 : 0,
+      note: candidate.note,
+    };
+  });
+  const discardTop3 = view.discardPile
+    .slice(-3)
+    .reverse()
+    .map((card) => card.faceCode);
+  return {
+    candidateMap,
+    payload: {
+      difficulty: state.config.aiDifficulty,
+      seat,
+      playerName: view.players[seat].name,
+      you: { hand: view.hand.map((card) => card.faceCode), handCount: view.hand.length },
+      table: {
+        topCard: view.topCard ? view.topCard.faceCode : null,
+        currentColor: view.currentColor,
+        direction: view.direction === 1 ? 'clockwise' : 'counterclockwise',
+        drawPileCount: view.drawPileCount,
+        discardTop3,
+        stack: view.stack
+          ? {
+              total: view.stack.total,
+              chain: view.stack.chain.map((card) => card.faceCode),
+              awaitingSeat: view.stack.awaitingSeat,
+            }
+          : null,
+        phase: view.phase,
+      },
+      players: view.players.map((player) => ({
+        seat: player.seat,
+        name: player.name,
+        handCount: player.handCount,
+        saidUno: player.saidUno,
+        isHuman: player.isHuman,
+      })),
+      candidates: llmCandidates,
+      historySummary: view.history.slice(-8).map((event) => event.type),
+    },
+  };
+}
+
+/** 是否尝试智谱：模式 / 服务端是否配置 Key / 难度参与频率（休闲 30%、简单 60%） */
+async function shouldUseLlm(rt) {
+  if (isTestMode()) return false;
+  const mode = rt.lobbyConfig.aiMode || 'auto';
+  if (mode === 'local') {
+    rt.aiRuntime = 'local';
+    return false;
+  }
+  const config = await ensureAiConfig(rt);
+  if (!config.aiEnabled) {
+    rt.aiRuntime = 'degraded';
+    return false;
+  }
+  if (rt.aiRuntime !== 'zhipu' && rt.aiRuntime !== 'degraded') rt.aiRuntime = 'zhipu';
+  const difficulty = rt.state.config.aiDifficulty;
+  const chance = LLM_CHANCE[difficulty] ?? 1;
+  if (chance >= 1) return true;
+  return nextFloat(rt.aiRng) < chance;
+}
+
+/** 一次 AI 行动：优先智谱（候选约束），失败降级本地 */
+async function runAiAction(rt, seat) {
+  if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
+
+  const useLlm = await shouldUseLlm(rt);
+  if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
+
+  if (useLlm) {
+    let built;
+    try {
+      built = buildLlmPayload(rt, seat);
+    } catch (error) {
+      console.error('[uno-engine] 构造 AI 候选失败，降级本地', error);
+      built = null;
+    }
+    if (built) {
+      if (isDevMode()) {
+        console.debug('[uno-engine] llm-request', {
+          seat,
+          difficulty: rt.state.config.aiDifficulty,
+          candidates: built.payload.candidates.length,
+        });
+      }
+      const result = await rt.aiClient.decide(built.payload);
+      if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
+      if (result.ok) {
+        const candidate = built.candidateMap.get(result.actionId);
+        if (candidate) {
+          rt.aiRuntime = 'zhipu';
+          rt.lastLlmModel = result.model || rt.lastLlmModel;
+          if (result.line) rt.aiLines.set(seat, result.line);
+          if (isDevMode()) {
+            console.debug('[uno-engine] llm-decision', {
+              seat,
+              action: candidate.action.type,
+              model: result.model,
+              latencyMs: result.latencyMs,
+              reason: result.reason,
+              line: result.line,
+            });
+          }
+          applyAndRender(rt, candidate.action);
+          return;
+        }
+        result.code = 'AI_INVALID_ACTION';
+      }
+      rt.aiRuntime = 'degraded';
+      if (!rt.aiFailureNotified) {
+        rt.aiFailureNotified = true;
+        if (typeof toast === 'function') toast(aiErrorMessage(result.code));
+      }
+      if (isDevMode()) console.debug('[uno-engine] llm-fallback', result);
+    }
+  }
+
+  // 本地 AI 兜底（保留思考延迟，避免瞬间出牌）
+  await sleep(scheduleLocalThinkingDelay(rt));
+  if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
+  let action;
+  try {
+    action = pickLocalAction(rt, seat);
+  } catch (error) {
+    console.error('[uno-engine] AI 决策失败', error);
+    if (typeof toast === 'function') toast('AI 决策失败，请点「退出」重开');
+    return;
+  }
+  applyAndRender(rt, action);
+}
+
+/** AI 回合：先显示思考气泡，再走混合决策 */
 function scheduleAi(rt) {
   if (runtime !== rt || isGameOver(rt.state)) return;
   const seat = rt.state.currentSeat;
   if (seat === rt.humanSeat) return;
-
-  // 先渲染"思考中"气泡，再按难度/设置延迟执行
   window.UnoApp.render(currentView(rt, { thinkingSeat: seat }));
-  const settings = getSettings();
-  const base = AI_BASE_DELAY[rt.state.config.aiDifficulty] ?? 1200;
-  const scale = SPEED_SCALE[settings.aiSpeed] ?? 1;
-  const delay = isTestMode() ? 15 : Math.max(120, Math.round(base * scale));
-
-  setTimer(
-    rt,
-    () => {
-      if (runtime !== rt || isGameOver(rt.state)) return;
-      if (rt.state.currentSeat !== seat) return;
-      let action;
-      try {
-        action = pickAiAction(rt, seat);
-      } catch (error) {
-        console.error('[uno-engine] AI 决策失败', error);
-        if (typeof toast === 'function') toast('AI 决策失败，请点「退出」重开');
-        return;
-      }
-      applyAndRender(rt, action);
-    },
-    delay,
-  );
+  void runAiAction(rt, seat);
 }
 
 /** UNO 反应窗口：人类有 2.5s 点 UNO / 抓人；超时后由当前行动者继续 */
@@ -174,7 +337,6 @@ function handleUnoWindow(rt) {
     return;
   }
 
-  // 显示 UNO / 抓人按钮，并留出反应时间
   window.UnoApp.render(view);
   setTimer(
     rt,
@@ -246,6 +408,13 @@ function startGame(lobbyConfig = {}) {
     timers: new Set(),
     startedAt: performance.now(),
     lobbyConfig: { ...lastLobbyConfig },
+    aiClient: createAiClient(),
+    aiConfig: null,
+    aiConfigPromise: null,
+    aiRuntime: lastLobbyConfig.aiMode === 'local' ? 'local' : null,
+    aiLines: new Map(),
+    aiFailureNotified: false,
+    lastLlmModel: null,
   };
   runtime = rt;
   document.documentElement.dataset.engine = 'on';
@@ -259,6 +428,7 @@ function renderLobby() {
   const view = createLobbyView(lastLobbyConfig || {}, getSettings());
   view.mock = false;
   view.settings = getSettings();
+  view.runtimeAiMode = null;
   window.UnoApp.render(view);
 }
 

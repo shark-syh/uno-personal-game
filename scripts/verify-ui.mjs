@@ -1,4 +1,4 @@
-﻿/* global console, process, fetch, WebSocket, setTimeout, Buffer */
+/* global console, process, fetch, WebSocket, setTimeout, Buffer */
 /**
  * M3-2 浏览器验收（无头 Chrome + CDP，无第三方依赖）。
  *
@@ -314,6 +314,27 @@ async function main() {
     await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
       source: `try { if (!localStorage.getItem('uno:settings')) localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); } catch (error) {} \n${PAGE_HELPERS}`,
     });
+    // M4：把智谱接口 mock 成"在线成功"（避免自动验收消耗真实额度；同时验证 LLM 台词/状态展示）
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `(() => {
+        const realFetch = window.fetch.bind(window);
+        window.fetch = async (input, init) => {
+          const url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (url.includes('/api/config')) {
+            return new Response(JSON.stringify({ aiEnabled: true, aiDecisionImplemented: true, model: 'glm-mock', aiTimeoutMs: 8000 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          if (url.includes('/api/ai/decide')) {
+            let actionId = '';
+            try {
+              const body = JSON.parse(init && init.body ? init.body : '{}');
+              actionId = body.candidates && body.candidates[0] ? body.candidates[0].id : '';
+            } catch (error) {}
+            return new Response(JSON.stringify({ ok: true, actionId, reason: 'mock-llm-reason', line: '看我的', model: 'glm-mock', latencyMs: 5 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          return realFetch(input, init);
+        };
+      })();`,
+    });
 
     const evaluate = async (expression, options = {}) => {
       const result = await cdp.send('Runtime.evaluate', {
@@ -485,12 +506,19 @@ async function main() {
     let sawThinking = false;
     let busyDisabledSnapshot = null;
     let thinkingAnimation = '';
+    let llmLineSeen = '';
+    let llmIndicator = '';
     const engineStart = Date.now();
     while (Date.now() - engineStart < 15000) {
       const state = await evaluate(
-        `({ busy: window.__verify.busy(), thinking: Boolean(document.querySelector('.opponent-line.thinking')), screen: window.__verify.visibleScreen() })`,
+        `({ busy: window.__verify.busy(), thinking: Boolean(document.querySelector('.opponent-line.thinking')), screen: window.__verify.visibleScreen(), line: document.querySelector('.opponent-line')?.textContent || '', indicator: document.querySelector('#ai-mode-indicator')?.textContent || '' })`,
       );
       if (state.screen === 'result') break;
+      if (state.indicator.includes('智谱')) llmIndicator = state.indicator;
+      if (!llmLineSeen && state.line && !state.line.includes('思考中')) {
+        llmLineSeen = state.line;
+        await shot('ui-m4-llm-line-1440.png');
+      }
       if (state.busy && !sawBusy) {
         sawBusy = true;
         busyDisabledSnapshot = await evaluate(
@@ -534,6 +562,16 @@ async function main() {
       '引擎模式：动画结束后 aria-busy 解除',
       (await evaluate('window.__verify.busy()')) === false,
     );
+    check(
+      'M4 智谱在线成功：状态栏显示「智谱」',
+      llmIndicator.includes('智谱'),
+      `indicator=${llmIndicator}`,
+    );
+    check(
+      'M4 智谱台词：AI 气泡展示 LLM line',
+      llmLineSeen.includes('看我的'),
+      `line=${llmLineSeen}`,
+    );
     await waitFor('window.__verify.busy() === false', 5000, '动画结束');
     // 等到人类回合再退出，避免 AI 回合 busy 锁吞掉确认按钮
     await waitFor(
@@ -541,6 +579,44 @@ async function main() {
       15000,
       '人类回合可操作',
     );
+    await click('#quit-game');
+    await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
+    await evaluate('window.__verify.clickQuitConfirm()');
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 5000, '回大厅');
+
+    // ---------------- 3b. M4：智谱失败自动降级（拦截 decide → 429） ----------------
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `(() => { const previous = window.fetch.bind(window); window.fetch = async (input, init) => { const url = typeof input === 'string' ? input : (input && input.url) || ''; if (url.includes('/api/ai/decide')) { return new Response(JSON.stringify({ ok: false, code: 'RATE_LIMIT', message: 'busy' }), { status: 429, headers: { 'Content-Type': 'application/json' } }); } return previous(input, init); }; })();`,
+    });
+    await navigate(BASE_URL + '/');
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅');
+    await evaluate(
+      `(() => { const button = document.querySelector('#ai-mode-options button[data-value="zhipu"]'); if (button) button.click(); return true; })()`,
+    );
+    await evaluate('window.__verify.clickStart()');
+    await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
+    await waitFor(
+      `document.querySelector('#ai-mode-indicator')?.textContent.includes('降级')`,
+      20000,
+      'AI 状态栏显示降级',
+    );
+    const fallbackToast = await evaluate(
+      `document.querySelector('#toast-region')?.textContent || ''`,
+    );
+    check(
+      'M4 智谱失败自动降级：状态栏显示「本地·降级」+ 提示 toast',
+      fallbackToast.includes('智谱') && fallbackToast.includes('降级'),
+      fallbackToast.trim(),
+    );
+    const initialFeed = await evaluate(`document.querySelector('#event-feed')?.textContent || ''`);
+    await waitFor(
+      `(document.querySelector('#event-feed')?.textContent || '') !== ${JSON.stringify(initialFeed)}`,
+      15000,
+      '降级后 AI 仍在行动',
+    );
+    check('M4 降级后本地 AI 继续行动（对局不中断）', true);
+    await shot('ui-m4-ai-fallback-1440.png');
+    await waitFor('!window.__verify.busy() && window.__verify.humanReady()', 15000, '人类回合');
     await click('#quit-game');
     await waitFor('window.__verify.activeDialogTitle() === "确认退出"', 5000, '退出确认');
     await evaluate('window.__verify.clickQuitConfirm()');

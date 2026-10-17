@@ -29,6 +29,13 @@ npm run dev
 - 结算：`getResult` → 契约 `result`（含平局）；「再来一局」沿用大厅配置，新随机种子。
 - 隐藏信息：`packages/game-core/src/public-view.ts` 统一脱敏（他人手牌 / wild4Info / 他人摸牌牌面 / AI 挑战看到的手牌），UI 只拿得到公开信息。
 
+## M4 智谱混合 AI（浏览器侧）
+
+- 大厅「AI 模式」可选 智谱 / 本地 / 自动：自动=有 Key 时用智谱、失败降级本地；本地=纯 M2 启发式 AI。
+- AI 回合：先由本地 AI 生成候选动作 → 请求本地服务 `/api/ai/decide`（服务端持 Key、调智谱、校验 action_id）→ 成功则执行并显示台词气泡；超时(8s 预算)/429/401/输出非法时自动降级 M2 本地 AI，对局不中断。
+- 状态栏 `#ai-mode-indicator` 显示运行时来源：智谱 / 本地 / 本地·降级（`view.runtimeAiMode` / `view.aiModel` 为契约向后兼容扩展字段）。
+- 设置弹窗新增「测试智谱连接」按钮（调 `/api/ai/test`，显示模型与耗时）；未配置 Key 时提示改用本地 AI。
+
 ## 动效与交互（当前阶段）
 
 - 事件队列 `js/animation/queue.js`：按事件逐条 200ms 播放，期间 `#game-screen[aria-busy=true]`、手牌/操作栏/弹窗按钮禁用，播放完恢复。

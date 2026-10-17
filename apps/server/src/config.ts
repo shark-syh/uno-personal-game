@@ -46,7 +46,7 @@ export const config = {
     baseUrl: readString('ZHIPU_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
     model: readString('ZHIPU_MODEL', 'glm-4.7-flash'),
     fallbackModels: readList('ZHIPU_FALLBACK_MODELS', ['glm-4.5-flash', 'glm-4-flash']),
-    timeoutMs: readNumber('AI_DECISION_TIMEOUT_MS', 3500),
+    timeoutMs: readNumber('AI_DECISION_TIMEOUT_MS', 6000),
   },
 } as const;
 

@@ -1,5 +1,6 @@
 import { getSettings, saveSettings } from "../state/settings.js";
 import { getStats } from "../state/stats.js";
+import { createAiClient } from "../ai/aiClient.js";
 
 let lastFocus = null;
 let dialogSource = null;
@@ -124,7 +125,21 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
       body.append(row);
     };
     field("音效", "sound"); field("动画", "animation"); field("AI 速度", "aiSpeed", true); field("自动喊 UNO", "autoCallUno");
-    show("设置", body, [button("保存", () => {
+    const testResult = document.createElement("p");
+    testResult.className = "setting-test-result";
+    testResult.setAttribute("aria-live", "polite");
+    body.append(testResult);
+    const testButton = button("测试智谱连接", async () => {
+      testButton.disabled = true;
+      testResult.textContent = "正在测试智谱连接…（首次约 2~3 秒）";
+      const client = createAiClient({ timeoutMs: 12000 });
+      const result = await client.testConnection();
+      testButton.disabled = false;
+      testResult.textContent = result.ok
+        ? `智谱连接正常：${result.model || "未知模型"}（${result.latencyMs} ms）`
+        : result.message;
+    }, "btn btn-ghost");
+    show("设置", body, [testButton, button("保存", () => {
       const next = { ...settings };
       body.querySelectorAll("[data-setting]").forEach((input) => { next[input.dataset.setting] = input.tagName === "SELECT" ? input.value : input.checked; });
       try { saveSettings(next); closeDialog(); window.dispatchEvent(new Event("uno:settings-changed")); }

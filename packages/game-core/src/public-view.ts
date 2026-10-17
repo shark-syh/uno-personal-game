@@ -144,6 +144,13 @@ export interface GameView {
   result: PublicResult | null;
   settings: ViewSettings;
   dev: { mockName?: string; toolbar?: boolean };
+  /**
+   * M4 扩展（向后兼容，可选）：运行时 AI 来源，供状态栏显示
+   * - 'zhipu'：本轮成功调用智谱；'local'：本地 AI；'degraded'：智谱失败已降级
+   */
+  runtimeAiMode?: 'zhipu' | 'local' | 'degraded' | null;
+  /** M4 扩展：最近一次在线决策使用的模型名（仅展示） */
+  aiModel?: string | null;
 }
 
 /** 生成 lobby 屏幕的伪 view（引擎不保存大厅状态，由 UI 层持有） */

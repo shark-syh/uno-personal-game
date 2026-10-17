@@ -42,18 +42,20 @@ describe('GET /api/config', () => {
     expect(text).not.toContain('ZHIPU_API_KEY');
     const body = JSON.parse(text) as { aiEnabled: boolean; aiDecisionImplemented: boolean };
     expect(typeof body.aiEnabled).toBe('boolean');
-    expect(body.aiDecisionImplemented).toBe(false);
+    expect(body.aiDecisionImplemented).toBe(true);
   });
 });
 
-describe('AI 接口占位', () => {
-  it('POST /api/ai/decide 返回 501（M4 才实现）', async () => {
+describe('AI 接口入参校验', () => {
+  it('POST /api/ai/decide 非法请求体返回 400（不会触发真实智谱请求）', async () => {
     const res = await fetch(`${baseUrl}/api/ai/decide`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('INVALID_REQUEST');
   });
 });
 

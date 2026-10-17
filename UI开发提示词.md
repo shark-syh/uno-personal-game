@@ -117,6 +117,10 @@ python -m http.server 8080
 
   result: null,                      // 结算时见 1.2.2
 
+  // M4 向后兼容扩展（可选）：运行时 AI 来源与模型名，仅用于状态栏展示
+  runtimeAiMode: "zhipu",            // zhipu | local | degraded | null（默认缺省）
+  aiModel: "glm-4.7-flash",          // 最近一次在线决策的模型（仅展示）
+
   settings: {
     autoCallUno: false, aiSpeed: "normal", sound: true,
     animation: true, showHint: true, aiChatter: true
