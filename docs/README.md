@@ -25,6 +25,6 @@
 
 ## 截图资源
 
-[`images/`](./images/) 存放根目录 README 使用的截图（由 `review-assets/` 的验收截图压缩生成，WebP 格式，约 190 KB）。
+[`images/`](./images/) 存放根目录 README 使用的截图（由 `review-assets/` 的验收截图压缩生成，WebP 格式，共 10 张、约 256 KB）。
 
 完整验收截图与自动生成报告在根目录 `review-assets/`（由 `npm run verify:ui` 生成/覆盖）。
