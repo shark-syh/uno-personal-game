@@ -479,3 +479,66 @@ describe('M1-6 UNO 与叠牌 / 挑战 / 2 人规则', () => {
     expect(declined.state.players[1]!.hand).toHaveLength(1 + 4);
   });
 });
+
+describe('M3-2 修 bug：喊过 UNO 后摸牌，UNO 状态必须清除', () => {
+  it('剩 1 张且已喊 UNO 的玩家主动摸牌（摸到不可出）：手牌变 2、saidUno 清除', () => {
+    const state = makeState([[num('red', 5)], [num('green', 9)]], num('green', 3), {
+      drawPile: [num('yellow', 9)],
+    });
+    state.players[0]!.saidUno = true;
+
+    const result = applyAction(state, { type: 'DRAW' });
+    expect(result.state.players[0]!.hand).toHaveLength(2);
+    expect(result.state.players[0]!.saidUno).toBe(false);
+    expect(eventTypes(result.state)).toContain('DRAW');
+    // 摸到不可出的牌 → 本回合结束，轮到下家
+    expect(result.state.currentSeat).toBe(1);
+  });
+
+  it('摸牌后抽到可出的牌，打出后剩 1 张会重新进入 UNO 判定（不沿用旧状态）', () => {
+    const playable = num('red', 9);
+    const state = makeState([[num('red', 7)], [num('green', 9)]], num('red', 3), {
+      drawPile: [playable],
+    });
+    state.players[0]!.saidUno = true;
+
+    const drawn = applyAction(state, { type: 'DRAW' });
+    expect(drawn.state.players[0]!.hand).toHaveLength(2);
+    expect(drawn.state.players[0]!.saidUno).toBe(false);
+    expect(drawn.state.drawnThisTurn?.id).toBe(playable.id);
+
+    const played = applyAction(drawn.state, { type: 'PLAY_DRAWN', cardId: playable.id });
+    expect(played.state.players[0]!.hand).toHaveLength(1);
+    expect(played.state.phase).toBe('uno-window');
+    expect(played.state.unoWindow).toMatchObject({ seat: 0, canCall: true });
+    expect(played.state.players[0]!.saidUno).toBe(false);
+  });
+
+  it('被 +2/+4 罚摸后同样清除 UNO 状态（所有摸牌统一走 drawTo）', () => {
+    const state = makeState(
+      [
+        [num('red', 5)], // 已喊 UNO 的座位 0，1 张
+        [draw2('green'), num('blue', 3)], // 座位 1 出 +2
+        [num('yellow', 2)],
+      ],
+      num('green', 4),
+      {
+        drawPile: [num('yellow', 7), num('yellow', 8), num('yellow', 9)],
+        direction: -1,
+      },
+    );
+    state.players[0]!.saidUno = true;
+    state.currentSeat = 1;
+
+    const pushed = applyAction(state, {
+      type: 'PLAY_CARD',
+      cardId: state.players[1]!.hand[0]!.id,
+    });
+    expect(pushed.state.phase).toBe('stack-response');
+    expect(pushed.state.currentSeat).toBe(0);
+
+    const declined = applyAction(pushed.state, { type: 'STACK_DECLINE' });
+    expect(declined.state.players[0]!.hand).toHaveLength(3);
+    expect(declined.state.players[0]!.saidUno).toBe(false);
+  });
+});

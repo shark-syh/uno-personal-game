@@ -649,10 +649,11 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       if (next.drawnThisTurn) throw new Error('本回合已经抽过牌，请打出抽到的牌或结束回合');
 
       const seat = next.currentSeat;
-      if (!prepareDraw(next, events)) break;
-      const card = next.drawPile.pop()!;
-      requirePlayer(next, seat).hand.push(card);
-      events.push({ type: 'DRAW', seat, count: 1, cards: [card] });
+      // 统一走 drawTo：负责牌堆耗尽处理、DRAW 事件、以及"手牌 >1 时清除 UNO 状态"
+      // （曾因本分支手写摸牌，导致"喊过 UNO 的人摸牌后 UNO 标记仍挂着"）
+      const drawn = drawTo(next, seat, 1, events);
+      if (drawn.length === 0) break;
+      const card = drawn[0]!;
 
       if (isPlayable(next, card)) {
         // 抽到能出的牌：可以选择立即打出或结束回合

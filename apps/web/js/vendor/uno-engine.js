@@ -875,10 +875,9 @@ function applyAction(state, action) {
       if (next.phase !== "await-play") throw new Error("\u5F53\u524D\u9636\u6BB5\u4E0D\u80FD\u62BD\u724C");
       if (next.drawnThisTurn) throw new Error("\u672C\u56DE\u5408\u5DF2\u7ECF\u62BD\u8FC7\u724C\uFF0C\u8BF7\u6253\u51FA\u62BD\u5230\u7684\u724C\u6216\u7ED3\u675F\u56DE\u5408");
       const seat = next.currentSeat;
-      if (!prepareDraw(next, events)) break;
-      const card = next.drawPile.pop();
-      requirePlayer(next, seat).hand.push(card);
-      events.push({ type: "DRAW", seat, count: 1, cards: [card] });
+      const drawn = drawTo(next, seat, 1, events);
+      if (drawn.length === 0) break;
+      const card = drawn[0];
       if (isPlayable(next, card)) {
         next.drawnThisTurn = card;
         next.phase = "await-play";

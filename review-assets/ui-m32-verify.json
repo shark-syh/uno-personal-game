@@ -31,9 +31,9 @@
       "detail": "{\"scroll\":1440,\"client\":1440}"
     },
     {
-      "name": "第 1 局完整打完并进入结算（🏆 小美 获胜）",
+      "name": "第 1 局完整打完并进入结算（🏆 阿强 获胜）",
       "ok": true,
-      "detail": "[\"你8 张 · 趣味分数 53\",\"老王2 张 · 趣味分数 8\",\"小美0 张 · 趣味分数 0\",\"阿强6 张 · 趣味分数 44\"]"
+      "detail": "[\"你12 张 · 趣味分数 95\",\"老王3 张 · 趣味分数 9\",\"小美6 张 · 趣味分数 25\",\"阿强0 张 · 趣味分数 0\"]"
     },
     {
       "name": "第 1 局：再来一局 / 退出回大厅可用",
@@ -41,9 +41,9 @@
       "detail": ""
     },
     {
-      "name": "第 2 局完整打完并进入结算（🏆 小美 获胜）",
+      "name": "第 2 局完整打完并进入结算（🏆 老王 获胜）",
       "ok": true,
-      "detail": "[\"你10 张 · 趣味分数 98\",\"老王4 张 · 趣味分数 30\",\"小美0 张 · 趣味分数 0\",\"阿强3 张 · 趣味分数 34\"]"
+      "detail": "[\"你11 张 · 趣味分数 122\",\"老王0 张 · 趣味分数 0\",\"小美5 张 · 趣味分数 17\",\"阿强8 张 · 趣味分数 97\"]"
     },
     {
       "name": "第 2 局：再来一局 / 退出回大厅可用",
@@ -53,7 +53,7 @@
     {
       "name": "第 3 局完整打完并进入结算（🏆 老王 获胜）",
       "ok": true,
-      "detail": "[\"你6 张 · 趣味分数 60\",\"老王0 张 · 趣味分数 0\"]"
+      "detail": "[\"你13 张 · 趣味分数 120\",\"老王0 张 · 趣味分数 0\"]"
     },
     {
       "name": "第 3 局：再来一局 / 退出回大厅可用",
@@ -63,12 +63,12 @@
     {
       "name": "引擎事件覆盖：出牌/摸牌/回合结束",
       "ok": true,
-      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":92,\"REVERSE\":13,\"STACK_PUSH\":12,\"COLOR_SET\":13,\"STACK_RESOLVE\":6,\"DRAW\":36,\"SKIP\":12,\"CHALLENGE_SUCCESS\":3,\"UNO_CALLED\":7,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":105,\"COLOR_SET\":14,\"DRAW\":54,\"SKIP\":3,\"REVERSE\":7,\"STACK_PUSH\":20,\"STACK_RESOLVE\":9,\"CHALLENGE_FAIL\":1,\"UNO_CALLED\":12,\"CHALLENGE_SUCCESS\":2,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
     },
     {
       "name": "引擎事件包含叠牌/挑战/UNO 路径（随机对局统计）",
       "ok": true,
-      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":92,\"REVERSE\":13,\"STACK_PUSH\":12,\"COLOR_SET\":13,\"STACK_RESOLVE\":6,\"DRAW\":36,\"SKIP\":12,\"CHALLENGE_SUCCESS\":3,\"UNO_CALLED\":7,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
+      "detail": "{\"DEAL\":20,\"START_CARD\":6,\"PLAY\":105,\"COLOR_SET\":14,\"DRAW\":54,\"SKIP\":3,\"REVERSE\":7,\"STACK_PUSH\":20,\"STACK_RESOLVE\":9,\"CHALLENGE_FAIL\":1,\"UNO_CALLED\":12,\"CHALLENGE_SUCCESS\":2,\"PLAYER_OUT\":3,\"ROUND_END\":3}"
     },
     {
       "name": "引擎模式：事件播放期间出现 aria-busy 输入锁",
@@ -78,7 +78,7 @@
     {
       "name": "引擎模式：动画期间操作按钮被禁用",
       "ok": true,
-      "detail": "{\"actionDisabled\":0,\"handDisabled\":7,\"busyAttr\":\"true\"}"
+      "detail": "{\"actionDisabled\":5,\"handDisabled\":7,\"busyAttr\":\"true\"}"
     },
     {
       "name": "引擎模式：AI 回合显示「思考中」气泡",
@@ -93,7 +93,7 @@
     {
       "name": "事件队列逐条播放（5 事件 ≈ 1000ms）",
       "ok": true,
-      "detail": "elapsed=1035ms"
+      "detail": "elapsed=1067ms"
     },
     {
       "name": "事件队列期间 aria-busy=true 且操作按钮禁用",
@@ -174,41 +174,42 @@
   "engineEvents": {
     "DEAL": 20,
     "START_CARD": 6,
-    "PLAY": 92,
-    "REVERSE": 13,
-    "STACK_PUSH": 12,
-    "COLOR_SET": 13,
-    "STACK_RESOLVE": 6,
-    "DRAW": 36,
-    "SKIP": 12,
-    "CHALLENGE_SUCCESS": 3,
-    "UNO_CALLED": 7,
+    "PLAY": 105,
+    "COLOR_SET": 14,
+    "DRAW": 54,
+    "SKIP": 3,
+    "REVERSE": 7,
+    "STACK_PUSH": 20,
+    "STACK_RESOLVE": 9,
+    "CHALLENGE_FAIL": 1,
+    "UNO_CALLED": 12,
+    "CHALLENGE_SUCCESS": 2,
     "PLAYER_OUT": 3,
     "ROUND_END": 3
   },
   "gameSummaries": [
     {
-      "title": "🏆 小美 获胜",
+      "title": "🏆 阿强 获胜",
       "rows": [
-        "你8 张 · 趣味分数 53",
-        "老王2 张 · 趣味分数 8",
-        "小美0 张 · 趣味分数 0",
-        "阿强6 张 · 趣味分数 44"
-      ]
-    },
-    {
-      "title": "🏆 小美 获胜",
-      "rows": [
-        "你10 张 · 趣味分数 98",
-        "老王4 张 · 趣味分数 30",
-        "小美0 张 · 趣味分数 0",
-        "阿强3 张 · 趣味分数 34"
+        "你12 张 · 趣味分数 95",
+        "老王3 张 · 趣味分数 9",
+        "小美6 张 · 趣味分数 25",
+        "阿强0 张 · 趣味分数 0"
       ]
     },
     {
       "title": "🏆 老王 获胜",
       "rows": [
-        "你6 张 · 趣味分数 60",
+        "你11 张 · 趣味分数 122",
+        "老王0 张 · 趣味分数 0",
+        "小美5 张 · 趣味分数 17",
+        "阿强8 张 · 趣味分数 97"
+      ]
+    },
+    {
+      "title": "🏆 老王 获胜",
+      "rows": [
+        "你13 张 · 趣味分数 120",
         "老王0 张 · 趣味分数 0"
       ]
     }
