@@ -16,7 +16,7 @@ export function createHealthRouter(deps: HealthRouterDeps): Router {
     res.json({
       status: 'ok',
       service: 'uno-server',
-      version: '0.1.0',
+      version: '1.0.0',
       uptimeSec: Math.round(process.uptime()),
       time: new Date().toISOString(),
     });

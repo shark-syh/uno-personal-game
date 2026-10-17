@@ -1,6 +1,6 @@
 {
   "name": "@uno/server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "UNO 本地服务：静态托管 apps/web + 智谱 API 代理（M4 实现）",

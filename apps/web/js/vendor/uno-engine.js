@@ -1385,7 +1385,7 @@ function getGameView(state, seat, options = {}) {
 }
 
 // packages/game-core/src/index.ts
-var GAME_CORE_VERSION = "0.1.0";
+var GAME_CORE_VERSION = "1.0.0";
 
 // packages/ai/src/difficulty.ts
 var UNO_CALL_PROBABILITY = {

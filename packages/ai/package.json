@@ -1,6 +1,6 @@
 {
   "name": "@uno/ai",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "UNO 本地启发式 AI（M2：四档难度启发式 + 记牌 + 自对弈基准，离线可用、可作为 LLM 兜底）",

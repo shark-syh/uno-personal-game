@@ -6,7 +6,7 @@
  * - 随机性走可注入 seed，保证相同 seed + 相同动作序列可完全复现；
  * - 规则规格以 `docs/开发计划.md` 第 4 章为准。
  */
-export const GAME_CORE_VERSION = '0.1.0';
+export const GAME_CORE_VERSION = '1.0.0';
 
 export * from './types.ts';
 export * from './config.ts';

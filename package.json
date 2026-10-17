@@ -1,6 +1,6 @@
 {
   "name": "uno-local",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "UNO 单机版本地网页游戏：1 名真人 + 2~9 名 AI，宽松叠牌，智谱 AI 混合决策",
