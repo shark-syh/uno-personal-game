@@ -473,20 +473,14 @@ function canProvideDraw(state, events, allowRoundEnd) {
   if (state.config.deckExhaustion === "end-by-fewest") return false;
   return replenishDrawPile(state, events);
 }
-function prepareDraw(state, events, allowRoundEnd = true) {
-  if (canProvideDraw(state, events, allowRoundEnd)) return true;
-  if (!allowRoundEnd) return false;
-  endRoundByFewestCards(state, events);
-  return false;
-}
 function drawTo(state, seat, count, events, options = {}) {
   const allowRoundEnd = options.allowRoundEnd !== false;
   const drawn = [];
   let exhausted = false;
   for (let index = 0; index < count; index += 1) {
-    const canDraw = options.deferRoundEnd ? canProvideDraw(state, events, allowRoundEnd) : prepareDraw(state, events, allowRoundEnd);
+    const canDraw = canProvideDraw(state, events, allowRoundEnd);
     if (!canDraw) {
-      exhausted = options.deferRoundEnd === true && allowRoundEnd;
+      exhausted = allowRoundEnd;
       break;
     }
     const card = state.drawPile.pop();
@@ -884,9 +878,7 @@ function applyAction(state, action) {
       const seat = next.currentSeat;
       const maxDraws = next.drawPile.length + next.discardPile.length + 1;
       const drawn = drawTo(next, seat, maxDraws, events, {
-        until: (card) => isPlayable(next, card),
-        // 先聚合 DRAW 事件，再由 drawTo 在返回前结算本局：history 顺序保持 …DRAW → ROUND_END
-        deferRoundEnd: true
+        until: (card) => isPlayable(next, card)
       });
       if (isGameOver(next) || drawn.length === 0) break;
       next.drawnThisTurn = drawn[drawn.length - 1];

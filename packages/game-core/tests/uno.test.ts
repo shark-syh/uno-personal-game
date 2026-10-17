@@ -546,3 +546,222 @@ describe('M3-2 修 bug：喊过 UNO 后摸牌，UNO 状态必须清除', () => {
     expect(declined.state.players[0]!.saidUno).toBe(false);
   });
 });
+
+// ===========================================================================
+// M5-03：多人抓 UNO 冲突处理与窗口边界
+// ===========================================================================
+describe('M5-03 多人抓 UNO 冲突与窗口边界', () => {
+  it('人类抢在 AI 自动抓人之前抓住：只罚一次，之后关窗不会由 AI 补抓', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [
+        [num('blue', 5)],
+        [red7, num('green', 9)],
+        [num('green', 8), num('yellow', 2)],
+        [num('yellow', 9), num('green', 7)],
+      ],
+      num('red', 3),
+      { currentSeat: 1, config: { aiDifficulty: 'easy' } },
+    );
+    // easy：AI 喊 UNO 概率 95%，强制错过 → 打开可被抓窗口
+    forceNextFloat(state, (value) => value >= 0.95);
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.phase).toBe('uno-window');
+    expect(entered.state.unoWindow).toMatchObject({ seat: 1, canCatch: [1] });
+
+    const caught = applyAction(entered.state, { type: 'CATCH_UNO', targetSeat: 1 });
+    expect(caught.events.filter((event) => event.type === 'UNO_CAUGHT')).toHaveLength(1);
+    expect(caught.state.players[1]!.hand).toHaveLength(1 + 2); // 出到 1 张后被罚 2 张
+    expect(caught.state.unoWindow).toBeNull();
+    expect(caught.state.phase).toBe('await-play');
+    expect(caught.state.currentSeat).toBe(2); // 抓人不是行动，轮到的人不变
+
+    // 之后座位 2 正常行动：窗口已关，不会再触发 AI 补抓
+    const after = applyAction(caught.state, { type: 'DRAW' });
+    expect(after.events.some((event) => event.type === 'UNO_CAUGHT')).toBe(false);
+    expect(after.state.players[1]!.hand).toHaveLength(3);
+  });
+
+  it('逆时针方向下多人同时可抓也只罚一次（沿当前方向先到先得）', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [
+        [red7, num('blue', 5)],
+        [num('green', 9), num('yellow', 1)],
+        [num('green', 8), num('yellow', 2)],
+        [num('green', 7), num('yellow', 3)],
+      ],
+      num('red', 3),
+      { config: { aiDifficulty: 'hardcore' }, direction: -1 },
+    );
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.phase).toBe('uno-window');
+    expect(entered.state.currentSeat).toBe(3); // 逆时针下家
+
+    const result = applyAction(entered.state, { type: 'DRAW' }); // 座位 3 行动 → 关窗并抓人
+    expect(result.events.filter((event) => event.type === 'UNO_CAUGHT')).toHaveLength(1);
+    expect(result.state.players[0]!.hand).toHaveLength(1 + 2);
+    expect(result.state.unoWindow).toBeNull();
+  });
+
+  it('被抓者摸牌触发牌堆耗尽：先 UNO_CAUGHT 后 ROUND_END，平局自洽且原动作不执行', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [
+        [red7, num('blue', 5)],
+        [num('green', 9), num('yellow', 1)],
+        [num('green', 8), num('yellow', 2), num('yellow', 3)],
+      ],
+      num('red', 3),
+      { drawPile: [], config: { aiDifficulty: 'hardcore' } },
+    );
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.phase).toBe('uno-window');
+    expect(entered.state.discardPile).toHaveLength(2); // red3 + red7，可回收 1 张
+
+    const result = applyAction(entered.state, { type: 'DRAW' }); // 座位 1 行动 → 关窗触发抓人
+    expect(result.state.phase).toBe('round-end');
+    expect(result.state.endReason).toBe('deck-empty');
+    expect(result.state.winnerSeat).toBeNull(); // 罚款后座位 0/1 都是 2 张 → 并列最少平局
+    expect(result.events.map((event) => event.type)).toEqual([
+      'UNO_CAUGHT',
+      'PILE_RESHUFFLE',
+      'DRAW',
+      'ROUND_END',
+    ]);
+    expect(result.events.find((event) => event.type === 'DRAW')).toMatchObject({
+      seat: 0,
+      count: 1,
+    });
+    expect(result.state.players[0]!.hand).toHaveLength(1 + 1); // 只摸到 1 张罚款牌
+    expect(result.state.players[1]!.hand).toHaveLength(2); // 原 DRAW 未执行
+    expect(countCards(result.state)).toBe(countCards(state));
+  });
+
+  it('抓人罚牌经洗回摸满后，原动作照常执行（窗口关闭边界）', () => {
+    const red7 = num('red', 7);
+    const red9 = num('red', 9);
+    const top = num('red', 3);
+    const state = makeState(
+      [
+        [red7, num('blue', 5)],
+        [red9, num('green', 8)],
+        [num('green', 7), num('yellow', 1)],
+      ],
+      top,
+      { drawPile: [], config: { aiDifficulty: 'hardcore' } },
+    );
+    // 弃牌堆里备 3 张可回收牌（洗回后足够罚摸 2 张）
+    state.discardPile = [num('green', 6), num('green', 4), top];
+
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.phase).toBe('uno-window');
+
+    // 座位 1 出牌（而不是摸牌）先关闭窗口：抓人罚牌成功，再执行原出牌动作
+    const result = applyAction(entered.state, { type: 'PLAY_CARD', cardId: red9.id });
+    expect(result.events.map((event) => event.type)).toEqual([
+      'UNO_CAUGHT',
+      'PILE_RESHUFFLE',
+      'DRAW',
+      'PLAY',
+      'UNO_CALLED',
+    ]);
+    expect(result.state.players[0]!.hand).toHaveLength(1 + 2);
+    expect(result.state.players[1]!.hand).toHaveLength(1); // 原动作照常执行
+    expect(result.state.players[1]!.saidUno).toBe(true); // hardcore AI 出到 1 张自动喊
+    expect(result.state.phase).toBe('await-play');
+    expect(result.state.currentSeat).toBe(2);
+    expect(result.state.discardPile[result.state.discardPile.length - 1]!.id).toBe(red9.id);
+    expect(countCards(result.state)).toBe(countCards(state));
+  });
+
+  it('人类放弃抓人且 AI 抓人概率未命中：窗口关闭无罚，原动作照常执行', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [[num('blue', 5)], [red7, num('green', 9)], [num('green', 8), num('yellow', 2)]],
+      num('red', 3),
+      { currentSeat: 1, config: { aiDifficulty: 'casual' } },
+    );
+    forceNextFloat(state, (value) => value >= 0.8); // 座位 1 忘喊 UNO
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.unoWindow).toMatchObject({ seat: 1 });
+    forceNextFloat(entered.state, (value) => value >= 0.1); // 座位 2 抓人概率 10% 未命中
+    const result = applyAction(entered.state, { type: 'DRAW' }); // 座位 2 行动 → 关窗
+
+    expect(result.events.some((event) => event.type === 'UNO_CAUGHT')).toBe(false);
+    expect(result.state.players[1]!.hand).toHaveLength(1); // 未被罚
+    expect(result.state.unoWindow).toBeNull();
+    expect(result.state.players[2]!.hand.length).toBeGreaterThan(2); // 原 DRAW 照常执行
+  });
+
+  it('挑战窗口（pendingPhase=challenge-decide）下抓 UNO：罚牌后仍保留挑战/接受选择', () => {
+    const wild4Card = wild4();
+    const state = makeState(
+      [
+        [num('blue', 5), num('green', 9)],
+        [num('yellow', 9), num('green', 8)],
+        [wild4Card, num('green', 7)],
+      ],
+      num('red', 3),
+      { currentSeat: 2, config: { stacking: 'none', aiDifficulty: 'casual' } },
+    );
+    forceNextFloat(state, (value) => value >= 0.8); // 座位 2 忘喊 UNO
+    const entered = applyAction(state, {
+      type: 'PLAY_CARD',
+      cardId: wild4Card.id,
+      colorChoice: 'blue',
+    });
+    expect(entered.state.phase).toBe('uno-window');
+    expect(entered.state.unoWindow).toMatchObject({
+      seat: 2,
+      canCall: false,
+      canCatch: [2],
+      pendingPhase: 'challenge-decide',
+    });
+    expect(entered.state.currentSeat).toBe(0); // 人类是 +4 的挑战者
+    expect(entered.state.pendingChallenge).toMatchObject({ challengerSeat: 0, targetSeat: 2 });
+
+    const actions = getLegalActions(entered.state);
+    expect(actions.some((action) => action.type === 'CATCH_UNO' && action.targetSeat === 2)).toBe(
+      true,
+    );
+    expect(actions.some((action) => action.type === 'CHALLENGE_W4')).toBe(true);
+    expect(actions.some((action) => action.type === 'DECLINE_CHALLENGE')).toBe(true);
+
+    const caught = applyAction(entered.state, { type: 'CATCH_UNO', targetSeat: 2 });
+    expect(caught.events.find((event) => event.type === 'UNO_CAUGHT')).toMatchObject({
+      seat: 2,
+      penalty: 2,
+    });
+    expect(caught.state.phase).toBe('challenge-decide'); // 抓完仍回到 +4 挑战窗口
+    expect(caught.state.unoWindow).toBeNull();
+    expect(caught.state.players[2]!.hand).toHaveLength(1 + 2);
+
+    const challenged = applyAction(caught.state, { type: 'CHALLENGE_W4' });
+    expect(challenged.events.some((event) => event.type === 'CHALLENGE_FAIL')).toBe(true);
+    expect(challenged.state.players[0]!.hand).toHaveLength(2 + 6);
+    expect(challenged.state.phase).toBe('await-play');
+    expect(challenged.state.currentSeat).toBe(1);
+  });
+
+  it('CATCH_UNO 目标校验：只能抓当前忘喊者；窗口关闭后抓人非法', () => {
+    const red7 = num('red', 7);
+    const state = makeState(
+      [[num('blue', 5)], [red7, num('green', 9)], [num('green', 8), num('yellow', 2)]],
+      num('red', 3),
+      { currentSeat: 1, config: { aiDifficulty: 'casual' } },
+    );
+    forceNextFloat(state, (value) => value >= 0.8); // 座位 1 忘喊 UNO
+    const entered = applyAction(state, { type: 'PLAY_CARD', cardId: red7.id });
+    expect(entered.state.phase).toBe('uno-window');
+    // 目标错误 / 由人类代 AI 喊 UNO 都非法
+    expect(() => applyAction(entered.state, { type: 'CATCH_UNO', targetSeat: 2 })).toThrow();
+    expect(() => applyAction(entered.state, { type: 'CALL_UNO' })).toThrow();
+
+    // 人类放弃抓人、关窗后（AI 未命中）：窗口已关闭，再抓非法
+    forceNextFloat(entered.state, (value) => value >= 0.1);
+    const closed = applyAction(entered.state, { type: 'DRAW' });
+    expect(closed.state.unoWindow).toBeNull();
+    expect(() => applyAction(closed.state, { type: 'CATCH_UNO', targetSeat: 1 })).toThrow();
+  });
+});

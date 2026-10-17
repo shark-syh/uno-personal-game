@@ -58,7 +58,7 @@ function replenishDrawPile(state: GameState, events: GameEvent[]): boolean {
 }
 
 /**
- * 牌堆是否还能供一张牌（不结算本局），见 prepareDraw。
+ * 牌堆是否还能供一张牌（不结算本局）。见 `开发计划.md` 4.9：
  * 抽牌堆非空 → 可摸；`allowRoundEnd=false` → 能洗就洗；`end-by-fewest` → 一空即不可摸；
  * 默认 reshuffle → 把弃牌堆除顶牌外洗回。
  */
@@ -70,26 +70,14 @@ function canProvideDraw(state: GameState, events: GameEvent[], allowRoundEnd: bo
 }
 
 /**
- * 摸牌前准备一张可摸的牌（M1-7，见 `开发计划.md` 4.9）。
- * - 抽牌堆非空：直接可摸；
- * - `deckExhaustion='end-by-fewest'`：抽牌堆一空即结束本局（按手牌最少者/平局），不洗回；
- * - 默认 `'reshuffle'`：把弃牌堆除顶牌外洗回；若弃牌堆也无法提供牌，按手牌最少者结束；
- * - `allowRoundEnd=false`：胜负已定后的仪式性摸牌，能洗就洗、洗不出来就少摸，不再改胜负。
- */
-function prepareDraw(state: GameState, events: GameEvent[], allowRoundEnd = true): boolean {
-  if (canProvideDraw(state, events, allowRoundEnd)) return true;
-  if (!allowRoundEnd) return false;
-  endRoundByFewestCards(state, events);
-  return false;
-}
-
-/**
- * 给某玩家摸 n 张牌；牌堆耗尽时按规则结束本局（见 prepareDraw）。
+ * 给某玩家摸 n 张牌；牌堆耗尽时按 4.9 结算本局。
  *
  * `until` 供 BUG-01 的主动摸牌规则使用：每摸到一张牌（已进入手牌）判定一次，
  * 命中即提前停止；无论摸了几张，本次摸牌仍聚合为一条 DRAW 事件。
- * `deferRoundEnd`：牌堆耗尽时先返回、由调用方在发出 DRAW 事件后再结算本局，
- * 保证 history 顺序为 …DRAW → ROUND_END。
+ *
+ * 事件顺序固定为 …（PILE_RESHUFFLE）→ DRAW → ROUND_END：摸牌中途耗尽时，
+ * 先聚合 DRAW 事件再结算本局，所有摸牌路径（主动摸牌 / +2/+4 效果 / UNO 罚款 /
+ * 挑战罚牌）一致，便于 UI 动画与事件日志回放（M5-03 修正）。
  */
 function drawTo(
   state: GameState,
@@ -99,18 +87,16 @@ function drawTo(
   options: {
     allowRoundEnd?: boolean;
     until?: (card: Card) => boolean;
-    deferRoundEnd?: boolean;
   } = {},
 ): Card[] {
   const allowRoundEnd = options.allowRoundEnd !== false;
   const drawn: Card[] = [];
   let exhausted = false;
   for (let index = 0; index < count; index += 1) {
-    const canDraw = options.deferRoundEnd
-      ? canProvideDraw(state, events, allowRoundEnd)
-      : prepareDraw(state, events, allowRoundEnd);
+    const canDraw = canProvideDraw(state, events, allowRoundEnd);
     if (!canDraw) {
-      exhausted = options.deferRoundEnd === true && allowRoundEnd;
+      // 摸不到下一张：按 4.9 结束本局（推迟到聚合 DRAW 事件之后）
+      exhausted = allowRoundEnd;
       break;
     }
     const card = state.drawPile.pop()!;
@@ -680,12 +666,10 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       //
       // 终止性：每次成功摸牌都会让「抽牌堆 + 弃牌堆」总张数减 1（洗回只是把弃牌堆搬到
       // 抽牌堆，不增加总张数），所以循环次数上界是两堆张数之和 + 1；谓词始终不满足时，
-      // prepareDraw 会在两堆都无法供牌时按 4.9 结束本局（round-end）并返回 false。
+      // drawTo 会在两堆都无法供牌时按 4.9 先发出聚合 DRAW、再结算本局并返回。
       const maxDraws = next.drawPile.length + next.discardPile.length + 1;
       const drawn = drawTo(next, seat, maxDraws, events, {
         until: (card) => isPlayable(next, card),
-        // 先聚合 DRAW 事件，再由 drawTo 在返回前结算本局：history 顺序保持 …DRAW → ROUND_END
-        deferRoundEnd: true,
       });
       // 摸牌过程中牌堆耗尽 → 本局已按 4.9 结算（可能平局）：保持 round-end / endReason，
       // 不推进回合、不设置 drawnThisTurn，避免破坏结算。

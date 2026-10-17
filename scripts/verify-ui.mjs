@@ -1074,8 +1074,45 @@ async function main() {
       `animationName=${unoAnimation.uno}`,
     );
     await shot('ui-m32-mock-uno-1440.png');
+    // M5-03：UNO 窗口边界——只有自己需要喊 UNO 时，操作栏不应出现「抓他！」按钮
+    const unoWindowBar = await evaluate('window.__verify.actionLabels()');
+    check(
+      'UNO 窗口边界：需要自己喊 UNO 时无「抓他！」按钮',
+      !unoWindowBar.some((item) => item.text === '抓他！'),
+      JSON.stringify(unoWindowBar),
+    );
+    // M5-03：抓 UNO 按钮 → 确认弹窗 → 提交（AI 忘喊 UNO 时人类可抓）
     await evaluate('window.__verify.selectMock("catch-uno")');
-    await sleep(200);
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 抓 UNO 局面');
+    const catchBar = await evaluate('window.__verify.actionLabels()');
+    check(
+      '抓 UNO：操作栏出现「抓他！」按钮',
+      catchBar.some((item) => item.text === '抓他！' && !item.disabled),
+      JSON.stringify(catchBar),
+    );
+    await evaluate(
+      `(() => { const button = [...document.querySelectorAll('#action-bar button')].find((item) => item.textContent.trim() === '抓他！'); button?.click(); return Boolean(button); })()`,
+    );
+    await waitFor('window.__verify.activeDialogTitle() === "抓 UNO"', 5000, '抓 UNO 确认弹窗');
+    const catchDialogButtons = await evaluate('window.__verify.dialogs()');
+    check(
+      '抓 UNO：弹窗要求确认（含「抓他！」按钮）',
+      catchDialogButtons.includes('抓他！'),
+      JSON.stringify(catchDialogButtons),
+    );
+    await shot('ui-m5-catch-uno-1440.png');
+    await evaluate(
+      `(() => { const button = [...document.querySelectorAll('#dialog-root.is-open button')].find((item) => item.textContent.trim() === '抓他！'); button?.click(); return Boolean(button); })()`,
+    );
+    await sleep(250);
+    const catchSubmit = await evaluate(
+      `({ dialogOpen: Boolean(document.querySelector('#dialog-root.is-open')), toast: document.querySelector('#toast-region')?.textContent || '' })`,
+    );
+    check(
+      '抓 UNO：确认后提交动作并关闭弹窗',
+      !catchSubmit.dialogOpen && catchSubmit.toast.includes('抓他'),
+      JSON.stringify(catchSubmit),
+    );
     await evaluate('window.__verify.selectMock("ai-thinking")');
     await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 思考中局面');
     await sleep(200);
@@ -1238,6 +1275,7 @@ async function main() {
       '- review-assets/ui-m32-mock-challenge-1440.png',
       '- review-assets/ui-m32-mock-uno-1440.png',
       '- review-assets/ui-m5-deck-edge-1440.png',
+      '- review-assets/ui-m5-catch-uno-1440.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');
