@@ -4,6 +4,7 @@
 ![Tests](https://img.shields.io/badge/tests-281%20passed-brightgreen)
 ![E2E](https://img.shields.io/badge/browser--checks-102%20passed-blue)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
+[![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
 ![Version](https://img.shields.io/badge/version-v1.0-blue)
 ![Status](https://img.shields.io/badge/M0%7EM6-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
@@ -17,7 +18,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v1.0**（2026-10-18，本地单机版首个发布）· 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v1.0**（2026-10-18，本地单机版首个发布）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <img src="docs/images/game-4p.webp" width="900" alt="4 人对局">
@@ -139,7 +140,7 @@ AI 不是陪练，也不是一个只会「能出就出」的脚本。它们分�
 ### 安装与启动
 
 ```bash
-git clone <你的仓库地址> uno
+git clone https://github.com/shark-syh/uno-personal-game.git uno
 cd uno
 npm install
 
