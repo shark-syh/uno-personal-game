@@ -162,10 +162,17 @@ describe('M1-7 对局结算 getResult', () => {
     expect(first.state.players[0]!.saidUno).toBe(true); // autoCallUno=true
     expect(first.events.map((event) => event.type)).toEqual(['PLAY', 'UNO_CALLED']);
 
-    const second = play({ type: 'DRAW' }); // 座位 1 摸绿 5 不可出 → 继续摸红 8 可出即停
+    const second = play({ type: 'DRAW' }); // 座位 1 摸绿 5 不可出 → drawnThisTurn 为空
     expect(second.events.map((event) => event.type)).toEqual(['DRAW']);
-    expect(second.events[0]).toMatchObject({ seat: 1, count: 2 });
-    expect(second.state.currentSeat).toBe(1); // 停在 await-play，需要主动结束回合
+    expect(second.events[0]).toMatchObject({ seat: 1, count: 1 });
+    expect(second.state.drawnThisTurn).toBeNull();
+    expect(second.state.currentSeat).toBe(1);
+
+    const second2 = play({ type: 'DRAW' }); // 再摸红 8 可出 → 锁定
+    expect(second2.events.map((event) => event.type)).toEqual(['DRAW']);
+    expect(second2.events[0]).toMatchObject({ seat: 1, count: 1 });
+    expect(second2.state.drawnThisTurn?.id).toBe(red8.id);
+    expect(second2.state.currentSeat).toBe(1); // 停在 await-play，需要主动结束回合
 
     const third = play({ type: 'END_TURN' });
     expect(third.events).toEqual([]);
@@ -176,13 +183,13 @@ describe('M1-7 对局结算 getResult', () => {
     const summary = getResult(current);
     expect(summary.winnerSeat).toBe(0);
     expect(summary.turns).toBe(2);
-    expect(summary.actions).toBe(4);
+    expect(summary.actions).toBe(5);
     expect(summary.plays).toBe(2);
     expect(summary.draws).toBe(2);
     expect(summary.stackPlays).toBe(0);
     expect(summary.unoCalls).toBe(1);
     expect(summary.challenges).toBe(0);
-    expect(steps).toHaveLength(4);
+    expect(steps).toHaveLength(5);
 
     // 每位玩家的操作统计与事件历史一致
     expect(summary.players[0]).toMatchObject({
@@ -338,7 +345,8 @@ describe('M1-7 事件日志完整性', () => {
     const allEvents: GameEvent[] = [];
     const actions: EngineAction[] = [
       { type: 'PLAY_CARD', cardId: red7.id },
-      { type: 'DRAW' },
+      { type: 'DRAW' }, // 摸 green5 不可出
+      { type: 'DRAW' }, // 摸 red8 可出，锁定
       { type: 'END_TURN' },
       { type: 'PLAY_CARD', cardId: red9.id },
     ];

@@ -381,9 +381,9 @@ describe('M1-7 随机整局模拟（属性测试）', () => {
 });
 
 // ===========================================================================
-// M5-04：牌堆只剩 1~2 张时的摸牌/洗回边界（配合 BUG-01「摸到可出为止」规则）
+// M5-04：牌堆只剩 1~2 张时的摸牌/洗回边界（主动摸牌改为「一次摸一张」，摸到可出才锁定）
 // ===========================================================================
-describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
+describe('M5-04 抽牌堆只剩 1~2 张：一次摸一张的边界', () => {
   const drawEvent = (state: GameState) => {
     const event = state.events.find((item) => item.type === 'DRAW');
     if (!event || event.type !== 'DRAW') throw new Error('缺少 DRAW 事件');
@@ -417,7 +417,7 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
     expect(countCards(next)).toBe(countCards(state));
   });
 
-  it('剩 1 张不可出、弃牌堆可回收：洗回后立刻摸到可出牌（PILE_RESHUFFLE → 聚合 DRAW，count=2）', () => {
+  it('剩 1 张不可出、弃牌堆可回收：本次只摸 1 张（不洗回），可继续摸', () => {
     const top = num('red', 3);
     const unplayable = num('blue', 5);
     const recyclablePlayable = num('red', 7);
@@ -429,22 +429,19 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
     const result = applyAction(state, { type: 'DRAW' });
     const next = result.state;
 
-    expect(eventTypes(next)).toEqual(['PILE_RESHUFFLE', 'DRAW']);
-    expect(drawEvent(next).count).toBe(2);
-    expect(drawEvent(next).cards?.map((card) => card.id)).toEqual([
-      unplayable.id,
-      recyclablePlayable.id,
-    ]);
-    expect(next.drawnThisTurn?.id).toBe(recyclablePlayable.id);
-    expect(next.players[0]!.hand).toHaveLength(3); // 原 1 张 + 摸到的 2 张
+    expect(eventTypes(next)).toEqual(['DRAW']);
+    expect(drawEvent(next).count).toBe(1);
+    expect(drawEvent(next).cards?.map((card) => card.id)).toEqual([unplayable.id]);
+    expect(next.drawnThisTurn).toBeNull(); // 不可出，不锁定
+    expect(next.players[0]!.hand).toHaveLength(2); // 原 1 张 + 摸到的 1 张
     expect(next.drawPile).toHaveLength(0);
-    expect(next.discardPile).toHaveLength(1); // 只保留顶牌
-    expect(next.discardPile[0]!.id).toBe(top.id);
+    expect(next.discardPile).toHaveLength(2); // 未触发洗回
     expect(next.currentSeat).toBe(0);
+    expect(next.phase).toBe('await-play');
     expect(countCards(next)).toBe(countCards(state));
   });
 
-  it('剩 1 张不可出、弃牌堆只剩顶牌：摸完无法再洗回，按手牌最少者结束（默认 reshuffle 也不死循环）', () => {
+  it('剩 1 张不可出、弃牌堆只剩顶牌：本次只摸 1 张不结束，下次摸牌才耗尽', () => {
     const top = num('red', 3);
     const state = makeState(
       [
@@ -456,32 +453,32 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
       { drawPile: [num('blue', 5)], discardPile: [top] },
     );
 
-    const result = applyAction(state, { type: 'DRAW' });
-    const next = result.state;
+    const first = applyAction(state, { type: 'DRAW' });
+    const next = first.state;
 
-    expect(eventTypes(next)).toEqual(['DRAW', 'ROUND_END']);
+    expect(eventTypes(next)).toEqual(['DRAW']);
     expect(drawEvent(next).count).toBe(1);
-    expect(next.phase).toBe('round-end');
-    expect(next.endReason).toBe('deck-empty');
-    expect(next.winnerSeat).toBe(1);
+    expect(next.phase).toBe('await-play');
     expect(next.drawnThisTurn).toBeNull();
-    expect(next.currentSeat).toBe(0); // 牌堆耗尽不推进回合
-    expect(next.events.find((event) => event.type === 'ROUND_END')).toMatchObject({
-      reason: 'deck-empty',
-      winnerSeat: 1,
-    });
+    expect(next.currentSeat).toBe(0);
     expect(next.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(false);
-    expect(countCards(next)).toBe(countCards(state));
+
+    // 第二次摸牌才耗尽
+    const second = applyAction(next, { type: 'DRAW' });
+    expect(second.state.phase).toBe('round-end');
+    expect(second.state.endReason).toBe('deck-empty');
+    expect(second.state.winnerSeat).toBe(1);
+    expect(countCards(second.state)).toBe(countCards(state));
   });
 
-  it('剩 1 张不可出、回收牌也不可出：洗回后摸完即耗尽（PILE_RESHUFFLE → DRAW → ROUND_END）', () => {
+  it('剩 1 张不可出、回收牌也不可出：本次只摸 1 张，不洗回不结束', () => {
     const top = num('red', 3);
     const unplayable = num('blue', 5);
     const recyclableUnplayable = num('blue', 8);
     const state = makeState(
       [
         [num('green', 9)],
-        [num('yellow', 9)], // 摸牌后手牌最少（1 张）→ 胜者
+        [num('yellow', 9)],
         [num('yellow', 9), num('yellow', 1)],
       ],
       top,
@@ -494,18 +491,16 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
     const result = applyAction(state, { type: 'DRAW' });
     const next = result.state;
 
-    expect(eventTypes(next)).toEqual(['PILE_RESHUFFLE', 'DRAW', 'ROUND_END']);
-    expect(drawEvent(next).count).toBe(2);
+    expect(eventTypes(next)).toEqual(['DRAW']);
+    expect(drawEvent(next).count).toBe(1);
     expect(next.drawnThisTurn).toBeNull();
-    expect(next.phase).toBe('round-end');
-    expect(next.endReason).toBe('deck-empty');
-    expect(next.winnerSeat).toBe(1);
-    expect(next.discardPile).toHaveLength(1); // 洗回后只剩顶牌，无法再次回收
-    expect(next.players[0]!.hand).toHaveLength(3); // 原 1 张 + 摸到的 2 张
+    expect(next.phase).toBe('await-play');
+    expect(next.discardPile).toHaveLength(2); // 未洗回
+    expect(next.players[0]!.hand).toHaveLength(2); // 原 1 张 + 摸到的 1 张
     expect(countCards(next)).toBe(countCards(state));
   });
 
-  it('剩 2 张（先不可出、后可出）：一次摸到可出即停，不洗回、count=2', () => {
+  it('剩 2 张（先不可出、后可出）：第一次只摸不可出的那张，drawnThisTurn 为空', () => {
     const top = num('red', 3);
     const unplayable = num('blue', 5);
     const playable = num('red', 7);
@@ -519,15 +514,15 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
     const next = result.state;
 
     expect(eventTypes(next)).toEqual(['DRAW']);
-    expect(drawEvent(next).count).toBe(2);
-    expect(next.drawPile).toHaveLength(0);
-    expect(next.drawnThisTurn?.id).toBe(playable.id);
-    expect(next.players[0]!.hand).toHaveLength(3);
+    expect(drawEvent(next).count).toBe(1);
+    expect(next.drawPile).toHaveLength(1); // 还剩 playable
+    expect(next.drawnThisTurn).toBeNull(); // blue5 不可出
+    expect(next.players[0]!.hand).toHaveLength(2);
     expect(next.discardPile).toHaveLength(1);
     expect(countCards(next)).toBe(countCards(state));
   });
 
-  it('剩 2 张均不可出、弃牌堆可回收：连续摸 2 张后洗回，继续摸到可出（单条 DRAW 聚合 count=3）', () => {
+  it('剩 2 张均不可出、弃牌堆可回收：第一次只摸 1 张，不洗回', () => {
     const top = num('red', 3);
     const unplayableA = num('blue', 5);
     const unplayableB = num('blue', 6);
@@ -540,12 +535,12 @@ describe('M5-04 抽牌堆只剩 1~2 张：摸到可出为止的边界', () => {
     const result = applyAction(state, { type: 'DRAW' });
     const next = result.state;
 
-    expect(eventTypes(next)).toEqual(['PILE_RESHUFFLE', 'DRAW']);
-    expect(drawEvent(next).count).toBe(3);
-    expect(next.drawPile).toHaveLength(0);
-    expect(next.drawnThisTurn?.id).toBe(recyclablePlayable.id);
-    expect(next.players[0]!.hand).toHaveLength(4);
-    expect(next.discardPile[0]!.id).toBe(top.id);
+    expect(eventTypes(next)).toEqual(['DRAW']);
+    expect(drawEvent(next).count).toBe(1);
+    expect(next.drawPile).toHaveLength(1); // 还剩 unplayableB
+    expect(next.drawnThisTurn).toBeNull();
+    expect(next.players[0]!.hand).toHaveLength(2);
+    expect(next.discardPile).toHaveLength(2); // 未洗回
     expect(countCards(next)).toBe(countCards(state));
   });
 });
@@ -575,7 +570,7 @@ describe('M5-04 摸牌中途牌堆耗尽：end-by-fewest 与默认策略边界',
     expect(next.events.some((event) => event.type === 'ROUND_END')).toBe(false);
   });
 
-  it('end-by-fewest：剩 1 张不可出，摸 1 张后立即耗尽结束（不洗回弃牌堆，先 DRAW 后 ROUND_END）', () => {
+  it('end-by-fewest：剩 1 张不可出，本次只摸 1 张不结束，下次摸牌才耗尽', () => {
     const top = num('red', 3);
     const state = makeState(
       [
@@ -591,22 +586,26 @@ describe('M5-04 摸牌中途牌堆耗尽：end-by-fewest 与默认策略边界',
       },
     );
 
-    const result = applyAction(state, { type: 'DRAW' });
-    const next = result.state;
+    const first = applyAction(state, { type: 'DRAW' });
+    const next = first.state;
 
-    expect(eventTypes(next)).toEqual(['DRAW', 'ROUND_END']);
+    expect(eventTypes(next)).toEqual(['DRAW']);
     expect(drawEvent(next).count).toBe(1);
-    expect(next.phase).toBe('round-end');
-    expect(next.endReason).toBe('deck-empty');
-    expect(next.winnerSeat).toBe(1);
+    expect(next.phase).toBe('await-play');
     expect(next.drawnThisTurn).toBeNull();
     expect(next.events.some((event) => event.type === 'PILE_RESHUFFLE')).toBe(false);
     expect(next.discardPile).toHaveLength(2); // 弃牌堆原样保留，不洗回
     expect(next.players[0]!.hand).toHaveLength(2); // 只摸到那 1 张
-    expect(countCards(next)).toBe(countCards(state));
+
+    // 第二次摸牌：end-by-fewest 直接耗尽
+    const second = applyAction(next, { type: 'DRAW' });
+    expect(second.state.phase).toBe('round-end');
+    expect(second.state.endReason).toBe('deck-empty');
+    expect(second.state.winnerSeat).toBe(1);
+    expect(countCards(second.state)).toBe(countCards(state));
   });
 
-  it('end-by-fewest：剩 2 张均不可出，摸 2 张后结束（DRAW 聚合 count=2 → ROUND_END）', () => {
+  it('end-by-fewest：剩 2 张均不可出，第一次只摸 1 张，需逐次摸到耗尽', () => {
     const top = num('red', 3);
     const state = makeState(
       [[num('green', 9)], [num('yellow', 9)], [num('yellow', 9), num('yellow', 1)]],
@@ -618,16 +617,26 @@ describe('M5-04 摸牌中途牌堆耗尽：end-by-fewest 与默认策略边界',
       },
     );
 
-    const result = applyAction(state, { type: 'DRAW' });
-    const next = result.state;
+    const first = applyAction(state, { type: 'DRAW' });
+    const next = first.state;
 
-    expect(eventTypes(next)).toEqual(['DRAW', 'ROUND_END']);
-    expect(drawEvent(next).count).toBe(2);
-    expect(next.phase).toBe('round-end');
-    expect(next.endReason).toBe('deck-empty');
-    expect(next.winnerSeat).toBe(1);
-    expect(next.players[0]!.hand).toHaveLength(3);
-    expect(countCards(next)).toBe(countCards(state));
+    expect(eventTypes(next)).toEqual(['DRAW']);
+    expect(drawEvent(next).count).toBe(1);
+    expect(next.phase).toBe('await-play');
+    expect(next.drawnThisTurn).toBeNull();
+    expect(next.players[0]!.hand).toHaveLength(2);
+
+    // 第二次摸 blue6（仍不可出）
+    const second = applyAction(next, { type: 'DRAW' });
+    expect(second.state.phase).toBe('await-play');
+    expect(second.state.drawnThisTurn).toBeNull();
+
+    // 第三次摸牌：end-by-fewest 耗尽结束
+    const third = applyAction(second.state, { type: 'DRAW' });
+    expect(third.state.phase).toBe('round-end');
+    expect(third.state.endReason).toBe('deck-empty');
+    expect(third.state.winnerSeat).toBe(1);
+    expect(countCards(third.state)).toBe(countCards(state));
   });
 });
 

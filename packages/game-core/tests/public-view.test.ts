@@ -122,24 +122,24 @@ describe('M3-2 公开视图：隐藏信息隔离', () => {
     expect(JSON.stringify(sanitized)).not.toContain(drawnCards[2]!.id);
   });
 
-  it('实际多张摸牌：一次 DRAW 事件，本人视角带全部牌面、他人视角只有 count', () => {
-    const state = makeState([[num('blue', 5)], [num('green', 9)]], num('red', 3), {
-      // pop 顺序：green1（不可出）→ red9（可出，停止）
-      drawPile: [num('red', 9), num('green', 1)],
+  it('实际多张摸牌（+2 效果）：一次 DRAW 事件，本人视角带全部牌面、他人视角只有 count', () => {
+    const draw2Card = draw2('red');
+    const state = makeState([[draw2Card], [num('green', 9)]], num('red', 3), {
+      drawPile: [num('blue', 5), num('blue', 6)],
     });
-    const drawn = applyAction(state, { type: 'DRAW' });
+    const drawn = applyAction(state, { type: 'PLAY_CARD', cardId: draw2Card.id });
     const drawEvents = drawn.events.filter((event) => event.type === 'DRAW');
     expect(drawEvents).toHaveLength(1);
-    expect(drawEvents[0]).toMatchObject({ seat: 0, count: 2 });
+    expect(drawEvents[0]).toMatchObject({ seat: 1, count: 2 });
 
-    const ownView = getGameView(drawn.state, 0);
+    const ownView = getGameView(drawn.state, 1);
     const ownDraw = ownView.events.find((event) => event.type === 'DRAW');
     expect(ownDraw?.type === 'DRAW' ? ownDraw.count : -1).toBe(2);
     expect(ownDraw?.type === 'DRAW' ? ownDraw.cards : []).toHaveLength(2);
 
-    const otherView = getGameView(drawn.state, 1);
+    const otherView = getGameView(drawn.state, 0);
     expect(otherView.events.find((event) => event.type === 'DRAW')).toMatchObject({
-      seat: 0,
+      seat: 1,
       count: 2,
       cards: [],
     });
@@ -228,12 +228,12 @@ describe('M3-2 公开视图：结构与契约字段', () => {
     expect(wildActions.some((action) => action.label.includes('红'))).toBe(true);
   });
 
-  it('DRAW 文案：label「摸牌」、hint「摸到能打出的牌为止」', () => {
+  it('DRAW 文案：label「摸牌」、hint「点一次摸一张，摸到能打出的牌为止」', () => {
     const state = makeState([[num('red', 5)], [num('green', 9)]], num('red', 3));
     const drawAction = getGameView(state, 0).human.legalActions.find(
       (action) => action.type === 'DRAW',
     );
-    expect(drawAction).toMatchObject({ label: '摸牌', hint: '摸到能打出的牌为止' });
+    expect(drawAction).toMatchObject({ label: '摸牌', hint: '点一次摸一张，摸到能打出的牌为止' });
   });
 
   it('叠牌响应：弃权按钮 label 带累计张数', () => {

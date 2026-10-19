@@ -33,7 +33,7 @@ import { clearAllLines, clearPlayerLine } from '../ui/players.js';
 const AI_BASE_DELAY = { casual: 900, easy: 1100, realistic: 1400, hardcore: 1700 };
 const SPEED_SCALE = { slow: 1.6, normal: 1, fast: 0.45 };
 const LLM_CHANCE = { casual: 0.3, easy: 0.6, realistic: 1, hardcore: 1 };
-const UNO_WINDOW_MS = 2500;
+const UNO_WINDOW_MS = 4000;
 /** M6 复验：即使智谱/预取返回很快，也让「思考中」至少展示这么久，避免 AI 瞬间出牌 */
 const MIN_LLM_THINKING_MS = 500;
 /** BUG-04：AI 台词存活时间（到期只删该座位气泡并清 map，不做整页 render） */
@@ -181,6 +181,36 @@ function applyAndRender(rt, engineAction) {
   renderAndPlay(rt, currentView(rt), () => continueGame(rt));
 }
 
+/**
+ * AI 动作应用：若为摸牌且摸到不可出的牌，内部循环继续摸，
+ * 避免逐次「决策 + 动画」导致 AI 摸牌过慢。人类走 applyAndRender（逐张摸）。
+ */
+function applyAiAction(rt, action) {
+  if (action.type !== 'DRAW') {
+    applyAndRender(rt, action);
+    return;
+  }
+  const allEvents = [];
+  let current = action;
+  while (current && current.type === 'DRAW' && !isGameOver(rt.state)) {
+    const applied = applyAction(rt.state, current);
+    rt.state = applied.state;
+    allEvents.push(...applied.events);
+    rt.prefetch = null;
+    if (isGameOver(rt.state)) break;
+    if (rt.state.drawnThisTurn) break; // 摸到可出的牌了
+    current = pickLocalAction(rt, rt.state.currentSeat);
+  }
+  rt.state.events = allEvents;
+  if (isGameOver(rt.state)) {
+    clearAiLines(rt);
+    recordStatsIfNeeded(rt);
+  } else {
+    startPrefetch(rt);
+  }
+  renderAndPlay(rt, currentView(rt), () => continueGame(rt));
+}
+
 /** 服务端 AI 配置（每局只取一次） */
 function ensureAiConfig(rt) {
   if (rt.aiConfig) return Promise.resolve(rt.aiConfig);
@@ -202,12 +232,15 @@ function ensureAiConfig(rt) {
   return rt.aiConfigPromise;
 }
 
-/** 本地 AI 决策（M2；与 M3-2 相同，按难度加思考延迟） */
+/** 本地 AI 决策（M2；按难度加随机思考延迟——固定节奏会显得机械、像瞬间出牌） */
 function scheduleLocalThinkingDelay(rt) {
+  if (isTestMode()) return 15;
   const settings = getSettings();
   const base = AI_BASE_DELAY[rt.state.config.aiDifficulty] ?? 1200;
   const scale = SPEED_SCALE[settings.aiSpeed] ?? 1;
-  return isTestMode() ? 15 : Math.max(120, Math.round(base * scale));
+  // 每回合随机 0.8x ~ 1.7x：既有「想了一下」的停顿，又不会每次都一样
+  const jitter = 0.8 + 0.9 * Math.random();
+  return Math.max(300, Math.round(base * scale * jitter));
 }
 
 function pickLocalAction(rt, seat) {
@@ -401,7 +434,7 @@ async function runAiAction(rt, seat) {
         }
         await ensureThinkingVisible(rt);
         if (runtime !== rt || isGameOver(rt.state) || rt.state.currentSeat !== seat) return;
-        applyAndRender(rt, candidate.action);
+        applyAiAction(rt, candidate.action);
         return;
       }
       result.code = 'AI_INVALID_ACTION';
@@ -425,7 +458,7 @@ async function runAiAction(rt, seat) {
     if (typeof toast === 'function') toast('AI 决策失败，请点「退出」重开');
     return;
   }
-  applyAndRender(rt, action);
+  applyAiAction(rt, action);
 }
 
 /** AI 回合：先清掉上一轮台词，再显示思考气泡，最后走混合决策 */
@@ -440,7 +473,7 @@ function scheduleAi(rt) {
   void runAiAction(rt, seat);
 }
 
-/** UNO 反应窗口：人类有 2.5s 点 UNO / 抓人；超时后由当前行动者继续 */
+/** UNO 反应窗口：人类有 4s 点 UNO / 抓人（按钮带倒计时条）；超时后由当前行动者继续 */
 function handleUnoWindow(rt) {
   const state = rt.state;
   const view = currentView(rt);
@@ -457,6 +490,9 @@ function handleUnoWindow(rt) {
     return;
   }
 
+  // 倒计时条时长与真实窗口一致（按钮内进度条读取 --uno-window-ms）
+  const windowMs = isTestMode() ? 120 : UNO_WINDOW_MS;
+  document.documentElement.style.setProperty('--uno-window-ms', `${windowMs}ms`);
   window.UnoApp.render(view);
   setTimer(
     rt,
@@ -469,7 +505,7 @@ function handleUnoWindow(rt) {
       }
       scheduleAi(rt);
     },
-    isTestMode() ? 120 : UNO_WINDOW_MS,
+    windowMs,
   );
 }
 

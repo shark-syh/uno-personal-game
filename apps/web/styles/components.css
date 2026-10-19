@@ -23,7 +23,12 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, .45);
   box-shadow: 0 0 0 2px rgba(255, 255, 255, .32), 0 0 22px rgba(255, 170, 0, .8), 0 10px 22px rgba(255, 102, 0, .45);
   animation: uno-pulse 1.5s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
 }
+/* UNO 窗口倒计时条：宽度从满到空，时长 = --uno-window-ms（引擎侧与窗口同步） */
+.uno-countdown { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(60, 24, 0, .5); transform-origin: left center; animation: uno-countdown var(--uno-window-ms, 4s) linear forwards; pointer-events: none; }
+@keyframes uno-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; color: #092011; background: var(--success); font-size: 11px; font-weight: 900; }
 .thinking { color: var(--yellow); }
 .thinking::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.1s steps(3, end) infinite; }

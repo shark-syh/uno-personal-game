@@ -72,6 +72,11 @@ export function renderHand(view, { onAction, openDialog }) {
   const actionRoot = document.querySelector("#action-bar");
   actionRoot.replaceChildren(...legal.filter((item) => !isCardAction(item)).map((item) => {
     const button = document.createElement("button"); button.type = "button"; button.className = `btn${item.type === "CALL_UNO" ? " uno-button" : ""}`; button.dataset.actionId = item.id; button.textContent = item.label; button.disabled = Boolean(item.disabled); button.setAttribute("aria-label", item.label);
+    // UNO 窗口倒计时条：动画关闭 / reduced-motion 时不创建
+    if (item.type === "CALL_UNO" && document.documentElement.dataset.animation !== "false" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      const countdown = document.createElement("span"); countdown.className = "uno-countdown"; countdown.setAttribute("aria-hidden", "true");
+      button.append(countdown);
+    }
     button.addEventListener("click", () => {
       if (item.type === "CHOOSE_COLOR") openDialog("color", { actions: legal.filter((candidate) => candidate.type === "CHOOSE_COLOR") });
       // BUG-02：UNO 一击即喊，不再弹二次确认框

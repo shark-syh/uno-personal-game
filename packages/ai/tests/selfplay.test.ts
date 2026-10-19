@@ -107,7 +107,8 @@ describe('M2 自对弈：单局质量', () => {
 });
 
 describe('M2 自对弈：批量基准聚合', () => {
-  it('难度阶梯：每组局数/胜负平/回合数统计自洽，无非法动作', () => {
+  // 逐张摸牌规则使对局明显变长（24 局批量约 5s+），显式放宽超时以避免误判失败
+  it('难度阶梯：每组局数/胜负平/回合数统计自洽，无非法动作', { timeout: 30000 }, () => {
     const ladder = runDifficultyLadder({ gamesPerPairing: 8, baseSeed: 'selfplay-ladder-test' });
     expect(ladder.pairings).toHaveLength(3);
     expect(ladder.games).toBe(24);

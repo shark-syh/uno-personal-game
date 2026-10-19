@@ -1528,6 +1528,15 @@ async function main() {
       Boolean(unoButton) && unoButton.h >= 56 && unoButton.font >= 20,
       JSON.stringify(unoButton),
     );
+    // M7 反馈修复：UNO 窗口 4s + 按钮内倒计时条（动画开启时）
+    const unoCountdown = await evaluate(
+      `(() => { const bar = document.querySelector('.uno-button .uno-countdown'); if (!bar) return null; return { duration: getComputedStyle(bar).animationDuration }; })()`,
+    );
+    check(
+      'UNO 窗口：按钮显示倒计时条（时长 = 窗口时长）',
+      Boolean(unoCountdown) && Number.parseFloat(unoCountdown.duration) === 4,
+      JSON.stringify(unoCountdown),
+    );
     await evaluate(`document.querySelector('.uno-button').click(); true`);
     await sleep(250);
     const unoClick = await evaluate(

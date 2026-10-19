@@ -270,7 +270,7 @@ function hintFor(action: EngineAction, state: GameState): string {
     case 'STACK_PLAY':
       return `继续叠牌，让下家摸 ${(state.stack?.total ?? 0) + 2} 张以上`;
     case 'DRAW':
-      return '摸到能打出的牌为止';
+      return '点一次摸一张，摸到能打出的牌为止';
     case 'END_TURN':
       return '结束本回合';
     case 'CHOOSE_COLOR':

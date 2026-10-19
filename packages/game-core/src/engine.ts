@@ -658,24 +658,19 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
 
     case 'DRAW': {
       if (next.phase !== 'await-play') throw new Error('当前阶段不能抽牌');
-      if (next.drawnThisTurn) throw new Error('本回合已经抽过牌，请打出抽到的牌或结束回合');
+      if (next.drawnThisTurn) throw new Error('已抽到可打出的牌，只能打出它或结束回合');
 
       const seat = next.currentSeat;
-      // BUG-01（见 `docs/开发计划.md` 4.4）：主动摸牌改为「持续摸牌，直到摸到第一张当前可打出的牌」。
-      // 过程中摸到的其余牌留在手里；停下的那张记为 drawnThisTurn，合法动作只剩打出它或结束回合。
-      //
-      // 终止性：每次成功摸牌都会让「抽牌堆 + 弃牌堆」总张数减 1（洗回只是把弃牌堆搬到
-      // 抽牌堆，不增加总张数），所以循环次数上界是两堆张数之和 + 1；谓词始终不满足时，
-      // drawTo 会在两堆都无法供牌时按 4.9 先发出聚合 DRAW、再结算本局并返回。
-      const maxDraws = next.drawPile.length + next.discardPile.length + 1;
-      const drawn = drawTo(next, seat, maxDraws, events, {
-        until: (card) => isPlayable(next, card),
-      });
-      // 摸牌过程中牌堆耗尽 → 本局已按 4.9 结算（可能平局）：保持 round-end / endReason，
-      // 不推进回合、不设置 drawnThisTurn，避免破坏结算。
+      // 一次摸一张：摸到可出的牌则记为 drawnThisTurn（摸牌按钮消失），
+      // 否则保持 drawnThisTurn 为 null，玩家可继续摸牌（点一次摸一张）。
+      const drawn = drawTo(next, seat, 1, events);
+      // 牌堆耗尽 → 本局已按 4.9 结算
       if (isGameOver(next) || drawn.length === 0) break;
 
-      next.drawnThisTurn = drawn[drawn.length - 1]!; // 停下的最后一张必为当前可出牌
+      const card = drawn[0]!;
+      if (isPlayable(next, card)) {
+        next.drawnThisTurn = card;
+      }
       next.phase = 'await-play';
       break;
     }

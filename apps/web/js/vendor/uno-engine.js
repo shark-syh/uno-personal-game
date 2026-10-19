@@ -874,14 +874,14 @@ function applyAction(state, action) {
     }
     case "DRAW": {
       if (next.phase !== "await-play") throw new Error("\u5F53\u524D\u9636\u6BB5\u4E0D\u80FD\u62BD\u724C");
-      if (next.drawnThisTurn) throw new Error("\u672C\u56DE\u5408\u5DF2\u7ECF\u62BD\u8FC7\u724C\uFF0C\u8BF7\u6253\u51FA\u62BD\u5230\u7684\u724C\u6216\u7ED3\u675F\u56DE\u5408");
+      if (next.drawnThisTurn) throw new Error("\u5DF2\u62BD\u5230\u53EF\u6253\u51FA\u7684\u724C\uFF0C\u53EA\u80FD\u6253\u51FA\u5B83\u6216\u7ED3\u675F\u56DE\u5408");
       const seat = next.currentSeat;
-      const maxDraws = next.drawPile.length + next.discardPile.length + 1;
-      const drawn = drawTo(next, seat, maxDraws, events, {
-        until: (card) => isPlayable(next, card)
-      });
+      const drawn = drawTo(next, seat, 1, events);
       if (isGameOver(next) || drawn.length === 0) break;
-      next.drawnThisTurn = drawn[drawn.length - 1];
+      const card = drawn[0];
+      if (isPlayable(next, card)) {
+        next.drawnThisTurn = card;
+      }
       next.phase = "await-play";
       break;
     }
@@ -1174,7 +1174,7 @@ function hintFor(action, state) {
     case "STACK_PLAY":
       return `\u7EE7\u7EED\u53E0\u724C\uFF0C\u8BA9\u4E0B\u5BB6\u6478 ${(state.stack?.total ?? 0) + 2} \u5F20\u4EE5\u4E0A`;
     case "DRAW":
-      return "\u6478\u5230\u80FD\u6253\u51FA\u7684\u724C\u4E3A\u6B62";
+      return "\u70B9\u4E00\u6B21\u6478\u4E00\u5F20\uFF0C\u6478\u5230\u80FD\u6253\u51FA\u7684\u724C\u4E3A\u6B62";
     case "END_TURN":
       return "\u7ED3\u675F\u672C\u56DE\u5408";
     case "CHOOSE_COLOR":
