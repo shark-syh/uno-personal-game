@@ -16,6 +16,7 @@
     "prestart": "npm run build:web-engine",
     "build:web-engine": "tsx scripts/build-web-engine.ts",
     "verify:ui": "node scripts/verify-ui.mjs",
+    "perf": "node scripts/perf-check.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

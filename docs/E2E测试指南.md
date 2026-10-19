@@ -1,0 +1,82 @@
+# E2E 测试指南（verify:ui）
+
+> 自 M7-01 起，`npm run verify:ui` 确立为本项目**唯一的正式 E2E 回归套件**。
+> 它不引入 Playwright 等第三方依赖：直接用无头 Chrome/Edge + CDP（DevTools 协议）+ Node 原生 WebSocket 实现，脚本本体是 [`scripts/verify-ui.mjs`](../scripts/verify-ui.mjs)。
+
+## 1. 覆盖范围（约 5 分钟 / 103 项）
+
+| # | 章节 | 覆盖内容 |
+| --- | --- | --- |
+| 1 | 默认入口 | 引擎模式默认开启、大厅可用 |
+| 2 | 完整对局 | `?test=1` 快速模式打完 **3 局真实对局**（4 人），含开局卡面加载、事件序列、结算、再来一局、回大厅 |
+| 2b | 多人布局 | 6 / 10 人真实对局布局与轮转（1440 / 1024 宽） |
+| 3 | AI 思考与台词 | 「思考中」气泡、智谱在线台词（**mock**，不消耗额度）、模式指示器 |
+| 3b | 智谱降级 | 拦截 `/api/ai/decide` 返回 429 → 自动降级「本地·降级」+ toast |
+| 4 | 动画机制 | 事件队列串行播放、输入锁、动画关闭 / reduced-motion 降级 |
+| 4a | 事件动效（M6-01） | 飞牌 / 横幅 / 动效层清理、结算彩带完整飘落 |
+| 4b | 音效（M6-02） | WebAudio 合成、开关、音量、autoplay 解锁（`data-audio` 观测） |
+| 4b/4c | 规则设置（M5-06） | 设置页 4 项规则保存与生效、挑战手牌展示（M5-01） |
+| 5 | mock 弹窗回归 | UNO 按钮尺寸 / 单击即喊 / uno-pulse / **UNO 窗口倒计时条**、抓 UNO 确认弹窗、+4 挑战弹窗动画、牌堆边界提示 |
+| 5b | 响应式（M6-05） | 760 宽布局、减少动态效果回归 |
+| 6 | 质量红线 | 控制台 0 error、网络全部同源且无 4xx/5xx、卡面加载无失败、无横向溢出、隐藏信息不外泄 |
+
+产物：
+
+- 报告：`review-assets/ui-m32-verify.md`（人读）+ `ui-m32-verify.json`（机器读，含逐项结果与事件统计）
+- 截图：`review-assets/ui-m32-*.png`
+
+## 2. 本地运行
+
+前置：
+
+1. 本地服务已启动：`npm run dev`（或 `启动服务.bat`），<http://localhost:3000> 可访问；
+2. 本机装有 Chrome 或 Edge（脚本按固定路径查找，见下表）；
+3. 调试端口 **9333** 空闲（同时只能跑一个实例）。
+
+```bash
+npm run verify:ui
+```
+
+### 环境变量
+
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `UNO_BASE_URL` | `http://localhost:3000` | 被测服务地址 |
+| `UNO_DEBUG_PORT` | `9333` | Chrome 远程调试端口 |
+| `CHROME_PATH` | 自动查找 | Chrome/Edge 可执行文件完整路径（路径不在默认查找列表时必填） |
+
+Windows 下的查找顺序：`CHROME_PATH` → Program Files 下 Chrome (x64/x86) → Edge (x86/x64)。
+
+### 常见问题
+
+| 现象 | 处理 |
+| --- | --- |
+| `未找到 Chrome/Edge` | 设置 `CHROME_PATH` 指向浏览器可执行文件 |
+| `EADDRINUSE`（9333） | 上一次实例未退出或端口被占：等几秒重试，或改 `UNO_DEBUG_PORT` |
+| 用例超时 / 对局提前结束 | 脚本已处理「结算页直接回大厅」分支；若手改了引擎/AI，先 `npm run build:web-engine` 再跑 |
+| 改了 `apps/web` 静态资源 | 浏览器缓存无关（无头实例独立 profile），但需确认服务已重启加载新文件 |
+
+## 3. CI 浏览器验收
+
+[`ci.yml`](../.github/workflows/ci.yml) 的 `browser-acceptance` job（ubuntu-latest，Node 22）：
+
+1. `npm ci` → 后台 `npm start` 起服务并轮询 `/api/health`；
+2. 以 `CHROME_PATH=/usr/bin/google-chrome` 跑 `npm run verify:ui`（GitHub 托管 Runner 预装 Chrome，**无需真实智谱 Key**——在线场景是 mock 的）；
+3. 无论成败，上传报告与截图为 artifact `ui-verify-report`（保留 14 天）。
+
+触发条件与 `quality` job 相同：push 到 `main` 与所有 PR。
+
+## 4. 如何扩展检查
+
+- 每项断言调用 `check(name, ok, detail)`，自动汇入报告与退出码（有失败 → 退出码 1）；
+- 人类回合推进用脚本内的 `autoStep`（优先点 `#hand .card.is-legal`），等待人类就绪用 `!busy && humanReady()`，不要写死手牌张数；
+- 纯 UI 场景优先用 `?mock=1` 的 mock 局面（`selectMock(...)`），避免真实对局的随机性；
+- 新增对局行为相关断言时，参考 §2/§4 现有写法：等事件队列空闲（`window.__verify.busy()`）再读 DOM；
+- 新增设置项 / DOM 锚点后，同步本指南第 1 节的覆盖表。
+
+## 5. 已知限制
+
+- 真实对局中「人类挑战 AI」「AI 忘喊 UNO」是概率事件，相关 UI（挑战手牌展示、抓人按钮）走 mock 局面验证；窗口边界由引擎单测覆盖。
+- 智谱「在线成功」是拦截网络请求的 mock（不消耗真实额度）；真实连通性用 `npm run smoke:ai`（需 Key）。
+- 全程无头，不含真机触屏验收；移动端仅 760 宽断点回归。
+- 本机沙箱（DSH）下需把 `TEMP` 指到工作区 `logs/tmp`，否则 esbuild/vitest 写系统临时目录会被拒；用户本机不受影响。

@@ -37,3 +37,51 @@ jobs:
 
       - name: Verify bundle is committed and in sync
         run: git diff --exit-code -- apps/web/js/vendor/uno-engine.js
+
+  browser-acceptance:
+    name: verify:ui (headless Chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local server
+        run: |
+          nohup npm start > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/health > /dev/null; then
+              echo "[ci] server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "[ci] server failed to start"
+          cat server.log
+          exit 1
+
+      - name: Run browser acceptance
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: npm run verify:ui
+
+      - name: Upload acceptance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-verify-report
+          path: |
+            review-assets/ui-m32-verify.md
+            review-assets/ui-m32-verify.json
+            review-assets/ui-m32-*.png
+          if-no-files-found: warn
+          retention-days: 14
