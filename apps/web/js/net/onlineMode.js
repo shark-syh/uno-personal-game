@@ -66,6 +66,11 @@ function renderRoom(room) {
   const isHost = joined && joined.seat === room.hostSeat;
   const canStart = isHost && room.status === "lobby" && room.players.length >= 2;
   $("#room-start").hidden = !canStart;
+  // 自己的当前名字回填到改名框（正聚焦输入时不打扰）
+  const nameInput = $("#room-name-input");
+  if (nameInput && joined && document.activeElement !== nameInput) {
+    nameInput.value = room.players[joined.seat]?.name ?? "";
+  }
   const status = $("#room-status");
   if (room.status === "playing") status.textContent = "对局进行中…";
   else if (room.status === "ended") status.textContent = "对局已结束，可离开房间";
@@ -210,5 +215,19 @@ export function initOnlineMode(options = {}) {
   $("#room-leave")?.addEventListener("click", () => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "leave-room" }));
     exitOnline();
+  });
+  const saveName = () => {
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    const value = ($("#room-name-input")?.value || "").trim();
+    if (!value) {
+      toast("名字不能为空");
+      return;
+    }
+    socket.send(JSON.stringify({ type: "rename", name: value }));
+    $("#room-name-input")?.blur();
+  };
+  $("#room-name-save")?.addEventListener("click", saveName);
+  $("#room-name-input")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") saveName();
   });
 }

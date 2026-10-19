@@ -21,7 +21,7 @@ import {
   type GameState,
   type GameView,
 } from '@uno/game-core';
-import { ROOM_CODE_LENGTH, type RoomSnapshot } from './protocol.ts';
+import { MAX_NAME_LENGTH, ROOM_CODE_LENGTH, type RoomSnapshot } from './protocol.ts';
 
 export const MAX_SEATS = 10;
 export const MIN_SEATS = 2;
@@ -55,6 +55,7 @@ export type RoomErrorCode =
   | 'NOT_IN_ROOM'
   | 'NOT_HOST'
   | 'NOT_ENOUGH_PLAYERS'
+  | 'BAD_MESSAGE'
   | 'GAME_NOT_STARTED'
   | 'GAME_ALREADY_ENDED'
   | 'NOT_YOUR_TURN'
@@ -135,6 +136,21 @@ export class RoomManager {
     return { room, player };
   }
 
+  /**
+   * 房间内改名（用户实测反馈：进房后可自定义名字，顶替缺省的「你」）。
+   * 对局中改名会同步写进 GameState 的玩家名，牌桌名字即时刷新。
+   */
+  renamePlayer(room: Room, seat: number, rawName: string): RoomPlayer {
+    const player = room.players[seat];
+    if (!player) throw new RoomError('NOT_IN_ROOM', '你不在这个房间里');
+    const name = rawName.trim().slice(0, MAX_NAME_LENGTH);
+    if (!name) throw new RoomError('BAD_MESSAGE', '名字不能为空');
+    player.name = name;
+    const statePlayer = room.state?.players[seat];
+    if (statePlayer) statePlayer.name = name;
+    return player;
+  }
+
   getRoom(code: string): Room {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) {
@@ -174,6 +190,9 @@ export class RoomManager {
       player.isHuman = true;
       player.name = room.players[player.seat]!.name;
     }
+    // 联机全员皆人类，没有单一「人类座位」：humanSeat 置 -1（仅作比较用途，无索引引用），
+    // 使引擎开窗时 canCatch=[窗口主人]，任何其他人都能抓忘喊 UNO 者（含 0 号位）。
+    state.config.humanSeat = -1;
     room.state = state;
     room.status = 'playing';
     room.startedAt = Date.now();
@@ -215,7 +234,9 @@ export class RoomManager {
       throw new RoomError('NOT_YOUR_TURN', '现在轮不到你喊 UNO');
     }
     if (action.type === 'CATCH_UNO') {
-      if (state.phase === 'uno-window' && state.unoWindow?.canCatch.includes(seat)) return;
+      const win = state.phase === 'uno-window' ? state.unoWindow : null;
+      // 窗口主人不能抓自己（引擎同样拦截），其余在 canCatch 名单内即可
+      if (win && win.seat !== seat && win.canCatch.includes(seat)) return;
       throw new RoomError('NOT_YOUR_TURN', '你现在不能抓 UNO');
     }
     if (state.currentSeat !== seat) {

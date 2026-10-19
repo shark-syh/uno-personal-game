@@ -147,6 +147,29 @@ describe('按座位视图隔离', () => {
     }
   });
 
+  it('房间内改名：更新玩家名并做长度清洗', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    manager.renamePlayer(room, 1, '  阿明  ');
+    expect(room.players[1]!.name).toBe('阿明');
+    // 超长名字截断到 MAX_NAME_LENGTH（12）
+    manager.renamePlayer(room, 1, '一二三四五六七八九十一十二十三十四');
+    expect(room.players[1]!.name).toHaveLength(12);
+    // 空名字拒绝且不改原名
+    expect(() => manager.renamePlayer(room, 1, '   ')).toThrowError(
+      expect.objectContaining({ code: 'BAD_MESSAGE' }) as Error,
+    );
+    expect(room.players[1]!.name).toHaveLength(12);
+  });
+
+  it('对局中改名：GameState 的玩家名同步刷新', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    manager.startGame(room, 0);
+    manager.renamePlayer(room, 1, '阿明');
+    expect(startedState(room).players[1]!.name).toBe('阿明');
+  });
+
   it('事件按座位脱敏：他人摸牌只带 count 不带牌面，本人保留牌面', () => {
     const manager = new RoomManager();
     const room = makeRoomWithPlayers(manager, ['A', 'B']);

@@ -111,4 +111,7 @@
 .room-name { color: var(--ink); font-size: 14px; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .room-badges { color: var(--yellow); font-size: 12px; flex: none; }
 .room-status { margin: 0; color: var(--ink-muted); font-size: 13px; min-height: 18px; }
+.room-name-edit { display: flex; gap: 8px; margin: 10px 0; }
+.room-name-edit input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); color: var(--ink); font-size: 13px; }
+.room-name-edit input:focus { outline: 1px solid var(--yellow); }
 .room-invite { margin: 0; padding: 8px 12px; border: 1px dashed var(--yellow); border-radius: var(--radius-sm); color: var(--yellow); font-size: 12px; width: min(100%, 360px); box-sizing: border-box; word-break: break-all; }

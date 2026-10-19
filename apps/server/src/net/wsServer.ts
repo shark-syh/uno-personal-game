@@ -189,6 +189,18 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
             if (code !== null && seat !== null) handleDeparture(code, seat);
             break;
           }
+          case 'rename': {
+            if (!context.roomCode || context.seat === null) {
+              sendError(ws, 'NOT_IN_ROOM', '请先创建或加入房间');
+              return;
+            }
+            const room = rooms.getRoom(context.roomCode);
+            rooms.renamePlayer(room, context.seat, message.name);
+            broadcastRoom(room);
+            // 对局中改名：牌桌上的玩家名即时刷新
+            if (room.status === 'playing') broadcastViews(room);
+            break;
+          }
         }
       } catch (error) {
         sendCaughtError(ws, error);

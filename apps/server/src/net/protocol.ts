@@ -39,12 +39,19 @@ export interface LeaveRoomMessage {
   type: 'leave-room';
 }
 
+/** 房间内改名（进房后自定义名字；对局中改名会同步到牌桌） */
+export interface RenameMessage {
+  type: 'rename';
+  name: string;
+}
+
 export type ClientMessage =
   | CreateRoomMessage
   | JoinRoomMessage
   | StartGameMessage
   | ActionMessage
-  | LeaveRoomMessage;
+  | LeaveRoomMessage
+  | RenameMessage;
 
 // ---------- 服务端 → 客户端 ----------
 
@@ -183,6 +190,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (!isValidRoomCode(code)) return null;
       return { type: 'join-room', code, name: sanitizeName(data.name) ?? undefined };
     }
+    case 'rename':
+      // 无效名字置空串：由服务端 renamePlayer 统一拒绝并提示
+      return { type: 'rename', name: sanitizeName(data.name) ?? '' };
     case 'start-game':
       return { type: 'start-game' };
     case 'leave-room':
