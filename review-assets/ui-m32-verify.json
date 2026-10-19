@@ -18,7 +18,7 @@
     {
       "name": "开局：人类 7~9 张手牌（起手 +2 可能 9 张）+ 3 个 AI 座位",
       "ok": true,
-      "detail": "{\"hand\":9,\"opponents\":3,\"failed\":0,\"overflow\":{\"scroll\":1440,\"client\":1440}}"
+      "detail": "{\"hand\":7,\"opponents\":3,\"failed\":0,\"overflow\":{\"scroll\":1440,\"client\":1440}}"
     },
     {
       "name": "开局卡面全部加载成功",
@@ -28,7 +28,7 @@
     {
       "name": "抽牌堆计数在 HUD 正确显示（文本与 data-count 一致）",
       "ok": true,
-      "detail": "{\"text\":\"73\",\"dataCount\":\"73\"}"
+      "detail": "{\"text\":\"79\",\"dataCount\":\"79\"}"
     },
     {
       "name": "1440 宽无横向溢出",
@@ -56,9 +56,9 @@
       "detail": "{\"dotW\":22,\"dotH\":22,\"labelFont\":18,\"labelRect\":{\"top\":24,\"right\":139},\"viewportW\":1440,\"topBarOverflow\":false,\"pageOverflow\":false}"
     },
     {
-      "name": "第 1 局完整打完并进入结算（🏆 小美 获胜）",
+      "name": "第 1 局完整打完并进入结算（🏆 阿强 获胜）",
       "ok": true,
-      "detail": "[\"你7 张\",\"老王3 张\",\"小美0 张 · 出完手牌\",\"阿强2 张\"]"
+      "detail": "[\"你6 张\",\"老王7 张\",\"小美UNO1 张\",\"阿强0 张 · 出完手牌\"]"
     },
     {
       "name": "第 1 局：再来一局 / 退出回大厅可用",
@@ -66,9 +66,9 @@
       "detail": ""
     },
     {
-      "name": "第 2 局完整打完并进入结算（🏆 阿强 获胜）",
+      "name": "第 2 局完整打完并进入结算（🏆 老王 获胜）",
       "ok": true,
-      "detail": "[\"你5 张\",\"老王15 张\",\"小美3 张\",\"阿强0 张 · 出完手牌\"]"
+      "detail": "[\"你6 张\",\"老王0 张 · 出完手牌\",\"小美4 张\",\"阿强13 张\"]"
     },
     {
       "name": "第 2 局：再来一局 / 退出回大厅可用",
@@ -76,9 +76,9 @@
       "detail": ""
     },
     {
-      "name": "第 3 局完整打完并进入结算（🏆 你 获胜）",
+      "name": "第 3 局完整打完并进入结算（🏆 老王 获胜）",
       "ok": true,
-      "detail": "[\"你0 张 · 出完手牌\",\"老王6 张\"]"
+      "detail": "[\"你8 张\",\"老王0 张 · 出完手牌\"]"
     },
     {
       "name": "第 3 局：再来一局 / 退出回大厅可用",
@@ -88,12 +88,12 @@
     {
       "name": "本地战绩：打完 3 局后写入 uno:stats（对局 +3、获胜数合法）",
       "ok": true,
-      "detail": "{\"before\":{},\"after\":{\"games\":3,\"wins\":1}}"
+      "detail": "{\"before\":{},\"after\":{\"games\":3,\"wins\":0}}"
     },
     {
       "name": "本地战绩弹窗：显示已记录的对局/获胜数",
       "ok": true,
-      "detail": "×本地战绩对局 3 · 获胜 1知道了"
+      "detail": "×本地战绩对局 3 · 获胜 0知道了"
     },
     {
       "name": "6 人：真实对局 AI 座位数正确（5 个）",
@@ -113,12 +113,12 @@
     {
       "name": "6 人：抽牌堆计数与 HUD 一致",
       "ok": true,
-      "detail": "count=65 hud=65"
+      "detail": "count=63 hud=63"
     },
     {
       "name": "6 人：轮转正常（自动行动座位 ≥2 个）",
       "ok": true,
-      "detail": "{\"steps\":19,\"seats\":[1,4,2,0,5,3],\"elapsed\":1151,\"screen\":\"result\"}"
+      "detail": "{\"steps\":15,\"seats\":[2,5,3,0,1,4],\"elapsed\":865,\"screen\":\"result\"}"
     },
     {
       "name": "10 人：真实对局 AI 座位数正确（9 个）",
@@ -143,17 +143,17 @@
     {
       "name": "10 人：轮转正常（自动行动座位 ≥2 个）",
       "ok": true,
-      "detail": "{\"steps\":40,\"seats\":[9,0,1,2,5,7,8,4,6,3],\"elapsed\":2549,\"screen\":\"game\"}"
+      "detail": "{\"steps\":31,\"seats\":[1,4,7,9,5,0,3,8,2],\"elapsed\":1970,\"screen\":\"result\"}"
     },
     {
       "name": "10 人 @1024：座位全部在视口内、互不遮挡、无横向溢出",
       "ok": true,
-      "detail": "{\"seats\":9,\"inside\":true,\"overlaps\":[],\"overflow\":{\"scrollW\":1024,\"clientW\":1024,\"scrollH\":768,\"clientH\":768}}"
+      "detail": "{\"seats\":9,\"inside\":true,\"overlaps\":[],\"overflow\":{\"scrollW\":1024,\"clientW\":1024,\"scrollH\":769,\"clientH\":768}}"
     },
     {
       "name": "结算页已取消分数计算与展示（无「趣味分数 / 本局得分」文字）",
       "ok": true,
-      "detail": "[[\"你7 张\",\"老王3 张\",\"小美0 张 · 出完手牌\",\"阿强2 张\"],[\"你5 张\",\"老王15 张\",\"小美3 张\",\"阿强0 张 · 出完手牌\"],[\"你0 张 · 出完手牌\",\"老王6 张\"]]"
+      "detail": "[[\"你6 张\",\"老王7 张\",\"小美UNO1 张\",\"阿强0 张 · 出完手牌\"],[\"你6 张\",\"老王0 张 · 出完手牌\",\"小美4 张\",\"阿强13 张\"],[\"你8 张\",\"老王0 张 · 出完手牌\"]]"
     },
     {
       "name": "结算页图表齐全（每位玩家操作 / 全体动作构成 / 剩余手牌构成 + 总览数字）",
@@ -163,27 +163,27 @@
     {
       "name": "每位玩家操作统计与总览合计一致（出牌/摸牌/叠牌/喊UNO/挑战）",
       "ok": true,
-      "detail": "[{\"summary\":{\"动作\":35,\"出牌\":29,\"摸牌\":13,\"叠牌\":3,\"喊 UNO\":1,\"挑战\":1},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":6,\"draws\":6,\"stackPlays\":0,\"unoCalls\":0,\"challenges\":0}},{\"seat\":1,\"metrics\":{\"plays\":8,\"draws\":4,\"stackPlays\":2,\"unoCalls\":0,\"challenges\":0}},{\"seat\":2,\"metrics\":{\"plays\":8,\"draws\":1,\"stackPlays\":1,\"unoCalls\":1,\"challenges\":1}},{\"seat\":3,\"metrics\":{\"plays\":7,\"draws\":2,\"stackPlays\":0,\"unoCalls\":0,\"challenges\":0}}]},{\"summary\":{\"动作\":75,\"出牌\":48,\"摸牌\":43,\"叠牌\":9,\"喊 UNO\":3,\"挑战\":2},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":13,\"draws\":11,\"stackPlays\":1,\"unoCalls\":2,\"challenges\":0}},{\"seat\":1,\"metrics\":{\"plays\":10,\"draws\":18,\"stackPlays\":4,\"unoCalls\":0,\"challenges\":1}},{\"seat\":2,\"metrics\":{\"plays\":12,\"draws\":8,\"stackPlays\":3,\"unoCalls\":0,\"challenges\":1}},{\"seat\":3,\"metrics\":{\"plays\":13,\"draws\":6,\"stackPlays\":1,\"unoCalls\":1,\"challenges\":0}}]},{\"summary\":{\"动作\":143,\"出牌\":85,\"摸牌\":77,\"叠牌\":11,\"喊 UNO\":2,\"挑战\":1},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":45,\"draws\":38,\"stackPlays\":6,\"unoCalls\":1,\"challenges\":0}},{\"seat\":1,\"metrics\":{\"plays\":40,\"draws\":39,\"stackPlays\":5,\"unoCalls\":1,\"challenges\":1}}]}]"
+      "detail": "[{\"summary\":{\"动作\":144,\"出牌\":90,\"摸牌\":76,\"叠牌\":12,\"喊 UNO\":3,\"挑战\":4},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":25,\"draws\":24,\"stackPlays\":4,\"unoCalls\":0,\"challenges\":1}},{\"seat\":1,\"metrics\":{\"plays\":22,\"draws\":22,\"stackPlays\":0,\"unoCalls\":0,\"challenges\":2}},{\"seat\":2,\"metrics\":{\"plays\":21,\"draws\":15,\"stackPlays\":3,\"unoCalls\":1,\"challenges\":1}},{\"seat\":3,\"metrics\":{\"plays\":22,\"draws\":15,\"stackPlays\":5,\"unoCalls\":2,\"challenges\":0}}]},{\"summary\":{\"动作\":39,\"出牌\":25,\"摸牌\":20,\"叠牌\":3,\"喊 UNO\":1,\"挑战\":0},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":5,\"draws\":4,\"stackPlays\":0,\"unoCalls\":0,\"challenges\":0}},{\"seat\":1,\"metrics\":{\"plays\":7,\"draws\":0,\"stackPlays\":1,\"unoCalls\":1,\"challenges\":0}},{\"seat\":2,\"metrics\":{\"plays\":7,\"draws\":4,\"stackPlays\":1,\"unoCalls\":0,\"challenges\":0}},{\"seat\":3,\"metrics\":{\"plays\":6,\"draws\":12,\"stackPlays\":1,\"unoCalls\":0,\"challenges\":0}}]},{\"summary\":{\"动作\":239,\"出牌\":139,\"摸牌\":133,\"叠牌\":17,\"喊 UNO\":5,\"挑战\":4},\"players\":[{\"seat\":0,\"metrics\":{\"plays\":69,\"draws\":70,\"stackPlays\":8,\"unoCalls\":3,\"challenges\":2}},{\"seat\":1,\"metrics\":{\"plays\":70,\"draws\":63,\"stackPlays\":9,\"unoCalls\":2,\"challenges\":2}}]}]"
     },
     {
       "name": "全体操作构成环形图数据自洽（各部分之和 = 五项操作合计）",
       "ok": true,
-      "detail": "[{\"plays\":29,\"draws\":13,\"stackPlays\":3,\"unoCalls\":1,\"challenges\":1},{\"plays\":48,\"draws\":43,\"stackPlays\":9,\"unoCalls\":3,\"challenges\":2},{\"plays\":85,\"draws\":77,\"stackPlays\":11,\"unoCalls\":2,\"challenges\":1}]"
+      "detail": "[{\"plays\":90,\"draws\":76,\"stackPlays\":12,\"unoCalls\":3,\"challenges\":4},{\"plays\":25,\"draws\":20,\"stackPlays\":3,\"unoCalls\":1,\"challenges\":0},{\"plays\":139,\"draws\":133,\"stackPlays\":17,\"unoCalls\":5,\"challenges\":4}]"
     },
     {
       "name": "剩余手牌构成图表与结算行剩余张数一致",
       "ok": true,
-      "detail": "[{\"rows\":[{\"seat\":0,\"cards\":7,\"shownCount\":7,\"isWinnerRow\":false,\"text\":\"你7 张\"},{\"seat\":1,\"cards\":3,\"shownCount\":3,\"isWinnerRow\":false,\"text\":\"老王3 张\"},{\"seat\":2,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"小美0 张 · 出完手牌\"},{\"seat\":3,\"cards\":2,\"shownCount\":2,\"isWinnerRow\":false,\"text\":\"阿强2 张\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":1,\"yellow\":1,\"green\":2,\"blue\":3,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":1,\"yellow\":0,\"green\":1,\"blue\":1,\"wild\":0}},{\"seat\":2,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}},{\"seat\":3,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":2,\"wild\":0}}]},{\"rows\":[{\"seat\":0,\"cards\":5,\"shownCount\":5,\"isWinnerRow\":false,\"text\":\"你5 张\"},{\"seat\":1,\"cards\":15,\"shownCount\":15,\"isWinnerRow\":false,\"text\":\"老王15 张\"},{\"seat\":2,\"cards\":3,\"shownCount\":3,\"isWinnerRow\":false,\"text\":\"小美3 张\"},{\"seat\":3,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"阿强0 张 · 出完手牌\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":0,\"yellow\":1,\"green\":2,\"blue\":2,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":3,\"yellow\":1,\"green\":6,\"blue\":4,\"wild\":1}},{\"seat\":2,\"colors\":{\"red\":1,\"yellow\":2,\"green\":0,\"blue\":0,\"wild\":0}},{\"seat\":3,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}}]},{\"rows\":[{\"seat\":0,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"你0 张 · 出完手牌\"},{\"seat\":1,\"cards\":6,\"shownCount\":6,\"isWinnerRow\":false,\"text\":\"老王6 张\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":2,\"yellow\":2,\"green\":2,\"blue\":0,\"wild\":0}}]}]"
+      "detail": "[{\"rows\":[{\"seat\":0,\"cards\":6,\"shownCount\":6,\"isWinnerRow\":false,\"text\":\"你6 张\"},{\"seat\":1,\"cards\":7,\"shownCount\":7,\"isWinnerRow\":false,\"text\":\"老王7 张\"},{\"seat\":2,\"cards\":1,\"shownCount\":1,\"isWinnerRow\":false,\"text\":\"小美UNO1 张\"},{\"seat\":3,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"阿强0 张 · 出完手牌\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":1,\"yellow\":3,\"green\":2,\"blue\":0,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":1,\"yellow\":3,\"green\":2,\"blue\":1,\"wild\":0}},{\"seat\":2,\"colors\":{\"red\":0,\"yellow\":1,\"green\":0,\"blue\":0,\"wild\":0}},{\"seat\":3,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}}]},{\"rows\":[{\"seat\":0,\"cards\":6,\"shownCount\":6,\"isWinnerRow\":false,\"text\":\"你6 张\"},{\"seat\":1,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"老王0 张 · 出完手牌\"},{\"seat\":2,\"cards\":4,\"shownCount\":4,\"isWinnerRow\":false,\"text\":\"小美4 张\"},{\"seat\":3,\"cards\":13,\"shownCount\":13,\"isWinnerRow\":false,\"text\":\"阿强13 张\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":1,\"yellow\":0,\"green\":2,\"blue\":3,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}},{\"seat\":2,\"colors\":{\"red\":2,\"yellow\":0,\"green\":2,\"blue\":0,\"wild\":0}},{\"seat\":3,\"colors\":{\"red\":3,\"yellow\":5,\"green\":5,\"blue\":0,\"wild\":0}}]},{\"rows\":[{\"seat\":0,\"cards\":8,\"shownCount\":8,\"isWinnerRow\":false,\"text\":\"你8 张\"},{\"seat\":1,\"cards\":0,\"shownCount\":0,\"isWinnerRow\":true,\"text\":\"老王0 张 · 出完手牌\"}],\"hands\":[{\"seat\":0,\"colors\":{\"red\":5,\"yellow\":0,\"green\":2,\"blue\":1,\"wild\":0}},{\"seat\":1,\"colors\":{\"red\":0,\"yellow\":0,\"green\":0,\"blue\":0,\"wild\":0}}]}]"
     },
     {
       "name": "结算页赢家行标注「出完手牌 / 手牌最少获胜」",
       "ok": true,
-      "detail": "[[\"你7 张\",\"老王3 张\",\"小美0 张 · 出完手牌\",\"阿强2 张\"],[\"你5 张\",\"老王15 张\",\"小美3 张\",\"阿强0 张 · 出完手牌\"],[\"你0 张 · 出完手牌\",\"老王6 张\"]]"
+      "detail": "[[\"你6 张\",\"老王7 张\",\"小美UNO1 张\",\"阿强0 张 · 出完手牌\"],[\"你6 张\",\"老王0 张 · 出完手牌\",\"小美4 张\",\"阿强13 张\"],[\"你8 张\",\"老王0 张 · 出完手牌\"]]"
     },
     {
       "name": "出牌通过点击手牌完成（操作栏无出牌按钮）",
       "ok": true,
-      "detail": "cardClicks=64"
+      "detail": "cardClicks=99"
     },
     {
       "name": "摸牌按钮文案为「摸牌」（BUG-01 新规则：摸到可出为止）",
@@ -193,12 +193,12 @@
     {
       "name": "引擎事件覆盖：出牌/摸牌/回合结束",
       "ok": true,
-      "detail": "{\"DEAL\":46,\"START_CARD\":9,\"DRAW\":139,\"PLAY\":293,\"COLOR_SET\":38,\"STACK_PUSH\":44,\"CHALLENGE_SUCCESS\":4,\"REVERSE\":31,\"STACK_RESOLVE\":21,\"UNO_CALLED\":9,\"PLAYER_OUT\":4,\"ROUND_END\":4,\"SKIP\":26,\"CHALLENGE_FAIL\":3,\"PILE_RESHUFFLE\":2}"
+      "detail": "{\"DEAL\":46,\"START_CARD\":9,\"PLAY\":359,\"COLOR_SET\":44,\"STACK_PUSH\":59,\"STACK_RESOLVE\":27,\"DRAW\":207,\"REVERSE\":23,\"CHALLENGE_FAIL\":7,\"SKIP\":46,\"CHALLENGE_SUCCESS\":5,\"UNO_CALLED\":12,\"PLAYER_OUT\":5,\"ROUND_END\":5,\"UNO_CAUGHT\":1,\"PILE_RESHUFFLE\":2}"
     },
     {
       "name": "引擎事件包含叠牌/挑战/UNO 路径（随机对局统计）",
       "ok": true,
-      "detail": "{\"DEAL\":46,\"START_CARD\":9,\"DRAW\":139,\"PLAY\":293,\"COLOR_SET\":38,\"STACK_PUSH\":44,\"CHALLENGE_SUCCESS\":4,\"REVERSE\":31,\"STACK_RESOLVE\":21,\"UNO_CALLED\":9,\"PLAYER_OUT\":4,\"ROUND_END\":4,\"SKIP\":26,\"CHALLENGE_FAIL\":3,\"PILE_RESHUFFLE\":2}"
+      "detail": "{\"DEAL\":46,\"START_CARD\":9,\"PLAY\":359,\"COLOR_SET\":44,\"STACK_PUSH\":59,\"STACK_RESOLVE\":27,\"DRAW\":207,\"REVERSE\":23,\"CHALLENGE_FAIL\":7,\"SKIP\":46,\"CHALLENGE_SUCCESS\":5,\"UNO_CALLED\":12,\"PLAYER_OUT\":5,\"ROUND_END\":5,\"UNO_CAUGHT\":1,\"PILE_RESHUFFLE\":2}"
     },
     {
       "name": "引擎模式：事件播放期间出现 aria-busy 输入锁",
@@ -228,12 +228,12 @@
     {
       "name": "M4 智谱台词：AI 气泡展示 LLM line",
       "ok": true,
-      "detail": "line=老王：“看我的”"
+      "detail": "line=阿强：“看我的”"
     },
     {
       "name": "AI 台词只短暂展示：TTL/换人后自动消失（不跨回合残留）",
       "ok": true,
-      "detail": "line=老王：“看我的” clearAfter=3769ms"
+      "detail": "line=阿强：“看我的” clearAfter=2812ms"
     },
     {
       "name": "回大厅后 AI 台词清空（不留对话/不跨局残留）",
@@ -273,7 +273,7 @@
     {
       "name": "事件队列逐条播放（5 事件 = 200ms/条基础 + 动效时长）",
       "ok": true,
-      "detail": "elapsed=1346ms"
+      "detail": "elapsed=1347ms"
     },
     {
       "name": "事件队列期间 aria-busy=true 且操作按钮禁用",
@@ -288,7 +288,7 @@
     {
       "name": "事件动效：飞牌/横幅等临时元素由动效层创建（至少 2 个同时动画）",
       "ok": true,
-      "detail": "{\"maxCards\":2,\"maxLayer\":2,\"lastEffect\":\"PILE_RESHUFFLE\",\"elapsed\":2048,\"layer\":0,\"busy\":null}"
+      "detail": "{\"maxCards\":2,\"maxLayer\":2,\"lastEffect\":\"PILE_RESHUFFLE\",\"elapsed\":2035,\"layer\":0,\"busy\":null}"
     },
     {
       "name": "事件动效：队列结束后动效层清理干净、输入锁解除",
@@ -298,7 +298,7 @@
     {
       "name": "事件动效：6 个事件总时长合理（约 0.6~3s）",
       "ok": true,
-      "detail": "elapsed=2048ms"
+      "detail": "elapsed=2035ms"
     },
     {
       "name": "dev 工具条「重播动画」触发动效（mock 局面）",
@@ -353,7 +353,7 @@
     {
       "name": "挑战手牌展示：约 2~3 秒后自动消失",
       "ok": true,
-      "detail": "{\"elapsed\":2600,\"visible\":false}"
+      "detail": "{\"elapsed\":2603,\"visible\":false}"
     },
     {
       "name": "挑战手牌展示：展示期间输入锁定（aria-busy）",
@@ -519,44 +519,45 @@
   "engineEvents": {
     "DEAL": 48,
     "START_CARD": 10,
-    "DRAW": 139,
-    "PLAY": 293,
-    "COLOR_SET": 38,
-    "STACK_PUSH": 44,
-    "CHALLENGE_SUCCESS": 4,
-    "REVERSE": 31,
-    "STACK_RESOLVE": 21,
-    "UNO_CALLED": 9,
-    "PLAYER_OUT": 4,
-    "ROUND_END": 4,
-    "SKIP": 26,
-    "CHALLENGE_FAIL": 3,
+    "PLAY": 359,
+    "COLOR_SET": 44,
+    "STACK_PUSH": 59,
+    "STACK_RESOLVE": 27,
+    "DRAW": 207,
+    "REVERSE": 23,
+    "CHALLENGE_FAIL": 7,
+    "SKIP": 46,
+    "CHALLENGE_SUCCESS": 5,
+    "UNO_CALLED": 12,
+    "PLAYER_OUT": 5,
+    "ROUND_END": 5,
+    "UNO_CAUGHT": 1,
     "PILE_RESHUFFLE": 2
   },
   "gameSummaries": [
     {
-      "title": "🏆 小美 获胜",
-      "rows": [
-        "你7 张",
-        "老王3 张",
-        "小美0 张 · 出完手牌",
-        "阿强2 张"
-      ]
-    },
-    {
       "title": "🏆 阿强 获胜",
       "rows": [
-        "你5 张",
-        "老王15 张",
-        "小美3 张",
+        "你6 张",
+        "老王7 张",
+        "小美UNO1 张",
         "阿强0 张 · 出完手牌"
       ]
     },
     {
-      "title": "🏆 你 获胜",
+      "title": "🏆 老王 获胜",
       "rows": [
-        "你0 张 · 出完手牌",
-        "老王6 张"
+        "你6 张",
+        "老王0 张 · 出完手牌",
+        "小美4 张",
+        "阿强13 张"
+      ]
+    },
+    {
+      "title": "🏆 老王 获胜",
+      "rows": [
+        "你8 张",
+        "老王0 张 · 出完手牌"
       ]
     }
   ],

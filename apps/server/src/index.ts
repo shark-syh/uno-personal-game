@@ -1,11 +1,12 @@
-import { createApp } from './app.ts';
+import { createUnoServer } from './server.ts';
 import { config, isAiConfigured } from './config.ts';
 
-const app = createApp();
+const { server } = createUnoServer();
 
-const server = app.listen(config.port, () => {
+server.listen(config.port, () => {
   const url = `http://localhost:${config.port}`;
   console.log(`[uno-server] 已启动: ${url}`);
+  console.log(`[uno-server] 联机 WebSocket: ws://localhost:${config.port}/ws（M8 局域网联机）`);
   console.log(
     `[uno-server] 前端页面: ${
       config.hasWebUi ? 'apps/web/index.html（已找到）' : '未找到，显示占位页'

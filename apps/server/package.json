@@ -3,15 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "UNO 本地服务：静态托管 apps/web + 智谱 API 代理（M4 实现）",
+  "description": "UNO 本地服务：静态托管 apps/web + 智谱 API 代理（M4）+ 联机 WebSocket（M8）",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "express": "^5.3.0"
+    "@uno/game-core": "*",
+    "express": "^5.3.0",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6"
+    "@types/express": "^5.0.6",
+    "@types/ws": "^8.18.2"
   }
 }

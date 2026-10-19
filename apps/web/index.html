@@ -22,7 +22,7 @@
           <h1 id="lobby-title">UNO 单机版</h1>
           <p>个人练习项目，非官方</p>
         </div>
-        <div class="lobby-panel">
+        <div class="lobby-panel" id="single-panel">
           <form id="lobby-form" class="lobby-form">
             <div class="form-grid">
 
@@ -55,6 +55,30 @@
               <button class="btn btn-ghost" type="button" data-open-dialog="stats" aria-label="战绩">战绩</button>
             </div>
           </form>
+          <div class="online-block" id="online-block">
+            <div class="online-divider"><span>局域网联机</span></div>
+            <div class="online-grid">
+              <input id="online-name" type="text" maxlength="12" placeholder="显示名（默认：你）" aria-label="显示名" autocomplete="off">
+              <input id="online-code" type="text" maxlength="6" placeholder="房间码" aria-label="房间码" autocomplete="off">
+            </div>
+            <div class="online-actions">
+              <button id="online-create" class="btn" type="button" aria-label="创建房间">创建房间</button>
+              <button id="online-join" class="btn" type="button" aria-label="加入房间">加入房间</button>
+            </div>
+          </div>
+        </div>
+        <div class="lobby-panel" id="room-panel" hidden>
+          <div class="room-box">
+            <h2 class="room-title">联机房间</h2>
+            <p class="room-code-line">房间码 <strong id="room-code">------</strong></p>
+            <p class="room-tip">把房间码告诉同一局域网的好友，一起加入</p>
+            <ul id="room-players" class="room-players"></ul>
+            <p id="room-status" class="room-status"></p>
+            <div class="lobby-actions">
+              <button id="room-start" class="btn btn-primary" type="button" aria-label="开始游戏" hidden>开始游戏</button>
+              <button id="room-leave" class="btn btn-ghost" type="button" aria-label="离开房间">离开房间</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

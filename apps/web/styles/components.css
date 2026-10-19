@@ -88,3 +88,26 @@
   .challenge-reveal-hand .card { width: 54px; height: 81px; }
   #challenge-reveal-title { font-size: 16px; }
 }
+
+/* M8-01：大厅「局域网联机」区块与房间面板 */
+.online-block { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line); display: grid; gap: var(--space-3); }
+.online-divider { display: flex; align-items: center; gap: var(--space-3); color: var(--ink-muted); font-size: 13px; }
+.online-divider::before, .online-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.online-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.online-grid input { min-height: 44px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); background: #0c2d1d; font-size: 14px; }
+.online-grid input::placeholder { color: var(--ink-muted); }
+#online-code { text-transform: uppercase; letter-spacing: .18em; }
+.online-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+@media (max-width: 560px) { .online-grid, .online-actions { grid-template-columns: 1fr; } }
+
+.room-box { display: grid; gap: var(--space-3); justify-items: center; padding: var(--space-4) var(--space-3); text-align: center; }
+.room-title { margin: 0; color: var(--ink); font-size: 18px; }
+.room-code-line { margin: 0; color: var(--ink-muted); font-size: 14px; }
+.room-code-line strong { color: var(--yellow); font-size: 30px; letter-spacing: .22em; margin-left: 6px; }
+.room-tip { margin: 0; color: var(--ink-muted); font-size: 12px; }
+.room-players { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: min(100%, 360px); }
+.room-player { display: flex; align-items: center; gap: var(--space-3); padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #ffffff0d; }
+.room-seat { color: var(--ink-muted); font-size: 12px; flex: none; }
+.room-name { color: var(--ink); font-size: 14px; flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-badges { color: var(--yellow); font-size: 12px; flex: none; }
+.room-status { margin: 0; color: var(--ink-muted); font-size: 13px; min-height: 18px; }
