@@ -137,7 +137,13 @@ export class RoomManager {
 
   getRoom(code: string): Room {
     const room = this.rooms.get(code.toUpperCase());
-    if (!room) throw new RoomError('ROOM_NOT_FOUND', '房间不存在，请检查房间码');
+    if (!room) {
+      // 常见误因：每台电脑各开了一个服务，浏览器连的是自己电脑的 localhost（房间不互通）
+      throw new RoomError(
+        'ROOM_NOT_FOUND',
+        '房间不存在：请核对房间码，并确认浏览器打开的是房主电脑的局域网地址（而不是自己电脑的 localhost）；若房主刚重启过服务，请让房主重新创建房间',
+      );
+    }
     return room;
   }
 

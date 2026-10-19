@@ -23,6 +23,16 @@ let exitToEngineLobby = () => {};
 
 const $ = (selector) => document.querySelector(selector);
 
+let lanUrls = [];
+/** 从 /api/health 取本机局域网地址（缓存一次；失败静默，不影响游戏） */
+function loadLanUrls() {
+  if (lanUrls.length > 0) return Promise.resolve(lanUrls);
+  return fetch("/api/health")
+    .then((res) => res.json())
+    .then((data) => { lanUrls = data.lanUrls || []; return lanUrls; })
+    .catch(() => []);
+}
+
 function displayName() {
   const value = $("#online-name")?.value.trim() || "";
   return value.slice(0, 12) || "你";
@@ -61,6 +71,15 @@ function renderRoom(room) {
   else if (room.status === "ended") status.textContent = "对局已结束，可离开房间";
   else if (isHost) status.textContent = room.players.length >= 2 ? "人齐了就开始吧" : "至少 2 人才能开始（AI 补位后续版本提供）";
   else status.textContent = "等待房主开始…";
+  // 房主视角的大厅提示：直接给出「好友该打开的地址 + 房间码」
+  const invite = $("#room-invite");
+  if (!invite) return;
+  if (room.status !== "lobby") { invite.hidden = true; return; }
+  loadLanUrls().then((urls) => {
+    if (!urls.length || !joined || room.code !== joined.code) return;
+    invite.textContent = `其他设备请打开 ${urls[0]} 并输入房间码 ${room.code} 加入`;
+    invite.hidden = false;
+  });
 }
 
 function closeSocket() {

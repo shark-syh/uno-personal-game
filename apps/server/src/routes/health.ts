@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config.ts';
+import { getLanAddresses } from '../net/lan.ts';
 
 export interface HealthRouterDeps {
   /** 智谱是否已配置（测试可注入） */
@@ -19,6 +20,8 @@ export function createHealthRouter(deps: HealthRouterDeps): Router {
       version: '1.0.0',
       uptimeSec: Math.round(process.uptime()),
       time: new Date().toISOString(),
+      // M8 联机：局域网访问地址（房主面板据此显示「好友打开这个网址」提示）
+      lanUrls: getLanAddresses(config.port),
     });
   });
 
