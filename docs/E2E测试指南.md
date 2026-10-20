@@ -1,7 +1,7 @@
-# E2E 测试指南（verify:ui）
+# E2E 测试指南（verify:ui / verify:online）
 
-> 自 M7-01 起，`npm run verify:ui` 确立为本项目**唯一的正式 E2E 回归套件**。
-> 它不引入 Playwright 等第三方依赖：直接用无头 Chrome/Edge + CDP（DevTools 协议）+ Node 原生 WebSocket 实现，脚本本体是 [`scripts/verify-ui.mjs`](../scripts/verify-ui.mjs)。
+> 自 M7-01 起，`npm run verify:ui` 是单机正式 E2E 回归套件；M9-04 起新增 `npm run verify:online` 覆盖联机双客户端。
+> 两者都不引入 Playwright 等第三方依赖：直接用无头 Chrome/Edge + CDP（DevTools 协议）+ Node 原生 WebSocket 实现，脚本分别是 [`scripts/verify-ui.mjs`](../scripts/verify-ui.mjs) 与 [`scripts/verify-online.mjs`](../scripts/verify-online.mjs)。
 
 ## 1. 覆盖范围（约 5 分钟 / 103 项）
 
@@ -55,6 +55,22 @@ Windows 下的查找顺序：`CHROME_PATH` → Program Files 下 Chrome (x64/x86
 | `EADDRINUSE`（9333） | 上一次实例未退出或端口被占：等几秒重试，或改 `UNO_DEBUG_PORT` |
 | 用例超时 / 对局提前结束 | 脚本已处理「结算页直接回大厅」分支；若手改了引擎/AI，先 `npm run build:web-engine` 再跑 |
 | 改了 `apps/web` 静态资源 | 浏览器缓存无关（无头实例独立 profile），但需确认服务已重启加载新文件 |
+
+## 2b. 联机双客户端验收（verify:online）
+
+前置与 `verify:ui` 相同，但使用调试端口 **9334**（可与单机套件并行），默认输出 22 项结果到控制台：
+
+- 单机隐藏表情入口；双客户端创建/加入房间；
+- 双方座位框按视角座位渲染（不显示自己、名字/牌数正确、视口内且不压手牌）；
+- 大厅与对局表情广播、发送者提示、气泡位置；连发 5 条进入 2 秒冷却并恢复；
+- 自动对局最多 3 局，直到 UNO 窗口出现，断言窗口主人只看到「UNO!」、其他座位只看到「抓他」；
+- 两端控制台 0 error/exception。
+
+```bash
+npm run verify:online
+```
+
+环境变量：`UNO_BASE_URL`、`UNO_DEBUG_PORT`（默认 9334）、`CHROME_PATH`。
 
 ## 3. CI 浏览器验收
 
