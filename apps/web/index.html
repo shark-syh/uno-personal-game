@@ -83,6 +83,9 @@
             </div>
             <p id="room-status" class="room-status"></p>
             <p id="room-invite" class="room-invite" hidden></p>
+            <div class="room-emote-row">
+              <button id="room-emote-toggle" class="btn btn-ghost" type="button" aria-label="发送表情" hidden>表情</button>
+            </div>
             <div class="lobby-actions">
               <button id="room-start" class="btn btn-primary" type="button" aria-label="开始游戏" hidden>开始游戏</button>
               <button id="room-leave" class="btn btn-ghost" type="button" aria-label="离开房间">离开房间</button>
@@ -100,6 +103,7 @@
           <span class="status-chip"><strong>AI</strong><span id="ai-mode-indicator">自动</span></span>
         </div>
         <div class="top-actions">
+          <button id="game-emote-toggle" class="btn btn-ghost" type="button" aria-label="发送表情" hidden>表情</button>
           <button class="btn btn-ghost" type="button" data-open-dialog="settings" aria-label="设置">设置</button>
           <button id="quit-game" class="btn btn-danger" type="button" aria-label="退出对局">退出</button>
         </div>
@@ -144,6 +148,7 @@
       </div>
     </section>
   </main>
+  <div id="emote-picker" role="group" aria-label="选择表情" hidden></div>
   <div id="dialog-root" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-live="polite"></div>
   <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
   <div id="effect-layer" aria-hidden="true"></div>

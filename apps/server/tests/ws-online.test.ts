@@ -270,3 +270,31 @@ describe('M8-06 断线顶替与重连', () => {
     }
   });
 });
+
+describe('M9-03 表情广播', () => {
+  it('房间内广播发送者座位与 emoji；非白名单 emoji 被拒绝', { timeout: 15000 }, async () => {
+    const host = await TestClient.connect(wsUrl);
+    const guest = await TestClient.connect(wsUrl);
+    try {
+      host.send({ type: 'create-room', name: 'A' });
+      const joined = await host.waitFor('joined');
+      const code = (joined.room as { code: string }).code;
+      guest.send({ type: 'join-room', code, name: 'B' });
+      await guest.waitFor('joined');
+      await host.waitFor('room');
+
+      host.send({ type: 'emote', emoji: '😂' });
+      const hostEcho = await host.waitFor('emote');
+      const guestEcho = await guest.waitFor('emote');
+      expect(hostEcho).toMatchObject({ type: 'emote', seat: 0, emoji: '😂' });
+      expect(guestEcho).toMatchObject({ type: 'emote', seat: 0, emoji: '😂' });
+
+      guest.send({ type: 'emote', emoji: 'not-an-emoji' });
+      const error = await guest.waitFor('error');
+      expect(error.code).toBe('BAD_MESSAGE');
+    } finally {
+      host.close();
+      guest.close();
+    }
+  });
+});

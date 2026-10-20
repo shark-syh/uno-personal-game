@@ -227,6 +227,24 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
             if (room.state) sendSeatView(room, ws, player.seat);
             break;
           }
+          case 'emote': {
+            if (!context.roomCode || context.seat === null) {
+              sendError(ws, 'NOT_IN_ROOM', '请先创建或加入房间');
+              return;
+            }
+            const room = rooms.getRoom(context.roomCode);
+            const result = rooms.recordEmote(room, context.seat);
+            if (!result.ok) {
+              const retrySeconds = Math.max(1, Math.ceil(result.retryAfterMs / 1000));
+              sendError(ws, 'EMOTE_RATE_LIMITED', `表情发得太快，请 ${retrySeconds} 秒后再试`);
+              return;
+            }
+            // 广播给房间内所有人（含发送者）：客户端按「是否自己的座位」决定气泡或发送提示
+            for (const client of roomConnections.get(room.code)?.keys() ?? []) {
+              send(client, { type: 'emote', seat: context.seat, emoji: message.emoji });
+            }
+            break;
+          }
           case 'leave-room': {
             if (!context.roomCode || context.seat === null) {
               sendError(ws, 'NOT_IN_ROOM', '你不在任何房间中');

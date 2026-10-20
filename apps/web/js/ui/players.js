@@ -1,5 +1,6 @@
 import { renderCard } from "./hand.js";
 import { setViewerSeat } from "../state/viewer.js";
+import { restoreEmoteBubbles } from "./emotes.js";
 
 /**
  * BUG-04：AI 台词 TTL 到期时只清对应座位的气泡文本。
@@ -57,4 +58,6 @@ export function renderPlayers(view) {
         : "";
     return bubble;
   }));
+  // M9-03：视图重渲染会清空座位框，未过期的表情气泡需要补回
+  restoreEmoteBubbles();
 }

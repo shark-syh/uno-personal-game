@@ -4,7 +4,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { Card, GameState } from '@uno/game-core';
-import { RoomError, RoomManager } from '../src/net/rooms.ts';
+import {
+  EMOTE_BURST,
+  EMOTE_COOLDOWN_MS,
+  RoomError,
+  RoomManager,
+} from '../src/net/rooms.ts';
 
 function makeRoomWithPlayers(manager: RoomManager, names: string[]) {
   const { room } = manager.createRoom(names[0]!);
@@ -285,5 +290,31 @@ describe('M8-06 重连与清理', () => {
     expect(deleted).not.toContain(active.code);
     expect(() => manager.getRoom(stale.code)).toThrowError(RoomError);
     expect(() => manager.getRoom(active.code)).not.toThrowError();
+  });
+});
+
+describe('M9-03 表情限频', () => {
+  it('每座位连发 5 条放行，随后进入 2 秒冷却，冷却结束恢复', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    const start = 1_000_000;
+    for (let index = 0; index < EMOTE_BURST; index += 1) {
+      expect(manager.recordEmote(room, 0, start)).toEqual({ ok: true });
+    }
+    const blocked = manager.recordEmote(room, 0, start + EMOTE_COOLDOWN_MS - 1);
+    expect(blocked.ok).toBe(false);
+    if (!blocked.ok) expect(blocked.retryAfterMs).toBe(1);
+    // 另一个座位不受影响
+    expect(manager.recordEmote(room, 1, start + 10)).toEqual({ ok: true });
+    // 冷却到期后恢复一整轮额度
+    expect(manager.recordEmote(room, 0, start + EMOTE_COOLDOWN_MS)).toEqual({ ok: true });
+  });
+
+  it('大厅有人离开导致座位重排时清空限频状态', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B', 'C']);
+    for (let index = 0; index < EMOTE_BURST; index += 1) manager.recordEmote(room, 1, 5000);
+    manager.leaveRoom(room, 0);
+    expect(room.emoteLimits.size).toBe(0);
   });
 });

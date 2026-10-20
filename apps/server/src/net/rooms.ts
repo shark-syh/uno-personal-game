@@ -27,6 +27,9 @@ import { MAX_NAME_LENGTH, ROOM_CODE_LENGTH, type RoomSnapshot } from './protocol
 
 export const MAX_SEATS = 10;
 export const MIN_SEATS = 2;
+/** M9-03：每座位一轮最多可发 5 条表情，发满后进入 2 秒冷却 */
+export const EMOTE_BURST = 5;
+export const EMOTE_COOLDOWN_MS = 2000;
 
 /** 房间码字符集：去掉 0/O/1/I 等易混淆字符 */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -37,6 +40,12 @@ export interface RoomPlayer {
   /** 会话 token（M8-06 重连恢复用；只在 joined 消息里发给本人） */
   token: string;
   connected: boolean;
+}
+
+/** M9-03：单座位表情限频状态（服务端权威，客户端倒计时只做提示） */
+interface EmoteLimitState {
+  count: number;
+  cooldownUntil: number;
 }
 
 export interface Room {
@@ -52,6 +61,8 @@ export interface Room {
   aiCount: number;
   /** M8-04：AI 决策专用随机源（与引擎 rng 分离，不破坏对局可复现性） */
   aiRng: RngState | null;
+  /** M9-03：各座位的表情发送限频状态 */
+  emoteLimits: Map<number, EmoteLimitState>;
   /** M8-06：最近活动时间（房间超时清理依据） */
   lastActivityAt: number;
 }
@@ -122,6 +133,7 @@ export class RoomManager {
       startedAt: 0,
       aiCount: 0,
       aiRng: null,
+      emoteLimits: new Map(),
       lastActivityAt: Date.now(),
     };
     this.rooms.set(code, room);
@@ -162,6 +174,37 @@ export class RoomManager {
     return player;
   }
 
+  /**
+   * M9-03：记录一次表情发送并做每座位限频。
+   * 连续发满 EMOTE_BURST 条后进入 EMOTE_COOLDOWN_MS 冷却；冷却期内拒绝并返回剩余毫秒。
+   * 服务端为唯一裁决方，客户端倒计时只负责禁用按钮。
+   */
+  recordEmote(
+    room: Room,
+    seat: number,
+    now = Date.now(),
+  ): { ok: true } | { ok: false; retryAfterMs: number } {
+    if (!room.players[seat]) throw new RoomError('NOT_IN_ROOM', '你不在这个房间里');
+    const limit = room.emoteLimits.get(seat) ?? { count: 0, cooldownUntil: 0 };
+    if (now < limit.cooldownUntil) {
+      const retryAfterMs = limit.cooldownUntil - now;
+      room.emoteLimits.set(seat, limit);
+      return { ok: false, retryAfterMs };
+    }
+    if (limit.cooldownUntil > 0) {
+      limit.count = 0;
+      limit.cooldownUntil = 0;
+    }
+    limit.count += 1;
+    if (limit.count >= EMOTE_BURST) {
+      limit.count = 0;
+      limit.cooldownUntil = now + EMOTE_COOLDOWN_MS;
+    }
+    room.emoteLimits.set(seat, limit);
+    room.lastActivityAt = now;
+    return { ok: true };
+  }
+
   getRoom(code: string): Room {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) {
@@ -196,6 +239,7 @@ export class RoomManager {
       throw new RoomError('BAD_MESSAGE', `最多 ${MAX_SEATS} 人（含 AI）`);
     }
     room.aiCount = aiCount;
+    room.emoteLimits.clear();
     room.state = this.buildGameState(room);
     room.status = 'playing';
     room.startedAt = Date.now();
@@ -211,6 +255,7 @@ export class RoomManager {
     if (room.status !== 'ended') {
       throw new RoomError('BAD_MESSAGE', '对局还没结束，不能再来一局');
     }
+    room.emoteLimits.clear();
     room.state = this.buildGameState(room);
     room.status = 'playing';
     room.startedAt = Date.now();
@@ -366,6 +411,8 @@ export class RoomManager {
         this.rooms.delete(room.code);
         return { closed: true };
       }
+      // 大厅座位已重排，旧的座位限频状态不再对应原玩家，直接清空
+      room.emoteLimits.clear();
       return { closed: false };
     }
     this.markDisconnected(room, seat);

@@ -59,6 +59,12 @@ export interface RejoinMessage {
   token: string;
 }
 
+/** M9-03：发送预置表情（仅房间内；服务端校验白名单与每座位限频） */
+export interface EmoteMessage {
+  type: 'emote';
+  emoji: string;
+}
+
 export type ClientMessage =
   | CreateRoomMessage
   | JoinRoomMessage
@@ -67,7 +73,8 @@ export type ClientMessage =
   | LeaveRoomMessage
   | RenameMessage
   | RematchMessage
-  | RejoinMessage;
+  | RejoinMessage
+  | EmoteMessage;
 
 // ---------- 服务端 → 客户端 ----------
 
@@ -99,13 +106,45 @@ export interface ViewMessage {
   view: unknown;
 }
 
+/** M9-03：表情广播（seat 为发送者真实座位；客户端在对应座位框弹气泡） */
+export interface EmoteBroadcastMessage {
+  type: 'emote';
+  seat: number;
+  emoji: string;
+}
+
 export interface ErrorMessage {
   type: 'error';
   code: string;
   message: string;
 }
 
-export type ServerMessage = JoinedMessage | RoomMessage | ViewMessage | ErrorMessage;
+export type ServerMessage =
+  | JoinedMessage
+  | RoomMessage
+  | ViewMessage
+  | EmoteBroadcastMessage
+  | ErrorMessage;
+
+/** M9-03：预置表情白名单（纯 emoji；服务端与客户端保持一致） */
+export const EMOTE_EMOJIS = [
+  '😂',
+  '😭',
+  '😡',
+  '😎',
+  '🤡',
+  '💀',
+  '👍',
+  '👎',
+  '🔥',
+  '🎉',
+  '🙈',
+  '🫠',
+] as const;
+
+export function isValidEmote(value: unknown): value is string {
+  return typeof value === 'string' && (EMOTE_EMOJIS as readonly string[]).includes(value);
+}
 
 // ---------- 入参校验 ----------
 
@@ -230,6 +269,8 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (!/^[a-f0-9]{32}$/.test(token)) return null;
       return { type: 'rejoin', code, token };
     }
+    case 'emote':
+      return isValidEmote(data.emoji) ? { type: 'emote', emoji: data.emoji } : null;
     case 'action': {
       const action = parseEngineAction(data.action);
       return action ? { type: 'action', action } : null;

@@ -16,6 +16,14 @@
 import { toEngineAction } from "../vendor/uno-engine.js";
 import { getSettings } from "../state/settings.js";
 import { playEvents } from "../animation/queue.js";
+import {
+  initEmotes,
+  setEmoteEnabled,
+  setEmoteSelfSeat,
+  handleEmoteBroadcast,
+  startEmoteCooldown,
+  restoreEmoteBubbles,
+} from "../ui/emotes.js";
 
 let socket = null;
 let joined = null; // { code, seat, token }
@@ -91,6 +99,7 @@ function renderRoom(room) {
   list.replaceChildren(...room.players.map((player) => {
     const item = document.createElement("li");
     item.className = "room-player";
+    item.dataset.seat = String(player.seat);
     const badges = [];
     if (player.seat === room.hostSeat) badges.push("房主");
     if (joined && player.seat === joined.seat) badges.push("我");
@@ -99,6 +108,8 @@ function renderRoom(room) {
     item.querySelector(".room-name").textContent = player.name;
     return item;
   }));
+  // M9-03：房间列表重渲染后补回未过期的表情气泡
+  restoreEmoteBubbles();
   const isHost = joined && joined.seat === room.hostSeat;
   // M8-04 AI 补位：房主在大厅可选补几个 AI（开局人数 = 真人 + AI）
   const aiRow = $("#room-ai-row");
@@ -165,6 +176,7 @@ function exitOnline() {
   manualExit = true;
   clearSession();
   closeSocket();
+  setEmoteEnabled(false);
   window.UnoApp.setActionHandler(null);
   showSinglePanel();
   exitToEngineLobby();
@@ -242,6 +254,8 @@ function handleMessage(event) {
     rejoinPending = false;
     reconnectAttempts = 0;
     persistSession();
+    setEmoteSelfSeat(message.seat);
+    setEmoteEnabled(true);
     renderRoom(message.room);
     showRoomPanel();
     if (wasRejoin) toast("已重连，恢复你的座位");
@@ -255,6 +269,10 @@ function handleMessage(event) {
     onView(message.view);
     return;
   }
+  if (message.type === "emote") {
+    handleEmoteBroadcast(message.seat, message.emoji);
+    return;
+  }
   if (message.type === "error") {
     // 重连被服务端拒绝（房间没了/凭证失效）：清理会话回单机大厅
     if (rejoinPending) {
@@ -262,6 +280,8 @@ function handleMessage(event) {
       exitOnline();
       return;
     }
+    // M9-03：服务端限频（客户端本地计数被绕过时兜底）
+    if (message.code === "EMOTE_RATE_LIMITED") startEmoteCooldown();
     toast(message.message || "联机操作失败");
   }
 }
@@ -322,6 +342,12 @@ function joinRoom() {
 export function initOnlineMode(options = {}) {
   if (typeof options.toast === "function") toast = options.toast;
   if (typeof options.onExit === "function") exitToEngineLobby = options.onExit;
+  initEmotes({
+    toast,
+    send: (emoji) => {
+      if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "emote", emoji }));
+    },
+  });
   $("#online-create")?.addEventListener("click", createRoom);
   $("#online-join")?.addEventListener("click", joinRoom);
   $("#room-start")?.addEventListener("click", () => {
@@ -338,6 +364,8 @@ export function initOnlineMode(options = {}) {
     const saved = JSON.parse(sessionStorage.getItem("uno:online") || "null");
     if (saved && typeof saved.code === "string" && typeof saved.token === "string") {
       joined = saved;
+      setEmoteSelfSeat(saved.seat);
+      setEmoteEnabled(true);
       connectRaw((ws) => {
         rejoinPending = true;
         ws.send(JSON.stringify({ type: "rejoin", code: saved.code, token: saved.token }));
