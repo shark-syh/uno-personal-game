@@ -1275,10 +1275,15 @@ function getHumanLegalActions(state, seat) {
   if (state.phase === "round-end") return [];
   const legal = getLegalActions(state);
   if (state.phase === "uno-window") {
-    const windowActions = legal.filter(
-      (action) => action.type === "CALL_UNO" || action.type === "CATCH_UNO"
-    );
-    const pendingActions = state.currentSeat === seat ? legal.filter((action) => !windowActions.includes(action)) : [];
+    const win = state.unoWindow;
+    const windowActions = legal.filter((action) => {
+      if (action.type === "CALL_UNO") return win?.seat === seat;
+      if (action.type === "CATCH_UNO") return win !== null && win.seat !== seat;
+      return false;
+    });
+    const pendingActions = state.currentSeat === seat ? legal.filter(
+      (action) => action.type !== "CALL_UNO" && action.type !== "CATCH_UNO"
+    ) : [];
     return [...windowActions, ...pendingActions].map((action) => toUiAction(action, state));
   }
   if (state.currentSeat !== seat) return [];

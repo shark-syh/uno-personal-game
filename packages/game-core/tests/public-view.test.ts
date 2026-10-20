@@ -324,6 +324,8 @@ describe('M3-2 公开视图：结构与契约字段', () => {
     const humanView = getGameView(state, 0);
     expect(humanView.human.canCallUno).toBe(true);
     expect(humanView.human.legalActions.some((action) => action.type === 'CALL_UNO')).toBe(true);
+    // M9-01：窗口主人只能喊，不能抓自己
+    expect(humanView.human.legalActions.some((action) => action.type === 'CATCH_UNO')).toBe(false);
 
     // AI 忘记喊 UNO：人类可抓
     state.unoWindow = { seat: 1, canCall: false, canCatch: [1], pendingPhase: 'await-play' };
@@ -333,6 +335,8 @@ describe('M3-2 公开视图：结构与契约字段', () => {
     expect(catchView.human.canCatch).toEqual([1]);
     const catchAction = catchView.human.legalActions.find((action) => action.type === 'CATCH_UNO');
     expect(catchAction).toMatchObject({ targetSeat: 1, id: 'catch:1' });
+    // M9-01：非窗口主人只能抓，不能看到别人的喊 UNO 按钮（联机实测串座 bug）
+    expect(catchView.human.legalActions.some((action) => action.type === 'CALL_UNO')).toBe(false);
   });
 });
 

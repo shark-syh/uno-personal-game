@@ -385,11 +385,20 @@ export function getHumanLegalActions(state: GameState, seat: number): UiAction[]
   if (state.phase === 'round-end') return [];
   const legal = getLegalActions(state);
   if (state.phase === 'uno-window') {
-    const windowActions: EngineAction[] = legal.filter(
-      (action) => action.type === 'CALL_UNO' || action.type === 'CATCH_UNO',
-    );
+    const win = state.unoWindow;
+    // 窗口动作按座位过滤（M9-01 用户实测反馈）：喊 UNO 只有窗口主人可见，
+    // 抓 UNO 只有窗口主人以外的人可见——此前所有座位都同时看到喊+抓。
+    const windowActions: EngineAction[] = legal.filter((action) => {
+      if (action.type === 'CALL_UNO') return win?.seat === seat;
+      if (action.type === 'CATCH_UNO') return win !== null && win.seat !== seat;
+      return false;
+    });
     const pendingActions =
-      state.currentSeat === seat ? legal.filter((action) => !windowActions.includes(action)) : [];
+      state.currentSeat === seat
+        ? legal.filter(
+            (action) => action.type !== 'CALL_UNO' && action.type !== 'CATCH_UNO',
+          )
+        : [];
     return [...windowActions, ...pendingActions].map((action) => toUiAction(action, state));
   }
   if (state.currentSeat !== seat) return [];
