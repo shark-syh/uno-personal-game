@@ -18,7 +18,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v1.1**（2026-10-20，局域网联机版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v1.2**（2026-10-20，联机体验打磨版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <img src="docs/images/game-4p.webp" width="900" alt="4 人对局">

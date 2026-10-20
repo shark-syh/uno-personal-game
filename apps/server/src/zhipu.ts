@@ -5,7 +5,7 @@
  * - Key 只在服务端；本模块**不记录/不返回 Key**，日志只记录模型名/状态码/耗时；
  * - `glm-4.7-flash` 是思考型模型：默认 `thinking:{type:'disabled'}`，若模型返回 400 自动去掉该参数重试；
  * - 限流/过载（429 / 1302 / 1305）重试 1 次，随后按备用模型链切换；
- * - 总预算 = timeoutMs（默认取 AI_DECISION_TIMEOUT_MS，3.5s）；超时立即失败，由前端降级本地 AI；
+ * - 总预算 = timeoutMs（默认取 AI_DECISION_TIMEOUT_MS，6s）；超时立即失败，由前端降级本地 AI；
  * - 失败返回结构化 code，前端据此提示"已降级本地 AI"。
  */
 import { config } from './config.ts';
