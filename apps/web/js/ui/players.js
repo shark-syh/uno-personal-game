@@ -1,4 +1,5 @@
 import { renderCard } from "./hand.js";
+import { setViewerSeat } from "../state/viewer.js";
 
 /**
  * BUG-04：AI 台词 TTL 到期时只清对应座位的气泡文本。
@@ -25,10 +26,18 @@ export function clearAllLines() {
 export function renderPlayers(view) {
   const root = document.querySelector("#opponents");
   const speechRoot = document.querySelector("#speech-layer");
-  const opponents = view.players.filter((player) => !player.isHuman);
+  // M9-02：以「视角座位」区分自己与对手，而不是 isHuman——联机模式下所有玩家
+  // 在服务端都是 isHuman=true，自己的座位由 view.human.seat 给出。
+  const viewer = view.human?.seat ?? 0;
+  setViewerSeat(viewer);
+  const total = view.players.length;
+  // 对手座位框按「相对视角座位的距离」套用 opponent-seat-N 布局类（单机 viewer=0 时与绝对座位一致），
+  // data-seat 仍保留真实座位号，供动效落点 / 挑战展示 / 台词气泡按座位查找。
+  const relativeSeat = (seat) => (seat - viewer + total) % Math.max(total, 1);
+  const opponents = view.players.filter((player) => player.seat !== viewer);
   root.dataset.count = String(opponents.length);
   root.replaceChildren(...opponents.map((player) => {
-    const node = document.createElement("article"); node.className = `opponent opponent-seat-${player.seat}${player.seat === view.currentSeat ? " is-current" : ""}`; node.dataset.seat = String(player.seat); node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
+    const node = document.createElement("article"); node.className = `opponent opponent-seat-${relativeSeat(player.seat)}${player.seat === view.currentSeat ? " is-current" : ""}`; node.dataset.seat = String(player.seat); node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
     const avatar = document.createElement("span"); avatar.className = "avatar"; avatar.textContent = player.avatar;
     const name = document.createElement("strong"); name.className = "opponent-name"; name.textContent = player.name;
     const meta = document.createElement("span"); meta.className = "opponent-meta"; meta.textContent = `${player.handCount} 张${player.saidUno ? " · UNO" : ""}`;

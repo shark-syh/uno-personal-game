@@ -8,6 +8,10 @@
  * - 对局阶段：不再本地 applyAction，改为把 UI 动作上行到服务端，
  *   渲染服务端按座位下发的 GameView（复用现有渲染层与事件动画）；
  * - 断线自动重连（最多 3 次），页面刷新后凭 sessionStorage 静默恢复。
+ *
+ * M9-02：服务端每个权威步骤都会广播一次视图（AI 补位、断线顶替同样如此）。
+ * 客户端把视图按到达顺序排队，逐条「渲染 + 播事件动画」；否则后一条视图的
+ * render 会立刻 cancelEvents，导致 AI 连续行动时只剩最后一步的动效可见。
  */
 import { toEngineAction } from "../vendor/uno-engine.js";
 import { getSettings } from "../state/settings.js";
@@ -25,6 +29,17 @@ let rejoinPending = false;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 const MAX_RECONNECT_ATTEMPTS = 3;
+
+/** M9-02：服务端视图队列（逐条渲染 + 播动画，保证 AI 连动/代打时每一步都可见） */
+let viewQueue = [];
+let processingView = false;
+let viewGeneration = 0;
+
+function resetViewQueue() {
+  viewGeneration += 1;
+  viewQueue = [];
+  processingView = false;
+}
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -128,6 +143,7 @@ function renderRoom(room) {
 }
 
 function closeSocket() {
+  resetViewQueue();
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -161,7 +177,7 @@ function decorate(view) {
   return view;
 }
 
-/** 服务端下发视图：渲染 + 播事件动画（事件已按本座位脱敏） */
+/** 服务端下发视图：排队，逐条渲染 + 播事件动画（事件已按本座位脱敏） */
 function onView(view) {
   if (!inGame) {
     inGame = true;
@@ -169,13 +185,33 @@ function onView(view) {
     document.documentElement.style.setProperty("--uno-window-ms", "4000ms");
     window.UnoApp.setActionHandler(handleOnlineAction);
   }
-  const decorated = decorate(view);
-  window.UnoApp.render(decorated);
-  playEvents(decorated.events || []);
+  viewQueue.push(decorate(view));
+  processViewQueue();
+}
+
+/**
+ * 处理队首视图：渲染后用事件动画的完成回调驱动下一条。
+ * 动画期间（及队列未清空时）拒绝上行动作，避免基于过期画面操作。
+ */
+function processViewQueue() {
+  if (processingView) return;
+  const next = viewQueue.shift();
+  if (!next) return;
+  const generation = viewGeneration;
+  processingView = true;
+  window.UnoApp.render(next);
+  playEvents(next.events || [], () => {
+    if (generation !== viewGeneration) return;
+    processingView = false;
+    // 放到下一轮宏任务，给浏览器一次绘制机会，也避免无事件视图递归过深
+    if (viewQueue.length > 0) window.setTimeout(processViewQueue, 0);
+  });
 }
 
 function handleOnlineAction(action) {
   if (!action || typeof action.type !== "string") return;
+  // 视图还在播放/排队：画面不是最新权威状态，先不接受操作
+  if (processingView || viewQueue.length > 0) return;
   if (action.type === "BACK_TO_LOBBY") {
     exitOnline();
     return;

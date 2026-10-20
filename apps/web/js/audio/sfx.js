@@ -1,4 +1,5 @@
 import { getSettings } from "../state/settings.js";
+import { getViewerSeat } from "../state/viewer.js";
 
 /**
  * M6-02：音效（Web Audio 合成，零外部音频资源、无第三方依赖）。
@@ -211,7 +212,7 @@ export function playSfxForEvent(event) {
       return playSfx("out");
     case "ROUND_END":
       if (event.winnerSeat === null || event.winnerSeat === undefined) return playSfx("drawGame");
-      return playSfx(Number(event.winnerSeat) === 0 ? "win" : "lose");
+      return playSfx(Number(event.winnerSeat) === getViewerSeat() ? "win" : "lose");
     case "PILE_RESHUFFLE":
       return playSfx("shuffle");
     default:

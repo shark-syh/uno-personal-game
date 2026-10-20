@@ -1,4 +1,5 @@
 import { renderCard } from "./hand.js";
+import { getViewerSeat } from "../state/viewer.js";
 
 /**
  * M5-01：挑战时手牌展示。
@@ -17,7 +18,7 @@ function seatName(seat) {
   const opponent = document.querySelector(`#opponents .opponent[data-seat="${seat}"] .opponent-name`);
   const text = opponent?.textContent?.trim() || "";
   if (text) return text;
-  return seat === 0 ? "你" : "对手";
+  return seat === getViewerSeat() ? "你" : "对手";
 }
 
 /** 显示人类挑战 AI 成功后的对方手牌（覆盖牌桌，不可交互） */

@@ -1,6 +1,7 @@
 import { applyEventEffect, cleanupEffects, motionFactor } from "./effects.js";
 import { playSfxForEvent } from "../audio/sfx.js";
 import { hideChallengeHand, showChallengeHand, showOpponentLookedNotice } from "../ui/challengeReveal.js";
+import { getViewerSeat } from "../state/viewer.js";
 
 /** M5-01：挑战成功展示对方手牌的时长（2~3 秒，展示期间保持输入锁） */
 const CHALLENGE_REVEAL_MS = 2600;
@@ -23,9 +24,9 @@ function isChallengeHandEvent(event) {
   return event?.type === "CHALLENGE_SUCCESS" && Array.isArray(event.hand);
 }
 
-/** AI 挑战人类成功：只提示，不展示牌面（M5-01） */
+/** AI（或联机中的其他玩家）挑战「我」成功：只提示，不展示牌面（M5-01；M9-02 改为按视角座位判断） */
 function isAiLookedEvent(event) {
-  return event?.type === "CHALLENGE_SUCCESS" && !Array.isArray(event.hand) && event.target === 0;
+  return event?.type === "CHALLENGE_SUCCESS" && !Array.isArray(event.hand) && event.target === getViewerSeat();
 }
 
 /** 清理当前播放的定时器与临时禁用状态（不触发完成回调） */

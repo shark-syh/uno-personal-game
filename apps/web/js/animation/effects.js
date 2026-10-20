@@ -1,5 +1,6 @@
 import { cardBack, renderCard } from "../ui/hand.js";
 import { getSettings } from "../state/settings.js";
+import { getViewerSeat } from "../state/viewer.js";
 
 /**
  * M6-01：事件动效（只动画 transform/opacity，纯 CSS/Web Animations，无第三方依赖）。
@@ -43,7 +44,8 @@ function centerOf(node) {
 }
 
 function seatAnchor(seat) {
-  if (Number(seat) === 0) return centerOf(document.querySelector("#hand"));
+  // M9-02：牌飞向「视角座位」= 自己的手牌区（单机恒为 0，联机为服务端分配的座位）
+  if (Number(seat) === getViewerSeat()) return centerOf(document.querySelector("#hand"));
   const node = document.querySelector(`#opponents .opponent[data-seat="${Number(seat)}"]`);
   return node ? centerOf(node) : centerOf(document.querySelector("#table-center"));
 }
@@ -244,7 +246,7 @@ export function applyEventEffect(event) {
       const seat = Number(event.seat);
       const target = seatAnchor(seat);
       const from = drawAnchor();
-      const visible = Math.max(1, Math.min(count, seat === 0 ? 7 : 3));
+      const visible = Math.max(1, Math.min(count, seat === getViewerSeat() ? 7 : 3));
       for (let index = 0; index < visible; index += 1) {
         flyCard(from, target, { faceDown: true, duration: 230, delay: index * 34 });
       }
@@ -266,7 +268,7 @@ export function applyEventEffect(event) {
       const seat = Number(event.seat);
       const target = seatAnchor(seat);
       const from = drawAnchor();
-      const faceUp = seat === 0 && Array.isArray(event.cards) && event.cards.length > 0;
+      const faceUp = seat === getViewerSeat() && Array.isArray(event.cards) && event.cards.length > 0;
       const cards = faceUp ? event.cards : null;
       const visible = Math.max(1, Math.min(count, faceUp ? 6 : 5));
       for (let index = 0; index < visible; index += 1) {
