@@ -56,7 +56,8 @@ describe('房间生命周期', () => {
     expect(state.players).toHaveLength(3);
     expect(state.players.map((player) => player.name)).toEqual(['A', 'B', 'C']);
     expect(state.players.every((player) => player.isHuman)).toBe(true);
-    expect(state.players.every((player) => player.hand.length === 7)).toBe(true);
+    // 起手效果（如开局翻 +2）由首位玩家承受，其手牌会多于 7 张
+    expect(state.players.every((player) => player.hand.length >= 7)).toBe(true);
   });
 
   it('大厅阶段离开：移除座位并重排；最后一人离开销毁房间', () => {
@@ -97,15 +98,25 @@ describe('服务端权威动作校验', () => {
       expect.objectContaining({ code: 'NOT_YOUR_TURN' }) as Error,
     );
 
-    // 构造 uno-window：seat 1 应喊、0/2 可抓；3 号位不存在于 canCatch
+    // 构造 uno-window（按引擎真实形状：canCatch=[窗口主人]，语义是「可被抓的目标」）
     state.phase = 'uno-window';
-    state.unoWindow = { seat: 1, canCatch: [0, 2], canCall: true, pendingPhase: 'await-play' };
+    state.unoWindow = { seat: 1, canCatch: [1], canCall: true, pendingPhase: 'await-play' };
+    // 窗口外座位喊 UNO → 拒绝
     expect(() => manager.applyPlayerAction(room, 0, { type: 'CALL_UNO' })).toThrowError(
       expect.objectContaining({ code: 'NOT_YOUR_TURN' }) as Error,
     );
+    // 窗口主人抓自己 → 拒绝
     expect(() =>
       manager.applyPlayerAction(room, 1, { type: 'CATCH_UNO', targetSeat: 1 }),
     ).toThrowError(expect.objectContaining({ code: 'NOT_YOUR_TURN' }) as Error);
+    // 抓错目标 → 拒绝
+    expect(() =>
+      manager.applyPlayerAction(room, 0, { type: 'CATCH_UNO', targetSeat: 2 }),
+    ).toThrowError(expect.objectContaining({ code: 'NOT_YOUR_TURN' }) as Error);
+    // 其他人抓窗口主人 → 允许（引擎裁决并罚牌）
+    const before = state.players[1]!.hand.length;
+    manager.applyPlayerAction(room, 0, { type: 'CATCH_UNO', targetSeat: 1 });
+    expect(startedState(room).players[1]!.hand.length).toBeGreaterThan(before);
   });
 
   it('引擎拒绝的非法动作映射为 ILLEGAL_ACTION，且状态不被修改', () => {
@@ -181,5 +192,98 @@ describe('按座位视图隔离', () => {
     const other = views.get(1)!.events[0]!;
     expect(own).toMatchObject({ type: 'DRAW', seat: 0, count: 1, cards: [drawn] });
     expect(other).toMatchObject({ type: 'DRAW', seat: 0, count: 1, cards: [] });
+  });
+});
+
+describe('M8-04 AI 补位', () => {
+  it('真人 + AI 开局：真人座位 isHuman=true 且用房间名，AI 座位 isHuman=false', () => {
+    const manager = new RoomManager();
+    const room = manager.createRoom('房主').room;
+    expect(() => manager.startGame(room, 0)).toThrowError(
+      expect.objectContaining({ code: 'NOT_ENOUGH_PLAYERS' }) as Error,
+    );
+    const state = manager.startGame(room, 0, 2);
+    expect(state.players).toHaveLength(3);
+    expect(state.players[0]!.isHuman).toBe(true);
+    expect(state.players[0]!.name).toBe('房主');
+    expect(state.players[1]!.isHuman).toBe(false);
+    expect(state.players[2]!.isHuman).toBe(false);
+    expect(room.aiRng).not.toBeNull();
+  });
+
+  it('真人 + AI 超过 10 人会被拒绝', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    expect(() => manager.startGame(room, 0, 9)).toThrowError(
+      expect.objectContaining({ code: 'BAD_MESSAGE' }) as Error,
+    );
+  });
+});
+
+describe('M8-03 再来一局', () => {
+  it('对局未结束 / 非房主不能再来一局；结束后按原阵容重开并刷新名字', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    manager.startGame(room, 0, 1);
+    expect(() => manager.rematch(room, 1)).toThrowError(
+      expect.objectContaining({ code: 'NOT_HOST' }) as Error,
+    );
+    expect(() => manager.rematch(room, 0)).toThrowError(
+      expect.objectContaining({ code: 'BAD_MESSAGE' }) as Error,
+    );
+    room.status = 'ended';
+    manager.renamePlayer(room, 1, '阿明');
+    const fresh = manager.rematch(room, 0);
+    expect(room.status).toBe('playing');
+    expect(fresh.players).toHaveLength(3); // 2 真人 + 1 AI 阵容保留
+    // 起手 +2 等效果由首位玩家承受，手牌可能 >7；改为校验新局牌数守恒（完整重发）
+    const total =
+      fresh.players.reduce((sum, player) => sum + player.hand.length, 0) +
+      fresh.drawPile.length +
+      fresh.discardPile.length;
+    expect(total).toBe(108);
+    expect(fresh.players[1]!.name).toBe('阿明');
+    expect(fresh.players[2]!.isHuman).toBe(false);
+  });
+});
+
+describe('M8-06 重连与清理', () => {
+  it('rejoin：凭 token 恢复座位并标记在线；错 token 拒绝', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    const token = room.players[1]!.token;
+    manager.markDisconnected(room, 1);
+    expect(room.players[1]!.connected).toBe(false);
+    const rejoined = manager.rejoin(room.code, token);
+    expect(rejoined.player.seat).toBe(1);
+    expect(room.players[1]!.connected).toBe(true);
+    expect(() => manager.rejoin(room.code, '0'.repeat(32))).toThrowError(
+      expect.objectContaining({ code: 'BAD_MESSAGE' }) as Error,
+    );
+  });
+
+  it('sweep：无人连接超 5 分钟或结束超 30 分钟的房间被销毁，活跃房间保留', () => {
+    const manager = new RoomManager();
+    // 全员断线且超时的对局中房间 → 销毁
+    const stale = makeRoomWithPlayers(manager, ['A', 'B']);
+    manager.startGame(stale, 0);
+    manager.markDisconnected(stale, 0);
+    manager.markDisconnected(stale, 1);
+    stale.lastActivityAt = Date.now() - 6 * 60 * 1000;
+    // 结束很久的房间 → 销毁
+    const ended = makeRoomWithPlayers(manager, ['C', 'D']);
+    manager.startGame(ended, 0);
+    ended.status = 'ended';
+    ended.lastActivityAt = Date.now() - 31 * 60 * 1000;
+    // 活跃房间 → 保留
+    const active = makeRoomWithPlayers(manager, ['E', 'F']);
+    manager.startGame(active, 0);
+
+    const deleted = manager.sweep();
+    expect(deleted).toContain(stale.code);
+    expect(deleted).toContain(ended.code);
+    expect(deleted).not.toContain(active.code);
+    expect(() => manager.getRoom(stale.code)).toThrowError(RoomError);
+    expect(() => manager.getRoom(active.code)).not.toThrowError();
   });
 });

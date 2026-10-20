@@ -1355,7 +1355,9 @@ function getGameView(state, seat, options = {}) {
       seat,
       hand: human.hand.map((card) => ({ ...card })),
       legalActions: getHumanLegalActions(state, seat),
-      drawnThisTurn: state.drawnThisTurn ? { ...state.drawnThisTurn } : null,
+      // drawnThisTurn 只发给摸牌者本人（与 getAiView 同口径）：其他座位只能从
+      // DRAW 事件看到摸了几张，牌面属隐藏信息（M8-05 联机隔离修复，ws-game E2E 抓到的泄露）
+      drawnThisTurn: state.currentSeat === seat && state.drawnThisTurn ? { ...state.drawnThisTurn } : null,
       mustRespondStack: state.phase === "stack-response" && state.currentSeat === seat,
       canCallUno: Boolean(
         state.unoWindow && state.unoWindow.seat === seat && state.unoWindow.canCall

@@ -14,6 +14,7 @@ import type { Server as HttpServer } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { parseClientMessage, type ServerMessage } from './protocol.ts';
 import { RoomError, RoomManager, toRoomSnapshot, type Room } from './rooms.ts';
+import { runAiTurns } from './aiDriver.ts';
 
 export interface WsServerOptions {
   path?: string;
@@ -116,6 +117,25 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
     if (closed) return;
     if (room.status === 'lobby') resyncSeats(room);
     broadcastRoom(room);
+    // M8-06 顶替：对局中有人断线且轮到 TA（或后面连着 AI），服务端立即代打推进
+    if (room.status === 'playing') {
+      runAiTurns(room, rooms, () => broadcastViews(room));
+      // 代打可能直接终局（TS 不会跨函数调用失效上面的窄化，这里显式重读）
+      if ((room.status as Room['status']) === 'ended') broadcastRoom(room);
+    }
+  }
+
+  /** 给单个连接补发其座位的当前视图（重连恢复用） */
+  function sendSeatView(room: Room, ws: WebSocket, seat: number): void {
+    const entry = rooms.getSeatViews(room).find((item) => item.seat === seat);
+    if (entry) send(ws, { type: 'view', view: entry.view });
+  }
+
+  /** 动作应用后的统一推进：广播视图 → AI 代打 → 结束则广播房间状态 */
+  function advanceGame(room: Room): void {
+    broadcastViews(room);
+    runAiTurns(room, rooms, () => broadcastViews(room));
+    if (room.status === 'ended') broadcastRoom(room);
   }
 
   wss.on('connection', (ws) => {
@@ -164,9 +184,9 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
               return;
             }
             const room = rooms.getRoom(context.roomCode);
-            rooms.startGame(room, context.seat);
+            rooms.startGame(room, context.seat, message.aiCount ?? 0);
             broadcastRoom(room);
-            broadcastViews(room);
+            advanceGame(room);
             break;
           }
           case 'action': {
@@ -176,8 +196,35 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
             }
             const room = rooms.getRoom(context.roomCode);
             rooms.applyPlayerAction(room, context.seat, message.action);
-            broadcastViews(room);
-            if (room.status === 'ended') broadcastRoom(room);
+            advanceGame(room);
+            break;
+          }
+          case 'rematch': {
+            if (!context.roomCode || context.seat === null) {
+              sendError(ws, 'NOT_IN_ROOM', '请先创建或加入房间');
+              return;
+            }
+            const room = rooms.getRoom(context.roomCode);
+            rooms.rematch(room, context.seat);
+            broadcastRoom(room);
+            advanceGame(room);
+            break;
+          }
+          case 'rejoin': {
+            const { room, player } = rooms.rejoin(message.code, message.token);
+            context.roomCode = room.code;
+            context.seat = player.seat;
+            context.token = player.token;
+            connectionsOf(room.code).set(ws, context);
+            send(ws, {
+              type: 'joined',
+              room: toRoomSnapshot(room),
+              seat: player.seat,
+              token: player.token,
+            });
+            broadcastRoom(room);
+            // 对局进行中（或刚结束）：立即补发该座位当前视图，客户端直接恢复牌桌
+            if (room.state) sendSeatView(room, ws, player.seat);
             break;
           }
           case 'leave-room': {
@@ -212,6 +259,12 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
       if (code !== null && seat !== null) handleDeparture(code, seat);
     });
   });
+
+  // M8-06 房间超时清理：每分钟扫一次（unref 不阻止进程退出，测试环境友好）
+  const sweeper = setInterval(() => {
+    for (const code of rooms.sweep()) roomConnections.delete(code);
+  }, 60 * 1000);
+  sweeper.unref();
 
   return { wss, rooms };
 }

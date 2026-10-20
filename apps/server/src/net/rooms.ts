@@ -14,12 +14,14 @@ import { randomBytes } from 'node:crypto';
 import {
   applyAction,
   createInitialGame,
+  createRng,
   getGameView,
   isGameOver,
   normalizeGameConfig,
   type EngineAction,
   type GameState,
   type GameView,
+  type RngState,
 } from '@uno/game-core';
 import { MAX_NAME_LENGTH, ROOM_CODE_LENGTH, type RoomSnapshot } from './protocol.ts';
 
@@ -46,6 +48,12 @@ export interface Room {
   state: GameState | null;
   /** 开局时间戳（结算视图 durationMs 用） */
   startedAt: number;
+  /** M8-04：开局时的 AI 补位数量（rematch 沿用） */
+  aiCount: number;
+  /** M8-04：AI 决策专用随机源（与引擎 rng 分离，不破坏对局可复现性） */
+  aiRng: RngState | null;
+  /** M8-06：最近活动时间（房间超时清理依据） */
+  lastActivityAt: number;
 }
 
 export type RoomErrorCode =
@@ -112,6 +120,9 @@ export class RoomManager {
       players: [player],
       state: null,
       startedAt: 0,
+      aiCount: 0,
+      aiRng: null,
+      lastActivityAt: Date.now(),
     };
     this.rooms.set(code, room);
     return { room, player };
@@ -164,39 +175,83 @@ export class RoomManager {
   }
 
   /**
-   * 房主开始游戏（M8-02 起点）：
-   * - 人数 = 当前房间内真人人数（AI 补位由 M8-04 提供服务端驱动）；
-   * - 所有座位都是真人：创建后把 isHuman 全部置 true（同 selfplay 置 false 的手法），
-   *   这样 UNO 喊/抓、挑战手牌展示都按「人类」口径由各自客户端触发。
+   * 房主开始游戏（M8-02 起点 + M8-04 AI 补位）：
+   * - 开局人数 = 真人数 + aiCount；真人占据前 N 个座位，AI 补后面的座位；
+   * - 真人座位 isHuman=true 并以房间显示名为准；AI 座位保留引擎默认（isHuman=false），
+   *   其 UNO 喊叫/抓人概率、被挑战判定全部由引擎既有 AI 口径裁决。
    */
-  startGame(room: Room, requesterSeat: number): GameState {
+  startGame(room: Room, requesterSeat: number, aiCount = 0): GameState {
     if (requesterSeat !== room.hostSeat) {
       throw new RoomError('NOT_HOST', '只有房主可以开始游戏');
     }
     if (room.status !== 'lobby') {
       throw new RoomError('ROOM_ALREADY_PLAYING', '对局已开始');
     }
-    if (room.players.length < MIN_SEATS) {
-      throw new RoomError('NOT_ENOUGH_PLAYERS', '至少 2 名玩家才能开始（AI 补位将在后续版本提供）');
+    const humanCount = room.players.length;
+    const total = humanCount + aiCount;
+    if (total < MIN_SEATS) {
+      throw new RoomError('NOT_ENOUGH_PLAYERS', '真人 + AI 至少 2 人才能开始');
     }
+    if (total > MAX_SEATS) {
+      throw new RoomError('BAD_MESSAGE', `最多 ${MAX_SEATS} 人（含 AI）`);
+    }
+    room.aiCount = aiCount;
+    room.state = this.buildGameState(room);
+    room.status = 'playing';
+    room.startedAt = Date.now();
+    room.lastActivityAt = Date.now();
+    return room.state;
+  }
+
+  /** M8-03 再来一局：同一阵容（含 AI 补位）重开；只有房主能发起，且须等对局结束 */
+  rematch(room: Room, requesterSeat: number): GameState {
+    if (requesterSeat !== room.hostSeat) {
+      throw new RoomError('NOT_HOST', '只有房主可以再来一局');
+    }
+    if (room.status !== 'ended') {
+      throw new RoomError('BAD_MESSAGE', '对局还没结束，不能再来一局');
+    }
+    room.state = this.buildGameState(room);
+    room.status = 'playing';
+    room.startedAt = Date.now();
+    room.lastActivityAt = Date.now();
+    return room.state;
+  }
+
+  /** 建局共用：按当前房间成员 + aiCount 生成新对局（名字以最新显示名为准） */
+  private buildGameState(room: Room): GameState {
     const config = normalizeGameConfig({
-      playerCount: room.players.length,
+      playerCount: room.players.length + room.aiCount,
       humanSeat: 0,
       seed: `room-${room.code}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     });
     const state = createInitialGame(config);
-    // 引擎 buildPlayerNames 会自动起名（单机口径）；联机直接以房间显示名为准
     for (const player of state.players) {
-      player.isHuman = true;
-      player.name = room.players[player.seat]!.name;
+      const roomPlayer = room.players[player.seat];
+      if (roomPlayer) {
+        player.isHuman = true;
+        player.name = roomPlayer.name;
+      }
     }
-    // 联机全员皆人类，没有单一「人类座位」：humanSeat 置 -1（仅作比较用途，无索引引用），
+    // 联机没有单一「人类座位」：humanSeat 置 -1（仅作比较用途，无索引引用），
     // 使引擎开窗时 canCatch=[窗口主人]，任何其他人都能抓忘喊 UNO 者（含 0 号位）。
     state.config.humanSeat = -1;
-    room.state = state;
-    room.status = 'playing';
-    room.startedAt = Date.now();
+    room.aiRng = createRng(
+      `ai-${room.code}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    );
     return state;
+  }
+
+  /** M8-06：凭 token 恢复原座位（重连）；凭证无效时拒绝，让客户端走重新加入 */
+  rejoin(code: string, token: string): { room: Room; player: RoomPlayer } {
+    const room = this.getRoom(code);
+    const player = room.players.find((item) => item.token === token);
+    if (!player) {
+      throw new RoomError('BAD_MESSAGE', '重连凭证无效（服务可能已重启），请重新加入房间');
+    }
+    player.connected = true;
+    room.lastActivityAt = Date.now();
+    return { room, player };
   }
 
   /**
@@ -216,12 +271,60 @@ export class RoomManager {
     try {
       const applied = applyAction(state, action);
       room.state = applied.state;
+      room.lastActivityAt = Date.now();
       if (isGameOver(applied.state)) room.status = 'ended';
       return applied.state;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       throw new RoomError('ILLEGAL_ACTION', `动作不被接受：${detail}`);
     }
+  }
+
+  /**
+   * M8-04/M8-06 系统动作：服务端 AI 驱动（含顶替断线真人）时使用。
+   * 决策侧（@uno/ai decide）已保证是当前座位的合法候选，这里不再做座位权限校验，
+   * 但规则裁决仍全部走 applyAction——AI 与真人同一条规则路径。
+   */
+  applySystemAction(room: Room, action: EngineAction): GameState {
+    const state = room.state;
+    if (!state || room.status !== 'playing') {
+      throw new RoomError('GAME_NOT_STARTED', '对局尚未开始');
+    }
+    if (isGameOver(state)) {
+      throw new RoomError('GAME_ALREADY_ENDED', '对局已结束');
+    }
+    try {
+      const applied = applyAction(state, action);
+      room.state = applied.state;
+      room.lastActivityAt = Date.now();
+      if (isGameOver(applied.state)) room.status = 'ended';
+      return applied.state;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new RoomError('ILLEGAL_ACTION', `AI 动作不被接受：${detail}`);
+    }
+  }
+
+  /**
+   * M8-06 房间超时清理：
+   * - 无人连接的房间（全员断线）超过 5 分钟 → 销毁；
+   * - 已结束房间超过 30 分钟 → 销毁（结算页早该离开）。
+   * 返回被销毁的房间码（调用方顺带清理连接表）。
+   */
+  sweep(now = Date.now()): string[] {
+    const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+    const ENDED_TIMEOUT_MS = 30 * 60 * 1000;
+    const deleted: string[] = [];
+    for (const room of this.rooms.values()) {
+      const nobodyConnected = room.players.every((player) => !player.connected);
+      const idleTooLong = nobodyConnected && now - room.lastActivityAt > IDLE_TIMEOUT_MS;
+      const endedTooLong = room.status === 'ended' && now - room.lastActivityAt > ENDED_TIMEOUT_MS;
+      if (idleTooLong || endedTooLong) {
+        this.rooms.delete(room.code);
+        deleted.push(room.code);
+      }
+    }
+    return deleted;
   }
 
   /**
@@ -235,8 +338,9 @@ export class RoomManager {
     }
     if (action.type === 'CATCH_UNO') {
       const win = state.phase === 'uno-window' ? state.unoWindow : null;
-      // 窗口主人不能抓自己（引擎同样拦截），其余在 canCatch 名单内即可
-      if (win && win.seat !== seat && win.canCatch.includes(seat)) return;
+      // 注意引擎 canCatch 的语义是「可被抓的目标」（开窗时 = [窗口主人]），不是抓人者名单；
+      // 权限判断：窗口开着 + 抓的不是自己 + 目标是窗口主人（引擎 applyAction 还会再裁决一次）
+      if (win && win.seat !== seat && action.targetSeat === win.seat) return;
       throw new RoomError('NOT_YOUR_TURN', '你现在不能抓 UNO');
     }
     if (state.currentSeat !== seat) {

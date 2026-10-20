@@ -1,14 +1,13 @@
 /**
- * M8-01 客户端联机入口 + M8-02 最小联机路径（垂直切片：双客户端同局）。
+ * M8 客户端联机：M8-01 入口与房间 + M8-02 服务端视图渲染 + M8-03 再来一局 +
+ * M8-04 AI 补位选择 + M8-06 断线重连（token 存 sessionStorage，自动恢复座位）。
  *
  * 职责：
  * - 大厅「局域网联机」区块：创建房间 / 输房间码加入（显示名可选，默认「你」）；
- * - 房间面板：房间码、座位列表（房主/断线标记）、房主开始按钮；
+ * - 房间面板：房间码、座位列表（房主/断线标记）、AI 补位、房主开始按钮；
  * - 对局阶段：不再本地 applyAction，改为把 UI 动作上行到服务端，
- *   渲染服务端按座位下发的 GameView（复用现有渲染层与事件动画）。
- *
- * 后续里程碑：M8-03 联机模式细节打磨（UNO 倒计时同步、挑战展示等）、
- * M8-04 服务端 AI 补位、M8-06 token 重连恢复（token 已存 sessionStorage）。
+ *   渲染服务端按座位下发的 GameView（复用现有渲染层与事件动画）；
+ * - 断线自动重连（最多 3 次），页面刷新后凭 sessionStorage 静默恢复。
  */
 import { toEngineAction } from "../vendor/uno-engine.js";
 import { getSettings } from "../state/settings.js";
@@ -20,8 +19,23 @@ let lastRoom = null;
 let inGame = false;
 let toast = (message) => console.log(`[uno-online] ${message}`);
 let exitToEngineLobby = () => {};
+// M8-06 重连状态：手动退出不打重连；rejoin 待确认期间收到 error = 凭证失效
+let manualExit = false;
+let rejoinPending = false;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
+const MAX_RECONNECT_ATTEMPTS = 3;
 
 const $ = (selector) => document.querySelector(selector);
+
+function persistSession() {
+  if (!joined) return;
+  try { sessionStorage.setItem("uno:online", JSON.stringify(joined)); } catch { /* 隐私模式忽略 */ }
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem("uno:online"); } catch { /* 忽略 */ }
+}
 
 let lanUrls = [];
 /** 从 /api/health 取本机局域网地址（缓存一次；失败静默，不影响游戏） */
@@ -48,6 +62,13 @@ function showSinglePanel() {
   $("#single-panel").hidden = false;
 }
 
+/** 当前房主选择的 AI 补位数（选择器不可见时为 0） */
+function showAiCount() {
+  const aiRow = $("#room-ai-row");
+  if (!aiRow || aiRow.hidden) return 0;
+  return Number($("#room-ai-count")?.value || "0");
+}
+
 function renderRoom(room) {
   lastRoom = room;
   $("#room-code").textContent = room.code;
@@ -64,7 +85,26 @@ function renderRoom(room) {
     return item;
   }));
   const isHost = joined && joined.seat === room.hostSeat;
-  const canStart = isHost && room.status === "lobby" && room.players.length >= 2;
+  // M8-04 AI 补位：房主在大厅可选补几个 AI（开局人数 = 真人 + AI）
+  const aiRow = $("#room-ai-row");
+  const aiSelect = $("#room-ai-count");
+  if (aiRow && aiSelect) {
+    const showAi = Boolean(isHost) && room.status === "lobby";
+    aiRow.hidden = !showAi;
+    if (showAi) {
+      const maxAi = 10 - room.players.length;
+      const prev = Number(aiSelect.value || "0");
+      aiSelect.replaceChildren(...Array.from({ length: maxAi + 1 }, (_, n) => {
+        const option = document.createElement("option");
+        option.value = String(n);
+        option.textContent = n === 0 ? "不补位" : `+${n} 个 AI`;
+        return option;
+      }));
+      aiSelect.value = String(Math.min(prev, maxAi));
+    }
+  }
+  const aiCount = showAiCount();
+  const canStart = isHost && room.status === "lobby" && room.players.length + aiCount >= 2;
   $("#room-start").hidden = !canStart;
   // 自己的当前名字回填到改名框（正聚焦输入时不打扰）
   const nameInput = $("#room-name-input");
@@ -74,7 +114,7 @@ function renderRoom(room) {
   const status = $("#room-status");
   if (room.status === "playing") status.textContent = "对局进行中…";
   else if (room.status === "ended") status.textContent = "对局已结束，可离开房间";
-  else if (isHost) status.textContent = room.players.length >= 2 ? "人齐了就开始吧" : "至少 2 人才能开始（AI 补位后续版本提供）";
+  else if (isHost) status.textContent = room.players.length + aiCount >= 2 ? "人齐了就开始吧" : "至少 2 人才能开始（可加 AI 补位）";
   else status.textContent = "等待房主开始…";
   // 房主视角的大厅提示：直接给出「好友该打开的地址 + 房间码」
   const invite = $("#room-invite");
@@ -88,6 +128,10 @@ function renderRoom(room) {
 }
 
 function closeSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (socket) {
     socket.onclose = null;
     try { socket.close(); } catch { /* 忽略 */ }
@@ -96,10 +140,14 @@ function closeSocket() {
   joined = null;
   lastRoom = null;
   inGame = false;
+  rejoinPending = false;
+  reconnectAttempts = 0;
 }
 
 /** 离开联机模式：恢复单机引擎大厅 */
 function exitOnline() {
+  manualExit = true;
+  clearSession();
   closeSocket();
   window.UnoApp.setActionHandler(null);
   showSinglePanel();
@@ -133,7 +181,8 @@ function handleOnlineAction(action) {
     return;
   }
   if (action.type === "RESTART") {
-    toast("联机对局暂不支持「再来一局」，请回大厅重新组房");
+    // M8-03 再来一局：由服务端裁决（仅房主、对局结束后），非房主会收到错误提示
+    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "rematch" }));
     return;
   }
   if (action.type === "START_GAME") return; // 联机开局只走房间面板按钮
@@ -152,10 +201,14 @@ function handleMessage(event) {
   let message;
   try { message = JSON.parse(event.data); } catch { return; }
   if (message.type === "joined") {
+    const wasRejoin = rejoinPending;
     joined = { code: message.room.code, seat: message.seat, token: message.token };
-    try { sessionStorage.setItem("uno:online", JSON.stringify(joined)); } catch { /* 隐私模式忽略 */ }
+    rejoinPending = false;
+    reconnectAttempts = 0;
+    persistSession();
     renderRoom(message.room);
     showRoomPanel();
+    if (wasRejoin) toast("已重连，恢复你的座位");
     return;
   }
   if (message.type === "room") {
@@ -167,27 +220,53 @@ function handleMessage(event) {
     return;
   }
   if (message.type === "error") {
-    toast(message.message || "联机操作失败");
-    if (message.code === "ROOM_NOT_FOUND" || message.code === "ROOM_ALREADY_PLAYING") {
-      // 加入失败：保持在大厅联机区块，不进房间
+    // 重连被服务端拒绝（房间没了/凭证失效）：清理会话回单机大厅
+    if (rejoinPending) {
+      toast(message.message || "重连失败，请重新加入");
+      exitOnline();
+      return;
     }
+    toast(message.message || "联机操作失败");
   }
+}
+
+/** 建立 WS 连接（创建/加入/重连共用）；断线时若已进房则自动尝试重连 */
+function connectRaw(next) {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+  socket = ws;
+  ws.onmessage = handleMessage;
+  ws.onopen = () => next(ws);
+  ws.onclose = () => {
+    if (manualExit || !joined) return;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(attemptReconnect, 800);
+  };
+  ws.onerror = () => {
+    if (!joined) toast("连不上联机服务，请确认是通过 npm start 打开的页面");
+  };
+}
+
+/** 断线重连：凭 sessionStorage 的 (code, token) 恢复原座位，最多尝试 MAX_RECONNECT_ATTEMPTS 次 */
+function attemptReconnect() {
+  if (manualExit || !joined) return;
+  reconnectAttempts += 1;
+  if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+    toast("重连失败，已回到单机大厅");
+    exitOnline();
+    return;
+  }
+  const session = joined;
+  connectRaw((ws) => {
+    rejoinPending = true;
+    ws.send(JSON.stringify({ type: "rejoin", code: session.code, token: session.token }));
+  });
 }
 
 function connect(next) {
   if (socket) closeSocket();
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
-  socket.onmessage = handleMessage;
-  socket.onopen = () => next(socket);
-  socket.onclose = () => {
-    if (!joined) return; // 尚未进房（连接失败等）
-    toast("已断开联机连接，回到单机大厅");
-    exitOnline();
-  };
-  socket.onerror = () => {
-    if (!joined) toast("连不上联机服务，请确认是通过 npm start 打开的页面");
-  };
+  manualExit = false;
+  connectRaw(next);
 }
 
 function createRoom() {
@@ -210,8 +289,25 @@ export function initOnlineMode(options = {}) {
   $("#online-create")?.addEventListener("click", createRoom);
   $("#online-join")?.addEventListener("click", joinRoom);
   $("#room-start")?.addEventListener("click", () => {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "start-game" }));
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "start-game", aiCount: showAiCount() }));
+    }
   });
+  // AI 补位选择变化会改变「开始」可用性，立刻重渲房间面板
+  $("#room-ai-count")?.addEventListener("change", () => {
+    if (lastRoom) renderRoom(lastRoom);
+  });
+  // M8-06 页面刷新恢复：有未退出的联机会话时静默尝试重连
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("uno:online") || "null");
+    if (saved && typeof saved.code === "string" && typeof saved.token === "string") {
+      joined = saved;
+      connectRaw((ws) => {
+        rejoinPending = true;
+        ws.send(JSON.stringify({ type: "rejoin", code: saved.code, token: saved.token }));
+      });
+    }
+  } catch { /* 损坏的会话数据忽略 */ }
   $("#room-leave")?.addEventListener("click", () => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "leave-room" }));
     exitOnline();

@@ -28,6 +28,8 @@ export interface JoinRoomMessage {
 
 export interface StartGameMessage {
   type: 'start-game';
+  /** M8-04：AI 补位数量（0 = 不补位；开局人数 = 真人数 + aiCount） */
+  aiCount?: number;
 }
 
 export interface ActionMessage {
@@ -45,13 +47,27 @@ export interface RenameMessage {
   name: string;
 }
 
+/** M8-03：再来一局（房主，对局结束后重开同一阵容） */
+export interface RematchMessage {
+  type: 'rematch';
+}
+
+/** M8-06：断线重连——凭房间码 + token 恢复原座位并补发当前视图 */
+export interface RejoinMessage {
+  type: 'rejoin';
+  code: string;
+  token: string;
+}
+
 export type ClientMessage =
   | CreateRoomMessage
   | JoinRoomMessage
   | StartGameMessage
   | ActionMessage
   | LeaveRoomMessage
-  | RenameMessage;
+  | RenameMessage
+  | RematchMessage
+  | RejoinMessage;
 
 // ---------- 服务端 → 客户端 ----------
 
@@ -193,10 +209,27 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     case 'rename':
       // 无效名字置空串：由服务端 renamePlayer 统一拒绝并提示
       return { type: 'rename', name: sanitizeName(data.name) ?? '' };
-    case 'start-game':
-      return { type: 'start-game' };
+    case 'start-game': {
+      const aiCount =
+        data.aiCount === undefined
+          ? 0
+          : Number.isInteger(data.aiCount) && (data.aiCount as number) >= 0 && (data.aiCount as number) <= 9
+            ? (data.aiCount as number)
+            : null;
+      if (aiCount === null) return null;
+      return { type: 'start-game', aiCount };
+    }
     case 'leave-room':
       return { type: 'leave-room' };
+    case 'rematch':
+      return { type: 'rematch' };
+    case 'rejoin': {
+      const code = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
+      if (!isValidRoomCode(code)) return null;
+      const token = typeof data.token === 'string' ? data.token.trim() : '';
+      if (!/^[a-f0-9]{32}$/.test(token)) return null;
+      return { type: 'rejoin', code, token };
+    }
     case 'action': {
       const action = parseEngineAction(data.action);
       return action ? { type: 'action', action } : null;

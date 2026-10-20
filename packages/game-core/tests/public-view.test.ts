@@ -94,6 +94,23 @@ describe('M3-2 公开视图：隐藏信息隔离', () => {
     expect(serialized).not.toContain('wasLegal');
   });
 
+  it('drawnThisTurn 只发给摸牌者本人：其他座位视图不含刚摸的牌面（M8-05 联机隔离）', () => {
+    const drawn = num('red', 9);
+    const state = makeState([[num('green', 5)], [num('yellow', 2)]], num('red', 3));
+    // 座位 0 刚摸到一张可出的红 9（drawnThisTurn 只在摸牌者决策窗口内非空）
+    state.currentSeat = 0;
+    state.drawnThisTurn = drawn;
+    state.players[0]!.hand.push(drawn);
+
+    const own = getGameView(state, 0);
+    expect(own.human.drawnThisTurn?.id).toBe(drawn.id);
+
+    const other = getGameView(state, 1);
+    expect(other.human.drawnThisTurn).toBeNull();
+    // 座位 1 视图的整体序列化里，除了本人手牌外不得出现这张刚摸的牌
+    expect(JSON.stringify(other)).not.toContain(drawn.id);
+  });
+
   it('事件脱敏：他人摸牌无牌面、AI 挑战不暴露手牌；人类挑战保留手牌', () => {
     const ownDraw = num('red', 8);
     const otherDraw = num('green', 4);

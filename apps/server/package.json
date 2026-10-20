@@ -9,6 +9,7 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
+    "@uno/ai": "*",
     "@uno/game-core": "*",
     "express": "^5.3.0",
     "ws": "^8.22.0"

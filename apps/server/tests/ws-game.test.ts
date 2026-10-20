@@ -165,9 +165,12 @@ describe('M8 联机双客户端同局', () => {
       expect(viewAlice.screen).toBe('game');
       expect(viewAlice.human.seat).toBe(0);
       expect(viewBob.human.seat).toBe(1);
-      expect(viewAlice.human.hand).toHaveLength(7);
-      expect(viewBob.human.hand).toHaveLength(7);
-      expect(viewAlice.players.map((player) => player.handCount)).toEqual([7, 7]);
+      // 起手效果（如开局翻 +2）由首位玩家承受，其手牌会多于 7 张
+      expect(viewAlice.human.hand.length).toBeGreaterThanOrEqual(7);
+      expect(viewBob.human.hand.length).toBeGreaterThanOrEqual(7);
+      for (const handCount of viewAlice.players.map((player) => player.handCount)) {
+        expect(handCount).toBeGreaterThanOrEqual(7);
+      }
 
       // 5. 隔离：Bob 收到的原始消息里不得包含 Alice 任何手牌 id（反之亦然）
       const rawBob = JSON.stringify(viewBobMsg);
