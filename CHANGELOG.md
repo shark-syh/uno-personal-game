@@ -21,7 +21,7 @@
 
 - 新增 `npm run verify:online`：双客户端 E2E 22 项（建房/加入、座位框视角与布局、表情广播/冷却/气泡位置、UNO 窗口喊/抓分流、控制台 0 error）。
 - `npm test` 27 文件 / 306 用例全部通过（新增表情限频/广播 3 条）；`typecheck` / `lint` 0 错误；`npm run verify:ui` 103/103 单机零回归。
-- README 联机/表情说明与版本、CHANGELOG、开发进度与 E2E 指南同步更新；打本地 tag `v1.2`。
+- README 联机/表情说明与版本、CHANGELOG、开发进度与 E2E 指南同步更新；打 tag `v1.2` 并推送。
 
 ### 已知限制（v1.2）
 

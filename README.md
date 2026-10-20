@@ -1,12 +1,12 @@
 # UNO 单机版 · 本地网页游戏
 
 ![Node](https://img.shields.io/badge/Node-%E2%89%A5%2022-3c873a)
-![Tests](https://img.shields.io/badge/tests-303%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-306%20passed-brightgreen)
 ![E2E](https://img.shields.io/badge/browser--checks-103%20passed-blue)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-v1.1-blue)
-![Status](https://img.shields.io/badge/M0%7EM8-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+![Version](https://img.shields.io/badge/version-v1.2-blue)
+![Status](https://img.shields.io/badge/M0%7EM9-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
@@ -86,7 +86,7 @@ AI 不是陪练，也不是一个只会「能出就出」的脚本。它们分�
 | +4 挑战 | 开启 | 大厅可关闭；关闭后 +4 直接摸 4 张 |
 | 计分 | **无分数** | 结算页只展示最终结算与操作统计图表 |
 
-完整规则规格见 [`docs/开发计划.md`](docs/开发计划.md) 第 4 章；规则决策表在 §4.12。
+完整规则规格见 [`docs/开发计划.md`](docs/开发计划.md) 第 2 章；关键规则决策表在 §2.8。
 
 ## 胜利之后
 
@@ -208,7 +208,7 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 | `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`） |
 | `npm run verify:ui` | 单机浏览器自动验收（103 项，无头 Chrome + CDP，需服务已启动） |
 | `npm run verify:online` | 联机多客户端验收（22 项：双客户端房间/布局/表情/UNO 窗口分流，需服务已启动） |
-| `npm run perf` | 性能检查（首屏 / 帧率 / 内存 / AI 耗时），输出 `review-assets/perf-report.md` |
+| `npm run perf` | 性能检查（首屏 / 帧率 / 内存 / AI 耗时），本地生成 `review-assets/perf-report.md` |
 | `npm run selfplay` | AI 自对弈基准（难度单调性 / 混战排名 / 非法动作数） |
 | `npm run profile:ai` | 各难度 AI 打牌实测 |
 | `npm run smoke:ai` | 智谱连通性冒烟（需 Key） |
@@ -225,9 +225,9 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 | `npm run verify:ui` | 103 / 103 通过（3 局完整真实对局 + 6/10 人布局轮转 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
 | `npm run verify:online` | 22 / 22 通过（双客户端建房/加入、座位框视角、表情广播与冷却、UNO 窗口喊/抓分流、控制台 0 error） |
 | `npm run selfplay` | 700 局通过（非法动作 0、异常 0；难度胜率单调、混战排名单调） |
-| `npm run perf` | 首屏 FCP 160ms / FPS 60 / 内存平稳（详见 `review-assets/perf-report.md`） |
+| `npm run perf` | 首屏 FCP 160ms / FPS 60 / 内存平稳（报告在本地 `review-assets/` 生成） |
 
-浏览器验收报告与截图：`review-assets/ui-m32-verify.md` 与 `review-assets/ui-m32-*.png`；套件的使用、CI 浏览器验收与扩展方法见 [`docs/E2E测试指南.md`](docs/E2E测试指南.md)。联机验收脚本为 [`scripts/verify-online.mjs`](scripts/verify-online.mjs)。
+运行 `verify:ui` / `perf` 会在本地 `review-assets/` 生成报告与截图（已 gitignore，不入库）；套件的使用、CI 浏览器验收与扩展方法见 [`docs/E2E测试指南.md`](docs/E2E测试指南.md)。联机验收脚本为 [`scripts/verify-online.mjs`](scripts/verify-online.mjs)。
 
 ## 技术架构
 
@@ -266,7 +266,7 @@ uno/
 │  └─ ai/                     # 本地启发式 AI（四档难度 + 自对弈）
 ├─ scripts/                   # 自对弈 / 浏览器验收 / 打包 / 卡面处理等脚本
 ├─ docs/                      # 项目文档与 README 截图（见 docs/README.md）
-├─ review-assets/             # 浏览器验收报告与截图（verify:ui 产物）
+├─ review-assets/             # 本地验收产物（verify:ui / perf 生成，已 gitignore）
 ├─ research/                  # 原始卡面素材与来源说明（见 research/README.md）
 ├─ .github/workflows/ci.yml   # GitHub Actions：typecheck / lint / test
 ├─ README.md
@@ -281,20 +281,19 @@ uno/
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。
 - v1.0：UNO 规则引擎、四档本地 AI、智谱混合决策与自动降级、事件动效与合成音效、规则设置页、6~10 人布局、结算操作统计（无分数）。
-- 完整变更摘要见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0` / `v1.1` 已推送远端，`v1.2` 为本地 tag）。
+- 完整变更摘要见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0` / `v1.1` / `v1.2` 均已推送远端）。
 - 后续可选方向见「已知限制与路线图」。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
-| [`docs/开发计划.md`](docs/开发计划.md) | 需求、规则规格书、技术架构、里程碑（含 M8 本地联机）、测试计划 |
-| [`docs/开发进度.md`](docs/开发进度.md) | 精炼台账：里程碑状态、红线约定与已知限制（M0~M9） |
+| [`docs/交接文档.md`](docs/交接文档.md) | 当前状态、质量基线、红线、坑位与新对话提示词 |
+| [`docs/开发计划.md`](docs/开发计划.md) | 当前需求、规则规格、技术架构、AI 与测试 |
+| [`docs/开发进度.md`](docs/开发进度.md) | 精炼台账：里程碑状态、红线约定与已知限制 |
 | [`docs/开发约定.md`](docs/开发约定.md) | 开发汇报与协作约定（优先级最高） |
 | [`docs/UI开发提示词.md`](docs/UI开发提示词.md) | UI ↔ 引擎契约（冻结）、视觉规范、分阶段提示词 |
-| [`docs/UI验收报告.md`](docs/UI验收报告.md) | UI 各阶段验收报告 |
-| [`docs/E2E测试指南.md`](docs/E2E测试指南.md) | verify:ui 浏览器 E2E 的使用、CI 与扩展 |
-| [`docs/交接文档-2026-10-19.md`](docs/交接文档-2026-10-19.md) | 当前状态、红线约定、坑位与 M8 待办 |
+| [`docs/E2E测试指南.md`](docs/E2E测试指南.md) | verify:ui / verify:online 的使用、CI 与扩展 |
 | [`docs/README.md`](docs/README.md) | 文档索引与阅读顺序 |
 
 ## 常见问题

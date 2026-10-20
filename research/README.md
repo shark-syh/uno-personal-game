@@ -13,7 +13,7 @@
 - [UNO 官方规则（Mattel）](https://www.mattelgames.com/en-us/card-games/uno)
 - [UnoRules 规则整理](https://www.unorules.com/)
 
-规则实现细节以 [`docs/开发计划.md`](../docs/开发计划.md) 第 4 章为准；与官方原版的差异（宽松叠牌、摸到可出为止、2 人规则等）见根目录 README 与开发计划 §4.12。
+规则实现细节以 [`docs/开发计划.md`](../docs/开发计划.md) 第 2 章为准；与官方原版的差异（宽松叠牌、摸到可出为止、2 人规则等）见根目录 README 与开发计划 §2.8。
 
 ## 处理流水线
 
