@@ -126,7 +126,9 @@
 .emote-option { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; }
 .emote-option:hover { border-color: var(--line); background: #ffffff1a; }
 .emote-option:disabled { opacity: .45; cursor: not-allowed; }
-.emote-bubble { position: absolute; z-index: 8; top: -16px; right: -6px; min-width: 30px; padding: 4px 7px; border-radius: 999px; color: #111; background: #fff; font-size: 22px; line-height: 1; text-align: center; box-shadow: 0 4px 14px #0007; pointer-events: none; animation: emote-pop 180ms var(--ease-out) both; }
-.emote-bubble::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 9px; height: 9px; border-radius: 2px; background: #fff; transform: translateX(-50%) rotate(45deg); }
-@keyframes emote-pop { from { opacity: 0; transform: translateY(5px) scale(.8); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (max-width: 560px) { #emote-picker { grid-template-columns: repeat(6, 36px); } .emote-option { width: 36px; height: 36px; font-size: 21px; } }
+.emote-bubble { position: absolute; z-index: 12; top: calc(100% + 10px); right: 0; min-width: 56px; padding: 8px 13px; border-radius: 16px; color: #111; background: #fff; font-size: 36px; line-height: 1; text-align: center; box-shadow: 0 7px 20px #0009; pointer-events: none; animation: emote-pop 200ms var(--ease-out) both; }
+.emote-bubble::after { content: ""; position: absolute; left: 50%; top: -4px; width: 10px; height: 10px; border-radius: 2px; background: #fff; transform: translateX(-50%) rotate(45deg); }
+.opponent:has(.emote-bubble) { z-index: 12; }
+.room-player:has(.emote-bubble) { z-index: 2; }
+@keyframes emote-pop { from { opacity: 0; transform: translateY(-10px) scale(.72); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 560px) { #emote-picker { grid-template-columns: repeat(6, 36px); } .emote-option { width: 36px; height: 36px; font-size: 21px; } .emote-bubble { min-width: 48px; padding: 7px 10px; font-size: 30px; } }
