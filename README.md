@@ -162,7 +162,7 @@ npm run dev
 # 打开 http://localhost:3000
 ```
 
-Windows 也可以直接双击 **`启动服务.bat`**：脚本会自动请求管理员权限、放行防火墙，并在服务就绪后打开浏览器（首次使用请先执行 `npm install`）。
+Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪后自动打开浏览器（首次使用请先执行 `npm install`）。本机游玩无需管理员；局域网联机若防火墙尚未放行，右键该文件选「以管理员身份运行」一次即可。
 
 > 修改 `apps/web` 静态资源后浏览器 `Ctrl+F5` 强刷；修改 `packages/game-core` / `packages/ai` 后必须执行 `npm run build:web-engine`（`npm run dev` 启动前会自动重建）。
 
