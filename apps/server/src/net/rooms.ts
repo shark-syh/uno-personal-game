@@ -410,7 +410,23 @@ export class RoomManager {
     if (player) player.connected = false;
   }
 
-  /** 主动离开：大厅阶段移除座位并重排；对局中仅标记断开（顶替/判负由 M8-06 定稿） */
+  /**
+   * M10-05：房主离开/断线后把房主移交给下一位在线玩家。
+   * - 原房主重连不夺回房主，避免权限来回抖动；
+   * - 全员断线时保留原房主，等房间超时清理或有人重连；
+   * - 大厅阶段座位已重排，通常无需迁移，仅作兜底。
+   */
+  promoteHost(room: Room): boolean {
+    const current = room.players[room.hostSeat];
+    if (current?.connected) return false;
+    const next = room.players.find((player) => player.connected);
+    if (!next || next.seat === room.hostSeat) return false;
+    room.hostSeat = next.seat;
+    room.lastActivityAt = Date.now();
+    return true;
+  }
+
+  /** 主动离开：大厅阶段移除座位并重排；对局中标记断开并把房主移交给下一位在线玩家 */
   leaveRoom(room: Room, seat: number): { closed: boolean } {
     if (room.status === 'lobby') {
       room.players = room.players
@@ -424,9 +440,11 @@ export class RoomManager {
       }
       // 大厅座位已重排，旧的座位限频状态不再对应原玩家，直接清空
       room.emoteLimits.clear();
+      this.promoteHost(room);
       return { closed: false };
     }
     this.markDisconnected(room, seat);
+    this.promoteHost(room);
     return { closed: false };
   }
 

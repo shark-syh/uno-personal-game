@@ -5,7 +5,7 @@
 ![E2E](https://img.shields.io/badge/browser--checks-103%20passed-blue)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-v1.2-blue)
+![Version](https://img.shields.io/badge/version-v1.3-blue)
 ![Status](https://img.shields.io/badge/M0%7EM9-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
@@ -18,7 +18,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v1.2**（2026-10-20，联机体验打磨版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v1.3**（2026-10-21，桌面安装版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <img src="docs/images/game-4p.webp" width="900" alt="4 人对局">
@@ -164,6 +164,15 @@ npm run dev
 
 Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪后自动打开浏览器（首次使用请先执行 `npm install`）。本机游玩无需管理员；局域网联机若防火墙尚未放行，右键该文件选「以管理员身份运行」一次即可。
 
+### 桌面版（M10，源码已就绪）
+
+```bash
+npm run desktop:dev   # 构建并启动 Electron 窗口（内嵌服务，随机端口）
+npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-1.3.0.exe
+```
+
+桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。已重新打包 `UNO-Setup-1.3.0.exe`（112,135,987 字节，SHA256 `B14FBB83…3B61A6E`）并标记 `v1.3`，仍待真机验收安装与双机联机。
+
 > 修改 `apps/web` 静态资源后浏览器 `Ctrl+F5` 强刷；修改 `packages/game-core` / `packages/ai` 后必须执行 `npm run build:web-engine`（`npm run dev` 启动前会自动重建）。
 
 ## AI 模式与智谱配置
@@ -202,12 +211,15 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 | --- | --- |
 | `npm run dev` | 启动本地服务（开发模式，自动重建浏览器引擎包）→ <http://localhost:3000> |
 | `npm start` | 启动本地服务（不监听文件变化） |
-| `npm test` | 单元测试（27 文件 / 306 用例） |
+| `npm test` | 单元测试（32 文件 / 335 用例） |
 | `npm run typecheck` | TypeScript 类型检查 |
 | `npm run lint` | ESLint 检查 |
 | `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`） |
 | `npm run verify:ui` | 单机浏览器自动验收（103 项，无头 Chrome + CDP，需服务已启动） |
-| `npm run verify:online` | 联机多客户端验收（22 项：双客户端房间/布局/表情/UNO 窗口分流，需服务已启动） |
+| `npm run verify:online` | 联机多客户端验收（24 项：双客户端房间/布局/表情/UNO 窗口分流/房主移交，需服务已启动） |
+| `npm run desktop:dev` | 构建并启动 Electron 桌面版（开发模式） |
+| `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-1.3.0.exe` |
+| `npm run verify:desktop` | 双 Electron 实例验收（UDP 发现/加入/主机退出；沙箱 GUI 不可用时 SKIP） |
 | `npm run perf` | 性能检查（首屏 / 帧率 / 内存 / AI 耗时），本地生成 `review-assets/perf-report.md` |
 | `npm run selfplay` | AI 自对弈基准（难度单调性 / 混战排名 / 非法动作数） |
 | `npm run profile:ai` | 各难度 AI 打牌实测 |
@@ -220,10 +232,11 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 
 | 项目 | 当前结果 |
 | --- | --- |
-| `npm test` | 27 文件 / 306 用例全部通过（引擎规则、公开视图隐藏信息、结算统计、联机限频、AI 自对弈等） |
+| `npm test` | 32 文件 / 335 用例全部通过（引擎规则、公开视图隐藏信息、结算统计、联机限频、房主迁移、AI 自对弈等） |
 | `npm run typecheck` / `npm run lint` | 0 错误 |
 | `npm run verify:ui` | 103 / 103 通过（3 局完整真实对局 + 6/10 人布局轮转 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
-| `npm run verify:online` | 22 / 22 通过（双客户端建房/加入、座位框视角、表情广播与冷却、UNO 窗口喊/抓分流、控制台 0 error） |
+| `npm run verify:online` | 24 / 24 通过（双客户端建房/加入、座位框视角、表情广播与冷却、UNO 窗口喊/抓分流、对局中房主移交、控制台 0 error） |
+| `npm run verify:desktop` | 双 Electron 实例（独立 userData / 9351+9352）：建房、UDP 发现或手动地址加入、开局、主机退出回大厅；本机沙箱 GUI 不可用时输出 SKIP，需真机执行 |
 | `npm run selfplay` | 700 局通过（非法动作 0、异常 0；难度胜率单调、混战排名单调） |
 | `npm run perf` | 首屏 FCP 160ms / FPS 60 / 内存平稳（报告在本地 `review-assets/` 生成） |
 
@@ -238,7 +251,12 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
   └─ uno-engine.js：打包后的规则引擎 + 本地 AI（ESM）
 本地服务（Node/Express，apps/server）
   ├─ 静态托管前端
-  └─ /api/health、/api/config、/api/ai/decide（智谱代理，Key 只在服务端）
+  ├─ /api/health、/api/config、/api/ai/decide（智谱代理，Key 只在服务端）
+  └─ /ws 联机房间（服务端权威、按座位脱敏）
+桌面版（Electron，apps/desktop）
+  ├─ 内嵌随机端口 HTTP/WS 服务 + 单实例锁
+  ├─ UDP 41234 房间发现（广播/缓存/严格校验）
+  └─ 窄 IPC：智谱 Key（safeStorage/DPAPI）与发现结果
 规则与 AI（TypeScript，packages/）
   ├─ game-core：纯函数 reducer（applyAction(state, action) → { state, events }），可复现 seed
   └─ ai：候选生成 / 特征评分 / 记牌 / 四档难度 / 自对弈
@@ -260,7 +278,8 @@ uno/
 │  │  ├─ js/audio/            # WebAudio 合成音效
 │  │  ├─ cards/               # 54 张处理后的卡面
 │  │  └─ js/vendor/           # 自动生成的浏览器引擎 ESM（勿手改）
-│  └─ server/                 # 本地 Express 服务（静态托管 + 智谱代理）
+│  ├─ server/                 # 本地 Express 服务（静态托管 + 智谱代理 + 联机 WS）
+│  └─ desktop/                # Electron 桌面壳、UDP 发现、Key 安全存储、NSIS 构建
 ├─ packages/
 │  ├─ game-core/              # 规则引擎（纯函数 reducer + 公开视图 + 结算）
 │  └─ ai/                     # 本地启发式 AI（四档难度 + 自对弈）
@@ -276,12 +295,13 @@ uno/
 
 ## 版本与更新
 
-当前版本 **v1.2.0**（2026-10-20）：M0~M9 完成，联机体验打磨版。
+当前版本 **v1.3.0**（2026-10-21）：M0~M10 完成，桌面安装版已打包并标记 `v1.3`（待真机验收）。
 
+- v1.3：Electron 桌面壳与 NSIS 安装包、内嵌随机端口服务；桌面自填智谱 Key（DPAPI 加密）；UDP 局域网房间发现与房间码加入；远程主机断线重连、房主自动移交、主机关闭通知；新增 `verify:desktop` 双实例验收。
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。
 - v1.0：UNO 规则引擎、四档本地 AI、智谱混合决策与自动降级、事件动效与合成音效、规则设置页、6~10 人布局、结算操作统计（无分数）。
-- 完整变更摘要见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0` / `v1.1` / `v1.2` 均已推送远端）。
+- 完整变更摘要见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0` / `v1.1` / `v1.2` 已推送远端；`v1.3` 已在本地创建，尚未推送）。
 - 后续可选方向见「已知限制与路线图」。
 
 ## 文档
@@ -293,7 +313,7 @@ uno/
 | [`docs/开发进度.md`](docs/开发进度.md) | 精炼台账：里程碑状态、红线约定与已知限制 |
 | [`docs/开发约定.md`](docs/开发约定.md) | 开发汇报与协作约定（优先级最高） |
 | [`docs/UI开发提示词.md`](docs/UI开发提示词.md) | UI ↔ 引擎契约（冻结）、视觉规范、分阶段提示词 |
-| [`docs/E2E测试指南.md`](docs/E2E测试指南.md) | verify:ui / verify:online 的使用、CI 与扩展 |
+| [`docs/E2E测试指南.md`](docs/E2E测试指南.md) | verify:ui / verify:online / verify:desktop 的使用、CI 与扩展 |
 | [`docs/README.md`](docs/README.md) | 文档索引与阅读顺序 |
 
 ## 常见问题
@@ -320,11 +340,14 @@ uno/
 - M6-03（AI 台词人设库）与 M6-04（战绩统计页/结算统计）按项目负责人要求未开发；结算页不含任何分数。
 - `wild4Legality`（+4 判定含 Wild）未暴露到设置页，仅引擎配置与单测覆盖。
 - 未附开源许可证（个人学习项目）；第三方素材来源见 `research/README.md`。
+- 桌面版 M10-01~M10-06 代码已完成并重新打包（安装包已含 M10-05/06），但真实 Electron GUI、安装/卸载、两台真机 UDP 发现、防火墙与 DPAPI 尚未在用户环境验收。
+- 主机关闭窗口时客户端立即回大厅；主机被强杀/断电时客户端重连 3 次后回大厅。房主迁移后原房主重连不自动夺回房主。
+- UDP 发现仅支持同一路由器/同网段，广播可能被防火墙或 AP 隔离拦截；保留手动 `IP:端口` 兜底，不支持公网联机。
 
 **路线图**
 
-- M9（已完成，v1.2）：联机多玩家布局对齐单机（对手框 + 摸牌飞向对应座位）、预置表情互动、双客户端 E2E 加固。
-- 可选：联机智谱在线决策、对局快照恢复、移动端适配、音效素材替换、Tauri 桌面打包（M7-06 遗留）。
+- M10（v1.3 已打包，待真机验收）：Electron + NSIS 桌面版、自填智谱 Key、UDP 房间发现、远程异常路径、双实例 E2E。
+- 可选：联机智谱在线决策、对局快照恢复、移动端适配、音效素材替换、自动更新与代码签名、Tauri 桌面打包（M7-06 遗留）。
 
 ## 免责声明
 

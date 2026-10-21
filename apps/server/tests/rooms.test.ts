@@ -319,6 +319,44 @@ describe('M9-03 表情限频', () => {
   });
 });
 
+describe('M10-05 房主迁移', () => {
+  it('对局中房主断线：房主移交给下一位在线玩家，原房主重连不夺回', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B', 'C']);
+    manager.startGame(room, 0);
+
+    manager.leaveRoom(room, 0);
+    expect(room.hostSeat).toBe(1);
+    expect(room.players[0]!.connected).toBe(false);
+    expect(room.players[1]!.connected).toBe(true);
+
+    // 原房主凭 token 重连：座位恢复，但房主仍是 B（避免权限来回抖动）
+    manager.rejoin(room.code, room.players[0]!.token);
+    expect(room.players[0]!.connected).toBe(true);
+    expect(room.hostSeat).toBe(1);
+  });
+
+  it('全员断线时不移交房主；有人重连后房主仍可正常开局/再来一局', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B']);
+    manager.startGame(room, 0);
+    manager.leaveRoom(room, 0);
+    manager.leaveRoom(room, 1);
+    expect(room.players.every((player) => !player.connected)).toBe(true);
+    // 已无在线玩家：保留最后一次有效房主，等待重连或超时清理
+    expect(room.hostSeat).toBe(1);
+  });
+
+  it('大厅房主离开：座位重排后新的 0 号位接任房主', () => {
+    const manager = new RoomManager();
+    const room = makeRoomWithPlayers(manager, ['A', 'B', 'C']);
+    manager.leaveRoom(room, 0);
+    expect(room.players.map((player) => player.name)).toEqual(['B', 'C']);
+    expect(room.hostSeat).toBe(0);
+    expect(room.players[room.hostSeat]!.name).toBe('B');
+  });
+});
+
 describe('M10-04 开放房间发现', () => {
   it('只返回大厅房间与人数，开局后不再广播；limit 生效', () => {
     const manager = new RoomManager();

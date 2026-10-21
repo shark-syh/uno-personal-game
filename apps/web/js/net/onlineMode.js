@@ -44,6 +44,11 @@ let activeHost = null;
 let joinInFlight = false;
 let discoveryTimer = null;
 
+// M10-05：远程/本机连接超时与房主变更提示（避免连不上时界面一直停在“连接中”）
+const CONNECT_TIMEOUT_MS = 8000;
+let connectTimer = null;
+let lastHostSeat = null;
+
 /** M9-02：服务端视图队列（逐条渲染 + 播动画，保证 AI 连动/代打时每一步都可见） */
 let viewQueue = [];
 let processingView = false;
@@ -124,6 +129,18 @@ function showAiCount() {
 
 function renderRoom(room) {
   lastRoom = room;
+  // M10-05：房主断线/离开后服务端会移交房主，这里提示一次避免玩家不知道谁开局
+  if (lastHostSeat !== null && room.hostSeat !== lastHostSeat && joined) {
+    const newHost = room.players[room.hostSeat];
+    if (newHost) {
+      toast(
+        room.hostSeat === joined.seat
+          ? "原房主已离开，你成为新房主"
+          : `房主已变更为 ${newHost.name}`,
+      );
+    }
+  }
+  lastHostSeat = room.hostSeat;
   $("#room-code").textContent = room.code;
   const list = $("#room-players");
   list.replaceChildren(...room.players.map((player) => {
@@ -172,6 +189,20 @@ function renderRoom(room) {
   else if (room.status === "ended") status.textContent = "对局已结束，可离开房间";
   else if (isHost) status.textContent = room.players.length + aiCount >= 2 ? "人齐了就开始吧" : "至少 2 人才能开始（可加 AI 补位）";
   else status.textContent = "等待房主开始…";
+  // M10-05：远程加入者显示当前连接的主机，避免误以为自己开的是本机房
+  const hostInfo = $("#room-host-info");
+  if (hostInfo) {
+    const hostPlayer = room.players[room.hostSeat];
+    if (joined?.host) {
+      hostInfo.textContent = `已连接主机 ${joined.host}${hostPlayer ? ` · 房主 ${hostPlayer.name}` : ""}`;
+      hostInfo.hidden = false;
+    } else if (!isHost && hostPlayer) {
+      hostInfo.textContent = `房主：${hostPlayer.name}`;
+      hostInfo.hidden = false;
+    } else {
+      hostInfo.hidden = true;
+    }
+  }
   // 房主视角的大厅提示：直接给出「好友该打开的地址 + 房间码」
   const invite = $("#room-invite");
   if (!invite) return;
@@ -190,6 +221,11 @@ function closeSocket() {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  if (connectTimer) {
+    clearTimeout(connectTimer);
+    connectTimer = null;
+  }
+  lastHostSeat = null;
   if (socket) {
     socket.onclose = null;
     try { socket.close(); } catch { /* 忽略 */ }
@@ -281,6 +317,12 @@ function handleOnlineAction(action) {
 function handleMessage(event) {
   let message;
   try { message = JSON.parse(event.data); } catch { return; }
+  // M10-05：主机正常退出，服务端会先广播再断开；立刻回大厅，不再做无效重连
+  if (message.type === "server-closing") {
+    toast(message.message || "主机已关闭游戏，联机已结束");
+    exitOnline();
+    return;
+  }
   if (message.type === "joined") {
     const wasRejoin = rejoinPending;
     joined = {
@@ -299,6 +341,7 @@ function handleMessage(event) {
     renderRoom(message.room);
     showRoomPanel();
     if (wasRejoin) toast(activeHost ? `已重连主机 ${activeHost}` : "已重连，恢复你的座位");
+    else if (activeHost) toast(`已连接主机 ${activeHost}`);
     return;
   }
   if (message.type === "room") {
@@ -323,11 +366,24 @@ function handleMessage(event) {
     // M9-03：服务端限频（客户端本地计数被绕过时兜底）
     if (message.code === "EMOTE_RATE_LIMITED") startEmoteCooldown();
     toast(message.message || "联机操作失败");
+    // M10-05：创建/加入被拒（房间不存在、已开局、满员）时释放连接，留在单机大厅重试
+    if (!joined) {
+      if (socket) {
+        socket.onclose = null;
+        try { socket.close(); } catch { /* 忽略 */ }
+      }
+      socket = null;
+      activeHost = null;
+    }
   }
 }
 
 /** 建立 WS 连接（创建/加入/重连共用）；targetHost 为空表示本机服务 */
 function connectRaw(next, targetHost = null) {
+  if (connectTimer) {
+    clearTimeout(connectTimer);
+    connectTimer = null;
+  }
   activeHost = targetHost;
   const protocol = targetHost ? "ws" : window.location.protocol === "https:" ? "wss" : "ws";
   let ws;
@@ -338,21 +394,48 @@ function connectRaw(next, targetHost = null) {
     return;
   }
   socket = ws;
-  ws.onmessage = handleMessage;
-  ws.onopen = () => next(ws);
+  // 旧连接迟到的 close/error 不能影响新连接（重连与手动重试可能重叠）
+  const isCurrent = () => socket === ws;
+  const clearConnectTimer = () => {
+    if (connectTimer) {
+      clearTimeout(connectTimer);
+      connectTimer = null;
+    }
+  };
+  ws.onmessage = (event) => {
+    if (isCurrent()) handleMessage(event);
+  };
+  ws.onopen = () => {
+    if (!isCurrent()) return;
+    clearConnectTimer();
+    next(ws);
+  };
   ws.onclose = () => {
+    if (!isCurrent()) return;
+    clearConnectTimer();
     if (manualExit || !joined) return;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(attemptReconnect, 800);
   };
   ws.onerror = () => {
-    if (joined) return;
+    if (!isCurrent() || joined) return;
     if (activeHost) {
       toast(`连不上主机 ${activeHost}：请确认主机已开房、双方在同一网络且防火墙已放行`);
     } else {
       toast("连不上联机服务，请确认是通过 npm start 打开的页面");
     }
   };
+  // M10-05：握手超时（常见于 IP 可达但端口被防火墙丢弃）不能无限等待
+  connectTimer = setTimeout(() => {
+    if (!isCurrent() || ws.readyState === WebSocket.OPEN) return;
+    connectTimer = null;
+    try { ws.close(); } catch { /* 忽略 */ }
+    toast(
+      targetHost
+        ? `连接主机 ${targetHost} 超时：请确认主机仍在开房、双方在同一网络且防火墙已放行`
+        : "连接联机服务超时，请确认本地服务仍在运行",
+    );
+  }, CONNECT_TIMEOUT_MS);
 }
 
 /** 断线重连：凭 sessionStorage 的 (code, token, host) 恢复原座位，最多尝试 MAX_RECONNECT_ATTEMPTS 次 */
@@ -360,7 +443,11 @@ function attemptReconnect() {
   if (manualExit || !joined) return;
   reconnectAttempts += 1;
   if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
-    toast("重连失败，已回到单机大厅");
+    toast(
+      joined?.host
+        ? `与主机 ${joined.host} 的连接已断开，已回到单机大厅`
+        : "重连失败，已回到单机大厅",
+    );
     exitOnline();
     return;
   }

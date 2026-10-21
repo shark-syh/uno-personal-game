@@ -13,6 +13,8 @@ export interface UnoServer {
   server: Server;
   wss: WebSocketServer;
   rooms: RoomManager;
+  /** M10-05：退出前通知联机客户端（桌面版关窗时调用） */
+  notifyShutdown: (message?: string) => void;
 }
 
 export function createUnoServer(options: CreateAppOptions = {}): UnoServer {
@@ -28,9 +30,9 @@ export function createUnoServer(options: CreateAppOptions = {}): UnoServer {
   const app = createApp({ ...options, getPort });
   const server = createServer(app);
   ref.server = server;
-  const { wss, rooms } = attachWebSocketServer(server);
+  const { wss, rooms, notifyShutdown } = attachWebSocketServer(server);
   server.on('close', () => {
     // ws 连接随 http server 关闭由 Node 一并销毁（测试里 close 即可退出）
   });
-  return { server, wss, rooms };
+  return { server, wss, rooms, notifyShutdown };
 }

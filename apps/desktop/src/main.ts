@@ -331,6 +331,13 @@ async function stopUnoServer(): Promise<void> {
   serverInfo = null;
   if (!current) return;
 
+  // M10-05：先告诉远程客户端「主机已关闭」，留出一帧发送时间再断开，
+  // 避免客户端把正常关窗当成网络抖动并做 3 次无效重连。
+  if (current.wss.clients.size > 0) {
+    current.notifyShutdown('主机已关闭游戏，联机已结束');
+    await new Promise<void>((resolve) => setTimeout(resolve, 150));
+  }
+
   for (const client of current.wss.clients) client.terminate();
   await new Promise<void>((resolve) => {
     const timer = setTimeout(resolve, 3000);

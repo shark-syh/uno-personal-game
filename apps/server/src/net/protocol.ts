@@ -119,12 +119,19 @@ export interface ErrorMessage {
   message: string;
 }
 
+/** M10-05：主机关闭游戏前广播，客户端应立刻回大厅而不是反复重连 */
+export interface ServerClosingMessage {
+  type: 'server-closing';
+  message: string;
+}
+
 export type ServerMessage =
   | JoinedMessage
   | RoomMessage
   | ViewMessage
   | EmoteBroadcastMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | ServerClosingMessage;
 
 /** M9-03：预置表情白名单（纯 emoji；服务端与客户端保持一致） */
 export const EMOTE_EMOJIS = [

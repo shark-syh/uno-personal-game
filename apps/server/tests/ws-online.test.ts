@@ -11,7 +11,7 @@
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createUnoServer } from '../src/server.ts';
+import { createUnoServer, type UnoServer } from '../src/server.ts';
 
 interface UiActionShape {
   id: string;
@@ -101,10 +101,12 @@ class TestClient {
 }
 
 let server: Server | undefined;
+let unoServer: UnoServer | undefined;
 let wsUrl = '';
 
 beforeAll(async () => {
   const uno = createUnoServer();
+  unoServer = uno;
   server = uno.server;
   await new Promise<void>((resolve) => server!.listen(0, () => resolve()));
   const address = server!.address() as AddressInfo;
@@ -267,6 +269,32 @@ describe('M8-06 断线顶替与重连', () => {
     } finally {
       alice.close();
       bob.close();
+    }
+  });
+});
+
+describe('M10-05 主机关闭通知', () => {
+  it('notifyShutdown 向房间内所有连接广播 server-closing', { timeout: 15000 }, async () => {
+    const host = await TestClient.connect(wsUrl);
+    const guest = await TestClient.connect(wsUrl);
+    try {
+      host.send({ type: 'create-room', name: 'A' });
+      const joined = await host.waitFor('joined');
+      const code = (joined.room as { code: string }).code;
+      guest.send({ type: 'join-room', code, name: 'B' });
+      await guest.waitFor('joined');
+      await host.waitFor('room');
+
+      unoServer!.notifyShutdown('主机已关闭游戏，联机已结束');
+      const [hostNotice, guestNotice] = await Promise.all([
+        host.waitFor('server-closing'),
+        guest.waitFor('server-closing'),
+      ]);
+      expect(hostNotice.message).toContain('主机已关闭');
+      expect(guestNotice.message).toContain('主机已关闭');
+    } finally {
+      host.close();
+      guest.close();
     }
   });
 });

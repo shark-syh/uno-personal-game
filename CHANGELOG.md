@@ -1,5 +1,44 @@
 # 更新日志
 
+## v1.3.0（2026-10-21）
+
+桌面安装版（M10 全部模块代码完成）。
+
+### 桌面版与安装包（M10-01 / M10-02）
+
+- 新增 `apps/desktop` Electron 壳：内嵌随机端口 HTTP/WS 服务、单实例锁、独立 userData、退出释放端口；不依赖外部浏览器与 Node.js。
+- 新增 `electron-builder.yml` + 自建 `apps/desktop/build/installer.nsi`，产出 `UNO-Setup-1.3.0.exe`（当前用户安装、桌面/开始菜单快捷方式、静默安装/卸载、保留 userData）。
+- 打包排除 `.env`、源码、测试与验收产物；前端资源放 `resources/web`。
+
+### 智谱自填 Key（M10-03）
+
+- 设置页新增桌面专属 Key 区域；经窄 IPC 保存到 `safeStorage`（Windows DPAPI，`userData/zhipu-secret.bin`）。
+- 运行时优先级「自填 Key > `.env`」，保存/清除立即生效；IPC 永不回传明文。
+
+### UDP 局域网发现与房间码加入（M10-04）
+
+- 新增 UDP `41234` 广播/监听（2 秒广播、7 秒 TTL、协议/主版本校验、严格报文清洗）。
+- 大厅显示「附近房间」，输入房间码先查本机房间再查发现缓存；同码多主机可选择；保留手动 `IP:端口` 兜底。
+- 远程连接固定 `ws://host:port/ws`，`joined.host` 写入会话供断线重连与刷新恢复。
+
+### 远程异常路径（M10-05）
+
+- 房主断线/离开后自动把房主移交给下一位在线玩家；原房主重连不夺回，对局中新房主可「再来一局」。
+- 新增 `server-closing` 通知：桌面主机关窗时先广播，远程客户端立即回大厅，不再做无效重连。
+- 客户端 WS 握手 8 秒超时；加入被拒（房间不存在/已开局/满员）释放连接；重连耗尽提示主机地址；远程房间面板显示「已连接主机 IP:端口」。
+
+### 双实例 E2E 与版本收尾（M10-06）
+
+- 新增 `npm run verify:desktop`：两个真实 Electron 实例（独立 userData / 调试端口 9351+9352）验证建房、UDP 发现或手动地址加入、开局、主机退出回大厅；沙箱 GUI 不可用时 SKIP，`UNO_REQUIRE_DESKTOP=1` 强制失败。
+- 源码版本统一 **1.3.0**（根/服务端/`/api/health`/桌面版）；文档与 E2E 指南同步。
+- 验证：`npm test` 32 文件 / 335 用例、typecheck/lint 0、`verify:ui` 103/103、`verify:online` 24/24。
+
+### 发布状态
+
+- `npm run desktop:dist` 已重新打包 `apps/desktop/release/UNO-Setup-1.3.0.exe`（112,135,987 字节，SHA256 `B14FBB835DAF81E66BF692DC7F9AD041581FC1425D17CCFB493A9A5633B61A6E`），包含 M10-01~M10-06；`app.asar` 含最新 `main.cjs`（`promoteHost` / `notifyShutdown` / `server-closing`），`resources/web` 87 个文件与源码逐文件哈希一致，无 `.env`/密钥。
+- 已创建 tag `v1.3`（本地，未推送）。
+- 已知限制：UDP 仅同网段；防火墙/AP 隔离会拦截广播；主机被强杀时不发关闭通知；真实 GUI/安装/DPAPI 尚未在用户环境验收。
+
 ## v1.2.0（2026-10-20）
 
 联机体验打磨版（M9 全部完成）。

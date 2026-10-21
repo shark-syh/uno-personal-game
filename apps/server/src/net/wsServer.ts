@@ -61,6 +61,14 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
     return set;
   }
 
+  /**
+   * M10-05：主机关闭游戏前通知所有已连接客户端。
+   * 客户端收到后立即回大厅，避免 3 次无效重连；调用方负责随后关闭连接。
+   */
+  function notifyShutdown(message = '主机已关闭游戏，联机已结束'): void {
+    for (const ws of wss.clients) send(ws, { type: 'server-closing', message });
+  }
+
   function broadcastRoom(room: Room): void {
     const snapshot = toRoomSnapshot(room);
     for (const ws of roomConnections.get(room.code)?.keys() ?? []) {
@@ -284,5 +292,5 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
   }, 60 * 1000);
   sweeper.unref();
 
-  return { wss, rooms };
+  return { wss, rooms, notifyShutdown };
 }

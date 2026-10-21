@@ -395,6 +395,21 @@ try {
     check('其他座位只看到「抓他」、看不到「UNO!」', catcherBar.hasCatch && !catcherBar.hasUno, JSON.stringify(catcherBar));
   }
 
+  // M10-05：对局中房主离开 → 服务端把房主移交给下一位在线玩家
+  await a.evaluate(`document.querySelector('#room-leave').click(); true`);
+  const promoted = await b.waitExpr(
+    `(() => {
+      const row = document.querySelector('#room-players .room-player[data-seat="1"]');
+      const badges = row?.querySelector('.room-badges')?.textContent || '';
+      return badges.includes('房主') ? badges : false;
+    })()`,
+    8000,
+    'B 接任房主',
+  );
+  check('对局中房主离开：房主移交给下一位在线玩家', String(promoted).includes('房主'), String(promoted));
+  const promoteToast = await b.evaluate(`document.querySelector('#toast-region').textContent`);
+  check('新房主收到「你成为新房主」提示', /你成为新房主/.test(promoteToast), promoteToast.slice(0, 80));
+
   for (const page of [a, b]) {
     check(`${page.label} 控制台无 error/exception`, page.errors.length === 0, page.errors.join(' | ').slice(0, 300));
   }

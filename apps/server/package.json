@@ -1,6 +1,6 @@
 {
   "name": "@uno/server",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "description": "UNO 本地服务：静态托管 apps/web + 智谱 API 代理（M4）+ 联机 WebSocket（M8）",
