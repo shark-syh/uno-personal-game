@@ -1,24 +1,40 @@
-# UNO 单机版 · 本地网页游戏
+# UNO · 桌面版与本地网页游戏
 
 ![Node](https://img.shields.io/badge/Node-%E2%89%A5%2022-3c873a)
-![Tests](https://img.shields.io/badge/tests-306%20passed-brightgreen)
-![E2E](https://img.shields.io/badge/browser--checks-103%20passed-blue)
+![Tests](https://img.shields.io/badge/tests-335%20passed-brightgreen)
+![E2E](https://img.shields.io/badge/E2E-127%20passed-blue)
+![Desktop](https://img.shields.io/badge/desktop-Electron%20%2B%20NSIS-47848f)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-v1.3-blue)
-![Status](https://img.shields.io/badge/M0%7EM9-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+[![Release](https://img.shields.io/badge/release-v1.3.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)
+![Status](https://img.shields.io/badge/M0%7EM10-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
 > 不用登录，不用联网，也没有分数——只有下一张牌，和谁先喊出那句 UNO。
 
-这是一个可以在本地浏览器里安静打完一局的 UNO。它没有复杂的启动流程：`npm install`，`npm run dev`，然后打开 `http://localhost:3000`。剩下的事，交给洗牌和 AI。
+这是一个可以在本地安静打完一局的 UNO。**Windows 桌面版**下载安装即可启动，内置服务，不需要另装 Node.js；也可以用 `npm install` + `npm run dev` 在浏览器里打开 `http://localhost:3000`。剩下的事，交给洗牌和 AI。
 
-它也不是一个「演示」：完整规则引擎、四档本地 AI、可选的大模型决策、6~10 人牌桌、动效与音效、设置与战绩，都在这里。断网时，本地 AI 仍然会认真出牌；接入智谱之后，牌友会多一层「思考」，偶尔还会说一句台词。
+它也不是一个「演示」：完整规则引擎、四档本地 AI、可选的大模型决策、6~10 人牌桌、动效与音效、设置与战绩，都在这里。断网时，本地 AI 仍然会认真出牌；接入智谱之后，牌友会多一层「思考」，偶尔还会说一句台词。桌面版还支持同一局域网内的朋友通过「附近房间」或房间码加入。
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v1.3**（2026-10-21，桌面安装版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v1.3.0**（2026-10-21，桌面安装版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+
+<p align="center">
+  <a href="https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
+  <a href="https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.zip"><img src="https://img.shields.io/badge/%E6%BA%90%E7%A0%81-v1.3.zip-555?style=for-the-badge&logo=github" alt="下载源码"></a>
+</p>
+
+## 下载与安装
+
+| 文件 | 说明 |
+| --- | --- |
+| [`UNO-Setup-1.3.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v1.3/UNO-Setup-1.3.0.exe) | Windows 10/11 x64 安装包（约 107 MiB），当前用户安装，无需管理员 |
+| [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.tar.gz) | v1.3 完整源码，与安装包同一 Release |
+| [`SHA256SUMS.txt`](https://github.com/shark-syh/uno-personal-game/releases/download/v1.3/SHA256SUMS.txt) | 安装包校验值 |
+
+安装包 SHA256：`B14FBB835DAF81E66BF692DC7F9AD041581FC1425D17CCFB493A9A5633B61A6E`。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
 
 <p align="center">
   <img src="docs/images/game-4p.webp" width="900" alt="4 人对局">
@@ -26,7 +42,7 @@
 
 <p align="center"><em>一局 4 人对局的牌桌：左边是 AI，中间是牌堆，下方是你的手牌。</em></p>
 
-**目录**：[一局是怎样的](#一局是怎样的) · [牌友](#牌友四档-ai-与智谱) · [规则](#让牌局有性格的规则) · [胜利之后](#胜利之后) · [动效与音效](#动效音效与设置) · [多人与小屏](#多人与小屏) · [局域网联机](#局域网联机) · [快速开始](#快速开始) · [智谱配置](#ai-模式与智谱配置) · [命令](#常用命令) · [架构](#技术架构) · [FAQ](#常见问题) · [版本](#版本与更新) · [免责声明](#免责声明)
+**目录**：[下载](#下载与安装) · [一局是怎样的](#一局是怎样的) · [牌友](#牌友四档-ai-与智谱) · [规则](#让牌局有性格的规则) · [胜利之后](#胜利之后) · [动效与音效](#动效音效与设置) · [多人与小屏](#多人与小屏) · [局域网联机](#局域网联机) · [快速开始](#快速开始) · [智谱配置](#ai-模式与智谱配置) · [命令](#常用命令) · [架构](#技术架构) · [FAQ](#常见问题) · [版本](#版本与更新) · [免责声明](#免责声明)
 
 ## 一局是怎样的
 
@@ -136,7 +152,9 @@ v1.1 起，牌桌可以分给同一局域网里的朋友。一台电脑开服务
 
 v1.2 起，牌桌上多了「表情」：大厅等待或对局中点表情按钮，可向其他玩家发 12 个预置 emoji，气泡出现在发送者的座位框下方；每座位连发 5 条后冷却 2 秒（服务端权威限频）。
 
-> 联机模式的 AI 固定为本地启发式（智谱在线决策暂未接入联机）；房间只存在于服务器进程内存，服务重启后需要重新开房。
+v1.3 起，桌面版会自动发现同一局域网内的开放房间：在「附近房间」点击即可加入，也可以输入房间码；UDP 广播被防火墙拦截时仍可手动填写 `IP:端口`。连接有 8 秒握手超时，加入被拒会立即回到大厅。房主断线或离开时，房主自动移交给下一位在线玩家，对局可以继续；主机正常关闭窗口时会广播关闭通知，远程玩家立即回到单机大厅。
+
+> 联机模式的 AI 固定为本地启发式（智谱在线决策暂未接入联机）；房间只存在于服务器进程内存，服务重启后需要重新开房。UDP 发现仅支持同一网段，不支持公网联机。
 
 ## 快速开始
 
@@ -171,7 +189,7 @@ npm run desktop:dev   # 构建并启动 Electron 窗口（内嵌服务，随机�
 npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-1.3.0.exe
 ```
 
-桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。已重新打包 `UNO-Setup-1.3.0.exe`（112,135,987 字节，SHA256 `B14FBB83…3B61A6E`）并标记 `v1.3`，仍待真机验收安装与双机联机。
+桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。v1.3.0 安装包已发布到 [GitHub Releases](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)；安装与双机联机仍待真机验收。
 
 > 修改 `apps/web` 静态资源后浏览器 `Ctrl+F5` 强刷；修改 `packages/game-core` / `packages/ai` 后必须执行 `npm run build:web-engine`（`npm run dev` 启动前会自动重建）。
 
