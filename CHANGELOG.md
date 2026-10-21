@@ -36,7 +36,7 @@
 ### 发布状态
 
 - `npm run desktop:dist` 已重新打包 `apps/desktop/release/UNO-Setup-1.3.0.exe`（112,135,987 字节，SHA256 `B14FBB835DAF81E66BF692DC7F9AD041581FC1425D17CCFB493A9A5633B61A6E`），包含 M10-01~M10-06；`app.asar` 含最新 `main.cjs`（`promoteHost` / `notifyShutdown` / `server-closing`），`resources/web` 87 个文件与源码逐文件哈希一致，无 `.env`/密钥。
-- 已创建 tag `v1.3`（本地，未推送）。
+- 已创建并推送 tag `v1.3`；GitHub Release 已上传安装包与 `SHA256SUMS.txt`，源码 zip/tar.gz 由 GitHub 自动生成。
 - 已知限制：UDP 仅同网段；防火墙/AP 隔离会拦截广播；主机被强杀时不发关闭通知；真实 GUI/安装/DPAPI 尚未在用户环境验收。
 
 ## v1.2.0（2026-10-20）
