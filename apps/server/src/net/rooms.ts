@@ -217,6 +217,17 @@ export class RoomManager {
     return room;
   }
 
+  /** M10-04：供 UDP 发现服务广播的开放房间（仅大厅阶段、不含玩家隐私信息） */
+  getOpenRooms(limit = 32): Array<{ code: string; players: number }> {
+    const result: Array<{ code: string; players: number }> = [];
+    for (const room of this.rooms.values()) {
+      if (room.status !== 'lobby') continue;
+      result.push({ code: room.code, players: room.players.length });
+      if (result.length >= limit) break;
+    }
+    return result;
+  }
+
   /**
    * 房主开始游戏（M8-02 起点 + M8-04 AI 补位）：
    * - 开局人数 = 真人数 + aiCount；真人占据前 N 个座位，AI 补后面的座位；

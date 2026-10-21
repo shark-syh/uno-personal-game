@@ -1,0 +1,48 @@
+appId: com.uno.local
+productName: UNO
+copyright: Copyright © 2026 shark-syh
+artifactName: UNO-Setup-${version}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+# 主进程/preload 已由 esbuild 打成自包含 CJS；不携带 node_modules 与源码
+files:
+  - dist/**/*
+  - package.json
+
+# 前端仍保持零构建静态资源，放到 resources/web（主进程 UNO_WEB_DIR 指向这里）
+extraResources:
+  - from: ../web
+    to: web
+
+asar: true
+npmRebuild: false
+compression: normal
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  executableName: UNO
+
+nsis:
+  # 自建脚本用 WriteUninstaller 在安装时生成卸载器，避免打包阶段执行中间安装器
+  script: installer.nsi
+  warningsAsErrors: false
+  # 当前用户安装，不请求管理员；首次开房由 Windows 弹防火墙授权
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: UNO
+  runAfterFinish: true
+  # 卸载保留 userData（localStorage 设置/战绩），重装后仍可读取
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico

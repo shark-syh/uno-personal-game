@@ -1,5 +1,5 @@
 import express, { type Express } from 'express';
-import { config, isAiConfigured } from './config.ts';
+import { config } from './config.ts';
 import { createHealthRouter } from './routes/health.ts';
 import { createAiRouter } from './routes/ai.ts';
 import { mountStatic } from './static.ts';
@@ -8,6 +8,8 @@ import { zhipuClient, type ZhipuClient } from './zhipu.ts';
 export interface CreateAppOptions {
   /** 测试注入：替换智谱客户端（默认读取 .env 的单例） */
   aiClient?: ZhipuClient;
+  /** 实际监听端口提供者（桌面版随机端口；默认使用 config.port） */
+  getPort?: () => number;
 }
 
 /**
@@ -24,9 +26,11 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.use(
     '/api',
     createHealthRouter({
-      aiConfigured: aiClient.isConfigured ?? isAiConfigured,
+      // 函数形式：桌面版保存/清除 Key 后 /api/config 立即反映，不需要重启服务
+      aiConfigured: () => aiClient.isConfigured,
       aiModel: aiClient.model ?? config.zhipu.model,
       aiFallbackModels: aiClient.fallbackModels ?? config.zhipu.fallbackModels,
+      getPort: options.getPort,
     }),
   );
   app.use('/api', createAiRouter({ client: aiClient }));

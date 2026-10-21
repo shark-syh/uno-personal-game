@@ -1,23 +1,24 @@
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from '../src/app.ts';
+import { createUnoServer, type UnoServer } from '../src/server.ts';
 
+let uno: UnoServer | undefined;
 let server: Server | undefined;
 let baseUrl = '';
 
 beforeAll(async () => {
-  const app = createApp();
-  const instance = app.listen(0);
-  await new Promise<void>((resolve) => instance.once('listening', () => resolve()));
-  server = instance;
-  const address = instance.address() as AddressInfo;
+  uno = createUnoServer();
+  server = uno.server;
+  await new Promise<void>((resolve) => server!.listen(0, () => resolve()));
+  const address = server.address() as AddressInfo;
   baseUrl = `http://127.0.0.1:${address.port}`;
 });
 
 afterAll(async () => {
   const current = server;
   if (!current) return;
+  await new Promise<void>((resolve) => uno!.wss.close(() => resolve()));
   await new Promise<void>((resolve, reject) => {
     current.close((error) => (error ? reject(error) : resolve()));
   });
@@ -30,6 +31,16 @@ describe('GET /api/health', () => {
     const body = (await res.json()) as { status: string; service: string };
     expect(body.status).toBe('ok');
     expect(body.service).toBe('uno-server');
+  });
+
+  it('lanUrls 使用实际监听端口（桌面版随机端口）', async () => {
+    const address = server?.address() as AddressInfo;
+    const res = await fetch(`${baseUrl}/api/health`);
+    const body = (await res.json()) as { lanUrls: string[] };
+    expect(Array.isArray(body.lanUrls)).toBe(true);
+    for (const lanUrl of body.lanUrls) {
+      expect(lanUrl.endsWith(`:${address.port}`)).toBe(true);
+    }
   });
 });
 

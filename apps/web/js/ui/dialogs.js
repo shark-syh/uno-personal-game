@@ -133,6 +133,84 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
     field("动画速度", "animationSpeed", [["normal", "正常"], ["fast", "快速"]]);
     field("AI 速度", "aiSpeed", [["slow", "慢"], ["normal", "正常"], ["fast", "快"]]);
     field("自动喊 UNO", "autoCallUno");
+    // M10-03：桌面版自填智谱 Key（浏览器模式不显示；Key 只经 IPC 交给主进程加密保存）
+    const desktopAiKey = window.unoDesktop?.aiKey;
+    if (desktopAiKey) {
+      const keyHeading = document.createElement("h3");
+      keyHeading.className = "settings-heading";
+      keyHeading.textContent = "智谱 API Key（桌面版）";
+      const keyRow = document.createElement("label");
+      keyRow.className = "setting-row is-text";
+      const keyLabel = document.createElement("span");
+      keyLabel.textContent = "API Key";
+      const keyInput = document.createElement("input");
+      keyInput.type = "password";
+      keyInput.name = "zhipuApiKey";
+      keyInput.autocomplete = "off";
+      keyInput.spellcheck = false;
+      keyInput.placeholder = "粘贴智谱 API Key";
+      keyInput.setAttribute("aria-label", "智谱 API Key");
+      keyInput.dataset.aiKeyInput = "true";
+      keyRow.append(keyLabel, keyInput);
+      const keyStatus = document.createElement("p");
+      keyStatus.className = "settings-note";
+      keyStatus.setAttribute("aria-live", "polite");
+      keyStatus.dataset.aiKeyStatus = "true";
+      keyStatus.textContent = "正在读取 Key 状态…";
+      const keyActions = document.createElement("div");
+      keyActions.className = "setting-actions";
+
+      const describe = (status, extra = "") => {
+        if (!status) return extra || "无法读取 Key 状态。";
+        let text;
+        if (status.configured && status.source === "desktop") {
+          text = `已保存自填 Key（重启后仍保留），当前模型 ${status.model}。`;
+        } else if (status.configured && status.source === "env") {
+          text = `正在使用 .env 中的 Key，当前模型 ${status.model}；保存自填 Key 后将优先使用自填 Key。`;
+        } else if (status.configured) {
+          text = `已配置 Key，当前模型 ${status.model}。`;
+        } else {
+          text = "未配置 Key：AI 对手会使用本地启发式，在线智谱不可用。";
+        }
+        if (!status.encryptionAvailable) text += " 系统安全存储不可用，无法保存自填 Key。";
+        return extra ? `${extra} ${text}` : text;
+      };
+      const applyStatus = (status, extra = "") => {
+        keyStatus.textContent = describe(status, extra);
+        clearKey.disabled = !status || status.source !== "desktop";
+        keyInput.disabled = Boolean(status && !status.encryptionAvailable);
+      };
+      const refresh = async (extra = "") => {
+        try { applyStatus(await desktopAiKey.getStatus(), extra); }
+        catch { keyStatus.textContent = "无法读取 Key 状态，请重试。"; }
+      };
+
+      const saveKey = button("保存 Key", async () => {
+        const value = keyInput.value.trim();
+        if (!value) { keyStatus.textContent = "请先粘贴 API Key。"; keyInput.focus(); return; }
+        saveKey.disabled = true;
+        keyStatus.textContent = "正在保存…";
+        try {
+          const result = await desktopAiKey.save(value);
+          if (result?.ok) { keyInput.value = ""; applyStatus(result.status, "已保存，新开对局生效。"); }
+          else keyStatus.textContent = result?.message || "保存 Key 失败，请重试。";
+        } catch { keyStatus.textContent = "保存 Key 失败，请重试。"; }
+        finally { saveKey.disabled = false; }
+      }, "btn btn-ghost");
+      const clearKey = button("清除 Key", async () => {
+        clearKey.disabled = true;
+        keyStatus.textContent = "正在清除…";
+        try {
+          const result = await desktopAiKey.clear();
+          if (result?.ok) applyStatus(result.status, "已清除，回退到 .env / 本地 AI。");
+          else keyStatus.textContent = result?.message || "清除 Key 失败，请重试。";
+        } catch { keyStatus.textContent = "清除 Key 失败，请重试。"; }
+      }, "btn btn-ghost");
+      clearKey.disabled = true;
+      keyActions.append(saveKey, clearKey);
+      body.append(keyHeading, keyRow, keyStatus, keyActions, paragraph("Key 仅保存在本机并由系统加密（Windows DPAPI），不会写入安装包或日志；留空则自动使用本地 AI。"));
+      void refresh();
+    }
     const rulesHeading = document.createElement("h3");
     rulesHeading.className = "settings-heading";
     rulesHeading.textContent = "规则（对之后新开的对局生效）";

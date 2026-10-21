@@ -3,21 +3,34 @@
  * 从 index.ts 抽出来，方便测试用 ephemeral port 起完整服务（含 /ws）。
  */
 import { createServer, type Server } from 'node:http';
+import type { WebSocketServer } from 'ws';
 import { createApp, type CreateAppOptions } from './app.ts';
+import { config } from './config.ts';
 import { attachWebSocketServer } from './net/wsServer.ts';
 import type { RoomManager } from './net/rooms.ts';
 
 export interface UnoServer {
   server: Server;
+  wss: WebSocketServer;
   rooms: RoomManager;
 }
 
 export function createUnoServer(options: CreateAppOptions = {}): UnoServer {
-  const app = createApp(options);
+  const ref: { server?: Server } = {};
+  // 默认端口提供者读取真实监听端口：桌面版 listen(0) 时 /api/health 的 lanUrls 不能写死配置端口
+  const getPort =
+    options.getPort ??
+    (() => {
+      const address = ref.server?.address();
+      return address && typeof address === 'object' ? address.port : config.port;
+    });
+
+  const app = createApp({ ...options, getPort });
   const server = createServer(app);
-  const { rooms } = attachWebSocketServer(server);
+  ref.server = server;
+  const { wss, rooms } = attachWebSocketServer(server);
   server.on('close', () => {
     // ws 连接随 http server 关闭由 Node 一并销毁（测试里 close 即可退出）
   });
-  return { server, rooms };
+  return { server, wss, rooms };
 }

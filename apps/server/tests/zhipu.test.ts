@@ -135,6 +135,36 @@ describe('M4 智谱客户端', () => {
     if (!result.ok) expect(result.code).toBe('EMPTY_RESPONSE');
   });
 
+  it('运行时 Key Provider：保存立即生效，清除后回到未配置', async () => {
+    const { fetchImpl, calls } = responseFactory([
+      { status: 200, body: successBody('{"ok":true}') },
+    ]);
+    let runtimeKey = '';
+    const client = createZhipuClient({
+      ...baseOptions,
+      apiKey: '',
+      apiKeyProvider: () => runtimeKey,
+      fetchImpl,
+    });
+
+    expect(client.isConfigured).toBe(false);
+    const missing = await client.chat({ messages: [{ role: 'user', content: 'hi' }] });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.code).toBe('AI_NOT_CONFIGURED');
+    expect(calls).toHaveLength(0);
+
+    runtimeKey = 'desktop-key';
+    expect(client.isConfigured).toBe(true);
+    const result = await client.chat({ messages: [{ role: 'user', content: 'hi' }] });
+    expect(result.ok).toBe(true);
+    expect(
+      (calls[0]!.init.headers as Record<string, string>).Authorization,
+    ).toBe('Bearer desktop-key');
+
+    runtimeKey = '';
+    expect(client.isConfigured).toBe(false);
+  });
+
   it('网络错误：NETWORK_ERROR', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('fetch failed');

@@ -223,4 +223,28 @@ describe('M4 /api/ai/test 与 /api/config', () => {
       expect(body.model).toBe('glm-test');
     });
   });
+
+  it('/api/config 随运行时 Key 状态变化（桌面版保存/清除后无需重启）', async () => {
+    let configured = false;
+    const client: ZhipuClient = {
+      get isConfigured() {
+        return configured;
+      },
+      model: 'glm-test',
+      fallbackModels: ['glm-fallback'],
+      async chat() {
+        return { ok: true, content: '{}', model: 'glm-test', latencyMs: 0, attempts: 1 };
+      },
+    };
+    await withServer(client, async (baseUrl) => {
+      const before = (await (await fetch(`${baseUrl}/api/config`)).json()) as Record<string, unknown>;
+      expect(before.aiEnabled).toBe(false);
+      expect(before.model).toBeNull();
+
+      configured = true;
+      const after = (await (await fetch(`${baseUrl}/api/config`)).json()) as Record<string, unknown>;
+      expect(after.aiEnabled).toBe(true);
+      expect(after.model).toBe('glm-test');
+    });
+  });
 });

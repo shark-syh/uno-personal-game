@@ -6,6 +6,7 @@
   "description": "UNO 单机版本地网页游戏：1 名真人 + 2~9 名 AI，宽松叠牌，智谱 AI 混合决策",
   "workspaces": [
     "apps/server",
+    "apps/desktop",
     "packages/game-core",
     "packages/ai"
   ],
@@ -14,6 +15,10 @@
     "predev": "npm run build:web-engine",
     "start": "npm run start -w @uno/server",
     "prestart": "npm run build:web-engine",
+    "desktop:build": "tsx scripts/build-desktop.ts",
+    "desktop:dev": "npm run desktop:build && electron apps/desktop/dist/main.cjs",
+    "desktop:dist": "npm run build:web-engine && npm run dist -w @uno/desktop",
+    "desktop": "electron apps/desktop/dist/main.cjs",
     "build:web-engine": "tsx scripts/build-web-engine.ts",
     "verify:ui": "node scripts/verify-ui.mjs",
     "verify:online": "node scripts/verify-online.mjs",

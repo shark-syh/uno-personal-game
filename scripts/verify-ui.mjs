@@ -1419,17 +1419,18 @@ async function main() {
     const ruleDefaults = await evaluate(`(() => {
       const root = document.querySelector('#dialog-root.is-open');
       const read = (key) => { const node = root.querySelector('[data-setting="' + key + '"]'); if (!node) return null; return node.tagName === 'SELECT' ? node.value : Boolean(node.checked); };
-      return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), soundVolume: read('soundVolume'), animationSpeed: read('animationSpeed'), hasRulesHeading: (root.textContent || '').includes('规则（对之后新开的对局生效）') };
+      return { twoPlayerRules: read('twoPlayerRules'), unoPenalty: read('unoPenalty'), deckExhaustion: read('deckExhaustion'), startCardRule: read('startCardRule'), soundVolume: read('soundVolume'), animationSpeed: read('animationSpeed'), hasRulesHeading: (root.textContent || '').includes('规则（对之后新开的对局生效）'), hasDesktopKey: Boolean(root.querySelector('[data-ai-key-input]')) };
     })()`);
     check(
-      '设置页：规则 4 项 + 音效音量/动画速度可配置且默认值正确',
+      '设置页：规则 4 项 + 音效音量/动画速度可配置且默认值正确（浏览器不显示桌面 Key）',
       ruleDefaults.hasRulesHeading &&
         ruleDefaults.twoPlayerRules === true &&
         ruleDefaults.unoPenalty === '2' &&
         ruleDefaults.deckExhaustion === 'reshuffle' &&
         ruleDefaults.startCardRule === 'classic' &&
         ruleDefaults.soundVolume === '0.7' &&
-        ruleDefaults.animationSpeed === 'normal',
+        ruleDefaults.animationSpeed === 'normal' &&
+        ruleDefaults.hasDesktopKey === false,
       JSON.stringify(ruleDefaults),
     );
     await evaluate(`(() => {

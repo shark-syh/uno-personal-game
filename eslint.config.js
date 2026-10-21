@@ -9,6 +9,7 @@ export default tseslint.config(
       'research/**',
       'logs/**', // 本地临时验证脚本（gitignored），不参与 lint
       '**/dist/**',
+      '**/release/**', // electron-builder 打包产物（gitignored），不参与 lint
       'coverage/**',
     ],
   },

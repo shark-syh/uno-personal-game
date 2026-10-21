@@ -26,7 +26,7 @@ import {
 } from "../ui/emotes.js";
 
 let socket = null;
-let joined = null; // { code, seat, token }
+let joined = null; // { code, seat, token, host? }（host 为远程主机 ip:port，本机房为 undefined）
 let lastRoom = null;
 let inGame = false;
 let toast = (message) => console.log(`[uno-online] ${message}`);
@@ -37,6 +37,12 @@ let rejoinPending = false;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 const MAX_RECONNECT_ATTEMPTS = 3;
+
+// M10-04：UDP 发现。activeHost 为当前 WS 目标（null = 本机服务）；
+// joinInFlight 防止发现查询期间重复点击；discoveryTimer 轮询附近房间。
+let activeHost = null;
+let joinInFlight = false;
+let discoveryTimer = null;
 
 /** M9-02：服务端视图队列（逐条渲染 + 播动画，保证 AI 连动/代打时每一步都可见） */
 let viewQueue = [];
@@ -50,6 +56,30 @@ function resetViewQueue() {
 }
 
 const $ = (selector) => document.querySelector(selector);
+
+/** 桌面版发现能力（浏览器模式为 null，所有桌面 UI 保持隐藏） */
+function desktopDiscovery() {
+  return window.unoDesktop?.discovery ?? null;
+}
+
+/** 手动主机地址只接受 host:port，不把协议头/路径拼进 WS URL */
+function parseManualEndpoint(value) {
+  const raw = String(value || "").trim();
+  const separator = raw.lastIndexOf(":");
+  if (separator <= 0) return null;
+  const host = raw.slice(0, separator);
+  const portText = raw.slice(separator + 1);
+  if (!/^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/.test(host)) return null;
+  if (!/^\d{1,5}$/.test(portText)) return null;
+  const port = Number(portText);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+  return { host: host.toLowerCase(), port };
+}
+
+function hostLabel(host) {
+  return host || "本机";
+}
+
 
 function persistSession() {
   if (!joined) return;
@@ -145,7 +175,8 @@ function renderRoom(room) {
   // 房主视角的大厅提示：直接给出「好友该打开的地址 + 房间码」
   const invite = $("#room-invite");
   if (!invite) return;
-  if (room.status !== "lobby") { invite.hidden = true; return; }
+  // 只有房主需要展示邀请地址；远程加入者若显示自己的局域网地址会误导好友
+  if (room.status !== "lobby" || !isHost) { invite.hidden = true; return; }
   loadLanUrls().then((urls) => {
     if (!urls.length || !joined || room.code !== joined.code) return;
     invite.textContent = `其他设备请打开 ${urls[0]} 并输入房间码 ${room.code} 加入`;
@@ -169,6 +200,8 @@ function closeSocket() {
   inGame = false;
   rejoinPending = false;
   reconnectAttempts = 0;
+  activeHost = null;
+  resetHostChoice();
 }
 
 /** 离开联机模式：恢复单机引擎大厅 */
@@ -250,15 +283,22 @@ function handleMessage(event) {
   try { message = JSON.parse(event.data); } catch { return; }
   if (message.type === "joined") {
     const wasRejoin = rejoinPending;
-    joined = { code: message.room.code, seat: message.seat, token: message.token };
+    joined = {
+      code: message.room.code,
+      seat: message.seat,
+      token: message.token,
+      ...(activeHost ? { host: activeHost } : {}),
+    };
     rejoinPending = false;
     reconnectAttempts = 0;
     persistSession();
+    const manualInput = $("#online-host");
+    if (manualInput) manualInput.value = "";
     setEmoteSelfSeat(message.seat);
     setEmoteEnabled(true);
     renderRoom(message.room);
     showRoomPanel();
-    if (wasRejoin) toast("已重连，恢复你的座位");
+    if (wasRejoin) toast(activeHost ? `已重连主机 ${activeHost}` : "已重连，恢复你的座位");
     return;
   }
   if (message.type === "room") {
@@ -286,10 +326,17 @@ function handleMessage(event) {
   }
 }
 
-/** 建立 WS 连接（创建/加入/重连共用）；断线时若已进房则自动尝试重连 */
-function connectRaw(next) {
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+/** 建立 WS 连接（创建/加入/重连共用）；targetHost 为空表示本机服务 */
+function connectRaw(next, targetHost = null) {
+  activeHost = targetHost;
+  const protocol = targetHost ? "ws" : window.location.protocol === "https:" ? "wss" : "ws";
+  let ws;
+  try {
+    ws = new WebSocket(`${protocol}://${targetHost || window.location.host}/ws`);
+  } catch {
+    toast(`主机地址无效：${hostLabel(targetHost)}`);
+    return;
+  }
   socket = ws;
   ws.onmessage = handleMessage;
   ws.onopen = () => next(ws);
@@ -299,11 +346,16 @@ function connectRaw(next) {
     reconnectTimer = setTimeout(attemptReconnect, 800);
   };
   ws.onerror = () => {
-    if (!joined) toast("连不上联机服务，请确认是通过 npm start 打开的页面");
+    if (joined) return;
+    if (activeHost) {
+      toast(`连不上主机 ${activeHost}：请确认主机已开房、双方在同一网络且防火墙已放行`);
+    } else {
+      toast("连不上联机服务，请确认是通过 npm start 打开的页面");
+    }
   };
 }
 
-/** 断线重连：凭 sessionStorage 的 (code, token) 恢复原座位，最多尝试 MAX_RECONNECT_ATTEMPTS 次 */
+/** 断线重连：凭 sessionStorage 的 (code, token, host) 恢复原座位，最多尝试 MAX_RECONNECT_ATTEMPTS 次 */
 function attemptReconnect() {
   if (manualExit || !joined) return;
   reconnectAttempts += 1;
@@ -313,29 +365,219 @@ function attemptReconnect() {
     return;
   }
   const session = joined;
+  const targetHost =
+    typeof session.host === "string" && parseManualEndpoint(session.host) ? session.host : null;
   connectRaw((ws) => {
     rejoinPending = true;
     ws.send(JSON.stringify({ type: "rejoin", code: session.code, token: session.token }));
-  });
+  }, targetHost);
 }
 
-function connect(next) {
+function connect(next, targetHost = null) {
   if (socket) closeSocket();
   manualExit = false;
-  connectRaw(next);
+  connectRaw(next, targetHost);
 }
 
 function createRoom() {
+  resetHostChoice();
   connect((ws) => ws.send(JSON.stringify({ type: "create-room", name: displayName() })));
 }
 
-function joinRoom() {
+function resetHostChoice() {
+  const box = $("#online-host-choice");
+  if (!box) return;
+  box.hidden = true;
+  box.replaceChildren();
+}
+
+function showHostChoice(matches) {
+  const box = $("#online-host-choice");
+  if (!box) return;
+  box.replaceChildren();
+  const title = document.createElement("p");
+  title.className = "online-host-choice-title";
+  title.textContent = "发现多个同码房间，请选择主机";
+  box.append(title);
+  for (const match of matches) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "btn btn-ghost online-room-button";
+    const code = document.createElement("strong");
+    code.textContent = match.code;
+    const meta = document.createElement("span");
+    meta.textContent = [
+      match.local ? "本机" : match.hostName,
+      `${match.host}:${match.port}`,
+      `版本 ${match.appVersion}`,
+    ].join(" · ");
+    button.append(code, meta);
+    button.addEventListener("click", () => {
+      resetHostChoice();
+      connectToMatch(match);
+    });
+    box.append(button);
+  }
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "btn btn-ghost";
+  cancel.textContent = "取消";
+  cancel.addEventListener("click", resetHostChoice);
+  box.append(cancel);
+  box.hidden = false;
+}
+
+/** 连接发现结果：local 走本机服务，远程目标固定 ws://host:port/ws */
+function connectToMatch(match) {
+  if (!match || !match.compatible) {
+    toast(`主机版本 ${match?.appVersion || "未知"} 与当前版本不一致，请双方使用同一安装包`);
+    return;
+  }
+  const codeInput = $("#online-code");
+  if (codeInput) codeInput.value = match.code;
+  const targetHost = match.local ? null : `${match.host}:${match.port}`;
+  if (!match.local) {
+    const manualInput = $("#online-host");
+    if (manualInput) manualInput.value = "";
+  }
+  connect(
+    (ws) => ws.send(JSON.stringify({ type: "join-room", code: match.code, name: displayName() })),
+    targetHost,
+  );
+}
+
+function connectToCode(code, endpoint) {
+  const targetHost = endpoint ? `${endpoint.host}:${endpoint.port}` : null;
+  connect(
+    (ws) => ws.send(JSON.stringify({ type: "join-room", code, name: displayName() })),
+    targetHost,
+  );
+}
+
+async function joinRoom() {
   const code = ($("#online-code")?.value || "").trim().toUpperCase();
   if (!/^[A-Z2-9]{4,6}$/.test(code)) {
     toast("请输入正确的房间码（4~6 位字母数字）");
     return;
   }
-  connect((ws) => ws.send(JSON.stringify({ type: "join-room", code, name: displayName() })));
+  resetHostChoice();
+
+  const manualValue = ($("#online-host")?.value || "").trim();
+  if (manualValue) {
+    const endpoint = parseManualEndpoint(manualValue);
+    if (!endpoint) {
+      toast("主机地址格式应为 IP:端口，例如 192.168.1.5:51234");
+      return;
+    }
+    connectToCode(code, endpoint);
+    return;
+  }
+
+  const discovery = desktopDiscovery();
+  if (!discovery) {
+    connectToCode(code, null);
+    return;
+  }
+  if (joinInFlight) return;
+  joinInFlight = true;
+  const joinButton = $("#online-join");
+  if (joinButton) joinButton.disabled = true;
+  try {
+    const result = await discovery.findRoom(code);
+    const matches = Array.isArray(result?.matches) ? result.matches : [];
+    if (matches.length === 0) {
+      toast(
+        result?.reason === "disabled"
+          ? "UDP 发现不可用：请在下方手动填写主机地址（IP:端口）"
+          : "未发现该房间：请确认主机已开房、双方在同一网络且防火墙已放行；也可手动填写主机地址",
+      );
+      return;
+    }
+    const compatible = matches.filter((match) => match.compatible);
+    if (compatible.length === 0) {
+      const versions = [...new Set(matches.map((match) => match.appVersion))].join(" / ");
+      toast(`找到房间，但主机版本 ${versions} 与当前版本不一致，请双方使用同一安装包`);
+      return;
+    }
+    if (compatible.length === 1) {
+      connectToMatch(compatible[0]);
+      return;
+    }
+    showHostChoice(compatible);
+  } catch {
+    toast("查找房间失败，请重试或手动填写主机地址");
+  } finally {
+    joinInFlight = false;
+    if (joinButton) joinButton.disabled = false;
+  }
+}
+
+/** 附近房间：桌面版每 2.5 秒刷新；点击任意房间直接连接对应主机 */
+async function refreshDiscoveredRooms() {
+  const api = desktopDiscovery();
+  const wrapper = $("#online-discovered");
+  const list = $("#online-room-list");
+  if (!api || !wrapper || !list) return;
+  try {
+    const result = await api.listRooms();
+    const rooms = Array.isArray(result?.rooms) ? result.rooms : [];
+    if (rooms.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "online-room-empty";
+      empty.textContent =
+        result?.enabled === false
+          ? "UDP 发现不可用，请手动填写主机地址"
+          : "附近暂无开放房间（主机开房后会出现在这里）";
+      list.replaceChildren(empty);
+      wrapper.hidden = false;
+      return;
+    }
+    list.replaceChildren(
+      ...rooms.slice(0, 8).map((room) => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "online-room-button";
+        button.disabled = !room.compatible;
+        button.setAttribute(
+          "aria-label",
+          `加入房间 ${room.code}，主机 ${room.local ? "本机" : `${room.host}:${room.port}`}`,
+        );
+        const code = document.createElement("strong");
+        code.textContent = room.code;
+        const meta = document.createElement("span");
+        meta.textContent = [
+          room.local ? "本机" : room.hostName,
+          `${room.host}:${room.port}`,
+          `${room.players} 人`,
+          room.compatible ? "" : `版本 ${room.appVersion} 不兼容`,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        button.append(code, meta);
+        button.addEventListener("click", () => {
+          if (!room.compatible) return;
+          resetHostChoice();
+          connectToMatch(room);
+        });
+        item.append(button);
+        return item;
+      }),
+    );
+    wrapper.hidden = false;
+  } catch {
+    /* 发现刷新失败静默，加入时仍会提示 */
+  }
+}
+
+function initDesktopDiscovery() {
+  if (!desktopDiscovery()) return;
+  $("#online-manual")?.removeAttribute("hidden");
+  $("#online-discovered")?.removeAttribute("hidden");
+  void refreshDiscoveredRooms();
+  if (!discoveryTimer) {
+    discoveryTimer = window.setInterval(refreshDiscoveredRooms, 2500);
+  }
 }
 
 /** 由 app.js 在启动时调用一次：绑定联机区块按钮 */
@@ -350,6 +592,12 @@ export function initOnlineMode(options = {}) {
   });
   $("#online-create")?.addEventListener("click", createRoom);
   $("#online-join")?.addEventListener("click", joinRoom);
+  $("#online-host")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void joinRoom();
+    }
+  });
   $("#room-start")?.addEventListener("click", () => {
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: "start-game", aiCount: showAiCount() }));
@@ -363,15 +611,20 @@ export function initOnlineMode(options = {}) {
   try {
     const saved = JSON.parse(sessionStorage.getItem("uno:online") || "null");
     if (saved && typeof saved.code === "string" && typeof saved.token === "string") {
-      joined = saved;
+      const savedHost =
+        typeof saved.host === "string" && parseManualEndpoint(saved.host) ? saved.host : null;
+      const session = { ...saved };
+      delete session.host;
+      joined = savedHost ? { ...session, host: savedHost } : session;
       setEmoteSelfSeat(saved.seat);
       setEmoteEnabled(true);
       connectRaw((ws) => {
         rejoinPending = true;
         ws.send(JSON.stringify({ type: "rejoin", code: saved.code, token: saved.token }));
-      });
+      }, savedHost);
     }
   } catch { /* 损坏的会话数据忽略 */ }
+  initDesktopDiscovery();
   $("#room-leave")?.addEventListener("click", () => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "leave-room" }));
     exitOnline();

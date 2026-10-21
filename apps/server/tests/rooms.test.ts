@@ -318,3 +318,24 @@ describe('M9-03 表情限频', () => {
     expect(room.emoteLimits.size).toBe(0);
   });
 });
+
+describe('M10-04 开放房间发现', () => {
+  it('只返回大厅房间与人数，开局后不再广播；limit 生效', () => {
+    const manager = new RoomManager();
+    const first = makeRoomWithPlayers(manager, ['A', 'B']);
+    const second = manager.createRoom('C').room;
+
+    expect(manager.getOpenRooms()).toEqual(
+      expect.arrayContaining([
+        { code: first.code, players: 2 },
+        { code: second.code, players: 1 },
+      ]),
+    );
+    expect(manager.getOpenRooms(1)).toHaveLength(1);
+
+    manager.startGame(first, 0);
+    const codes = manager.getOpenRooms().map((room) => room.code);
+    expect(codes).toContain(second.code);
+    expect(codes).not.toContain(first.code);
+  });
+});

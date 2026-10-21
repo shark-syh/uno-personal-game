@@ -8,6 +8,7 @@
  * - 总预算 = timeoutMs（默认取 AI_DECISION_TIMEOUT_MS，6s）；超时立即失败，由前端降级本地 AI；
  * - 失败返回结构化 code，前端据此提示"已降级本地 AI"。
  */
+import { getEffectiveApiKey } from './ai-key.ts';
 import { config } from './config.ts';
 
 export interface ChatMessage {
@@ -59,6 +60,8 @@ export type ChatResult = ChatSuccess | ChatFailure;
 
 export interface ZhipuClientOptions {
   apiKey?: string;
+  /** 运行时 Key 提供者（桌面版自填 Key 保存后立即生效）；优先于 apiKey */
+  apiKeyProvider?: () => string;
   baseUrl?: string;
   model?: string;
   fallbackModels?: string[];
@@ -117,9 +120,12 @@ function classifyFailure(attempt: RawAttempt): { code: AiErrorCode; message: str
   };
 }
 
-/** 创建智谱客户端（默认读 `.env` 配置；测试可注入 fake fetch） */
+/** 创建智谱客户端（默认读运行时 Key；测试可注入 fake fetch / 固定 Key） */
 export function createZhipuClient(options: ZhipuClientOptions = {}): ZhipuClient {
-  const apiKey = options.apiKey ?? config.zhipu.apiKey;
+  const provider =
+    options.apiKeyProvider ??
+    (() => options.apiKey ?? config.zhipu.apiKey);
+  const currentApiKey = (): string => (provider() ?? '').trim();
   const baseUrl = (options.baseUrl ?? config.zhipu.baseUrl).replace(/\/+$/, '');
   const primaryModel = options.model ?? config.zhipu.model;
   const fallbackModels = options.fallbackModels ?? config.zhipu.fallbackModels;
@@ -131,6 +137,7 @@ export function createZhipuClient(options: ZhipuClientOptions = {}): ZhipuClient
   async function requestOnce(
     model: string,
     request: ChatRequest,
+    apiKey: string,
     timeoutMs: number,
     withThinkingParam: boolean,
   ): Promise<RawAttempt> {
@@ -206,11 +213,15 @@ export function createZhipuClient(options: ZhipuClientOptions = {}): ZhipuClient
   }
 
   return {
-    isConfigured: apiKey.length > 0,
+    // getter：桌面版保存/清除 Key 后无需重建客户端，下一次请求立即生效
+    get isConfigured(): boolean {
+      return currentApiKey().length > 0;
+    },
     model: primaryModel,
     fallbackModels,
     async chat(request: ChatRequest): Promise<ChatResult> {
       const startedAt = Date.now();
+      const apiKey = currentApiKey();
       if (apiKey.length === 0) {
         return {
           ok: false,
@@ -243,13 +254,19 @@ export function createZhipuClient(options: ZhipuClientOptions = {}): ZhipuClient
           }
 
           attempts += 1;
-          let raw = await requestOnce(model, request, remaining, thinkingParam);
+          let raw = await requestOnce(model, request, apiKey, remaining, thinkingParam);
 
           // 部分模型不支持 thinking 参数：去掉后重试一次
           if (raw.status === 400 && thinkingParam) {
             thinkingParam = false;
             attempts += 1;
-            raw = await requestOnce(model, request, Math.max(250, deadline - Date.now()), false);
+            raw = await requestOnce(
+              model,
+              request,
+              apiKey,
+              Math.max(250, deadline - Date.now()),
+              false,
+            );
           }
 
           if (raw.ok) {
@@ -300,5 +317,5 @@ export function createZhipuClient(options: ZhipuClientOptions = {}): ZhipuClient
   };
 }
 
-/** 默认单例（读 .env 配置） */
-export const zhipuClient = createZhipuClient();
+/** 默认单例（每次请求读取运行时 Key：桌面版自填优先，其次 .env） */
+export const zhipuClient = createZhipuClient({ apiKeyProvider: getEffectiveApiKey });

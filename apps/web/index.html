@@ -65,6 +65,14 @@
               <button id="online-create" class="btn" type="button" aria-label="创建房间">创建房间</button>
               <button id="online-join" class="btn" type="button" aria-label="加入房间">加入房间</button>
             </div>
+            <div class="online-manual" id="online-manual" hidden>
+              <input id="online-host" type="text" placeholder="主机 IP:端口（发现失败时手动填写，如 192.168.1.5:51234）" aria-label="主机地址" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="online-host-choice" id="online-host-choice" hidden></div>
+            <div class="online-discovered" id="online-discovered" hidden>
+              <p class="online-discovered-title">附近房间</p>
+              <ul id="online-room-list" class="online-room-list"></ul>
+            </div>
           </div>
         </div>
         <div class="lobby-panel" id="room-panel" hidden>
