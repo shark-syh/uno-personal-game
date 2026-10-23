@@ -1391,9 +1391,6 @@ function getGameView(state, seat, options = {}) {
   };
 }
 
-// packages/game-core/src/index.ts
-var GAME_CORE_VERSION = "1.0.0";
-
 // packages/ai/src/difficulty.ts
 var UNO_CALL_PROBABILITY = {
   casual: 0.8,
@@ -2486,11 +2483,7 @@ function runMixedTable(options) {
     positionTolerance
   };
 }
-
-// packages/ai/src/index.ts
-var AI_VERSION = "0.2.0";
 export {
-  AI_VERSION,
   ALL_COLORS,
   CHALLENGE_ESTIMATE_CALIBRATION,
   COLOR_CODE,
@@ -2500,7 +2493,6 @@ export {
   DIFFICULTY_LABEL,
   DIFFICULTY_ORDER,
   DIFFICULTY_PROFILES,
-  GAME_CORE_VERSION,
   INITIAL_COLOR_COUNTS,
   INITIAL_KIND_COUNTS,
   UNO_CALL_PROBABILITY,

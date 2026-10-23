@@ -1,7 +1,8 @@
 .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 15px; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--ink); background: rgba(255,255,255,.09); font-weight: 700; cursor: pointer; transition: transform 180ms var(--ease-out), background 180ms ease, border-color 180ms ease, opacity 180ms ease; }
 .btn:active { transform: scale(.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-primary { color: #231600; background: var(--yellow); }
+/* M2：主操作统一 v2 金色（开启对局 / 挑战 / 抓 UNO / 再来一局等确认类按钮） */
+.btn-primary { color: #231600; background: var(--v2-gold); }
 .btn-danger { background: rgba(255, 85, 85, .22); border-color: rgba(255, 120, 120, .42); }
 .btn-ghost { border-color: var(--line); background: transparent; }
 .btn-large { min-height: 52px; padding-inline: 24px; font-size: 16px; }
@@ -52,7 +53,7 @@
 .dev-toolbar select { max-width: 170px; padding: 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: #0c2d1d; }
 .dev-toolbar .btn { min-height: 44px; padding: 5px 8px; font-size: 12px; }
 
-@media (hover: hover) and (pointer: fine) { .btn:hover { background: #ffffff29; } .btn-primary:hover { background: #ffc247; } .uno-button:hover { background: linear-gradient(135deg, #ffe98a 0%, #ffc21a 48%, #ff8f1a 100%); } }
+@media (hover: hover) and (pointer: fine) { .btn:hover { background: #ffffff29; } .btn-primary:hover { background: #ffd07a; } .uno-button:hover { background: linear-gradient(135deg, #ffe98a 0%, #ffc21a 48%, #ff8f1a 100%); } }
 .color-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .color-choices .btn { min-height: 68px; }
 .color-choices .btn-color-red { background: var(--red); }

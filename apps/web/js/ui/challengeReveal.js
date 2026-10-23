@@ -63,14 +63,6 @@ export function showOpponentLookedNotice(seat) {
   window.setTimeout(() => node.remove(), REVEAL_MS);
 }
 
-/** 取消所有展示/提示（回大厅、新局、屏幕切换时兜底） */
-export function clearChallengeReveal() {
-  hideChallengeHand();
-  document
-    .querySelectorAll('#toast-region [data-kind="challenge-notice"]')
-    .forEach((node) => node.remove());
-}
-
 function clearTimer() {
   if (hideTimer !== null) {
     window.clearTimeout(hideTimer);

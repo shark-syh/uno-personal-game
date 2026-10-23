@@ -2,7 +2,7 @@
  * 引擎模式：把真实规则引擎 + 本地/智谱混合 AI 接到现有 UI 上（原生 JS，零构建）。
  *
  * M3-2：大厅 START_GAME → createInitialGame → getGameView → render + playEvents；AI 本地决策 + 思考延迟；
- *        UNO 窗口 2.5s；结算/再来一局/回大厅；默认入口为引擎模式，mock 保留 ?mock=1。
+ *        UNO 窗口 4s；结算/再来一局/回大厅；默认入口为引擎模式，mock 保留 ?mock=1。
  * M4：AI 回合先尝试「本地候选 → 服务端 /api/ai/decide（智谱）→ 校验 → 应用」，失败/超时/限流
  *      自动降级 M2 本地 AI；台词写入玩家气泡；状态栏显示 智谱 / 本地 / 本地·降级。
  *
@@ -657,6 +657,4 @@ export function stopEngineMode() {
   document.documentElement.dataset.engine = 'off';
 }
 
-export function isEngineModeActive() {
-  return runtime !== null;
-}
+

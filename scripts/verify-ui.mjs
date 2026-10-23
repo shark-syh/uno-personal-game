@@ -23,6 +23,9 @@ const BASE_URL = process.env.UNO_BASE_URL || 'http://localhost:3000';
 const ASSETS = join(ROOT, 'review-assets');
 const DEBUG_PORT = Number(process.env.UNO_DEBUG_PORT || 9333);
 mkdirSync(ASSETS, { recursive: true });
+// v2.0.0 M2 起：v2 阶段截图按契约存 review-assets/v2/<阶段>-<场景>-<宽度>.png
+const V2_ASSETS = join(ASSETS, 'v2');
+mkdirSync(V2_ASSETS, { recursive: true });
 
 const checks = [];
 function check(name, ok, detail = '') {
@@ -198,6 +201,92 @@ window.__verify = {
     count: Boolean(document.querySelector('#hand-count')),
     text: document.querySelector('#hand')?.textContent || '',
   }),
+  // M2：大厅/牌桌品牌审计（UNO Local + 版本号 + 开启对局 + 旧文案清除 + 无音效按钮 + Tab 顺序）
+  brandAudit: () => {
+    const visible = (el) => {
+      if (!el || el.hidden) return false;
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
+    };
+    const versionOk = (el) => {
+      if (!visible(el)) return false;
+      const text = (el.textContent || '').trim();
+      if (!text.startsWith('v') || text.length < 5) return false;
+      const parts = text.slice(1).split('.');
+      return (
+        parts.length === 3 && parts.every((part) => part.length > 0 && [...part].every((ch) => ch >= '0' && ch <= '9'))
+      );
+    };
+    const follows = (a, b) =>
+      Boolean(a && b) && Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const start = document.querySelector('#lobby-start');
+    const configControls = [...document.querySelectorAll('#lobby-form .choice-grid button, #challenge-wild4')];
+    const lastConfig = configControls[configControls.length - 1];
+    const secondary = document.querySelector('#lobby-form button[data-open-dialog="settings"]');
+    const bodyText = document.body.textContent || '';
+    return {
+      docTitle: document.title,
+      lobbyTitle: (document.querySelector('#lobby-title')?.textContent || '').trim(),
+      titleVisible: visible(document.querySelector('#lobby-title')),
+      versionVisible: versionOk(document.querySelector('#lobby-version')),
+      lead: (document.querySelector('#lobby-lead')?.textContent || '').trim(),
+      startText: start ? start.textContent.trim() : null,
+      startAria: start ? start.getAttribute('aria-label') : null,
+      startVisible: visible(start),
+      roomStartText: (document.querySelector('#room-start')?.textContent || '').trim(),
+      brandName: (document.querySelector('#brand-name')?.textContent || '').trim(),
+      gameVersion: (document.querySelector('#game-version')?.textContent || '').trim(),
+      gameVersionOk: versionOk(document.querySelector('#game-version')),
+      tabOrder: follows(lastConfig, start) && follows(start, secondary),
+      noOldCopy:
+        !bodyText.includes('开始游戏') && !bodyText.includes('个人练习项目') && !bodyText.includes('单机版'),
+      noSoundButton:
+        !document.querySelector('#sound-button') &&
+        ![...document.querySelectorAll('#top-bar button')].some((button) =>
+          (button.textContent || '').includes('音效'),
+        ),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
+  // M3：圆桌座位审计（锚点 / relative-seat / 状态 data-* / 中心行动状态）
+  arenaAudit: () => {
+    const screen = document.querySelector('#game-screen');
+    const seats = [...document.querySelectorAll('#opponents .opponent')].map((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = node.style;
+      return {
+        seat: Number(node.dataset.seat),
+        relative: Number(node.dataset.relativeSeat || 0),
+        hasX: Boolean(style.getPropertyValue('--seat-x')),
+        hasY: Boolean(style.getPropertyValue('--seat-y')),
+        hasAngle: Boolean(style.getPropertyValue('--seat-angle')),
+        current: node.dataset.current === 'true',
+        inside:
+          rect.left >= 0 &&
+          rect.top >= 0 &&
+          rect.right <= window.innerWidth &&
+          rect.bottom <= window.innerHeight,
+      };
+    });
+    const phaseLabel = document.querySelector('#phase-label');
+    const stamp = (document.querySelector('#turn-stamp')?.textContent || '').trim();
+    return {
+      phase: screen?.dataset.phase || '',
+      currentSeat: screen?.dataset.currentSeat ?? '',
+      viewerSeat: screen?.dataset.viewerSeat ?? '',
+      dataCount: Number(document.querySelector('#opponents')?.dataset.count || 0),
+      seatCount: Number(document.querySelector('#opponents')?.dataset.seatCount || 0),
+      seats,
+      stamp,
+      phaseLabelHidden: Boolean(phaseLabel?.hidden),
+      phaseLabelText: (phaseLabel?.textContent || '').trim(),
+      relativeOk: seats.every((seat, index) => seat.relative === index + 1),
+      arena: Boolean(document.querySelector('#table-area.arena .arena-rail')),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
   colorMetrics: () => {
     const dot = document.querySelector('#color-indicator');
     const label = document.querySelector('#color-label');
@@ -529,6 +618,29 @@ async function main() {
         lobbyCounts.challenge === true,
       JSON.stringify(lobbyCounts),
     );
+    // ---------------- 1b. M2：大厅与顶部品牌（UNO Local + 版本号 + 开启对局） ----------------
+    await waitFor('window.__verify.brandAudit().versionVisible', 5000, '大厅版本号可见');
+    const brand1440 = await evaluate('window.__verify.brandAudit()');
+    check(
+      'M2 大厅品牌：UNO Local + 版本号、开启对局主按钮、旧文案清除、无音效按钮',
+      brand1440.docTitle === 'UNO Local' &&
+        brand1440.lobbyTitle === 'UNO Local' &&
+        brand1440.versionVisible &&
+        brand1440.lead === 'v2.0.0 UI 重构与交互升级' &&
+        brand1440.startText === '开启对局' &&
+        brand1440.startAria === '开启对局' &&
+        brand1440.roomStartText === '开启对局' &&
+        brand1440.noOldCopy &&
+        brand1440.noSoundButton &&
+        !brand1440.overflow,
+      JSON.stringify(brand1440),
+    );
+    check(
+      'M2 大厅 Tab 顺序：配置 → 开启对局 → 次级入口',
+      brand1440.tabOrder,
+      JSON.stringify({ tabOrder: brand1440.tabOrder }),
+    );
+    await shot('v2/M2-lobby-1440.png');
     await shot('ui-m32-lobby-1440.png');
 
     // ---------------- 2. 完整对局（快速模式，3 局） ----------------
@@ -558,6 +670,15 @@ async function main() {
       }
       await evaluate('window.__verify.clickStart()');
       await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
+      if (gameIndex === 0) {
+        await waitFor('window.__verify.brandAudit().gameVersionOk', 5000, '牌桌版本号可见');
+        const gameBrand = await evaluate('window.__verify.brandAudit()');
+        check(
+          'M2 牌桌顶栏品牌：UNO Local + 版本号可见',
+          gameBrand.brandName === 'UNO Local' && gameBrand.gameVersionOk,
+          JSON.stringify({ brandName: gameBrand.brandName, gameVersion: gameBrand.gameVersion }),
+        );
+      }
       await waitFor('window.__verify.handCount() >= 7', 5000, '人类手牌 ≥7 张');
       // 卡面图片异步解码：最多等 8s 再统计失败数，避免把"尚未解码完成"误判为加载失败
       for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -592,6 +713,33 @@ async function main() {
           JSON.stringify(setup.overflow),
         );
         await shot('ui-m32-game-start-1440.png');
+        // ---------------- M3：圆桌座位锚点与中心行动状态（4 人局首屏） ----------------
+        const arena4p = await evaluate('window.__verify.arenaAudit()');
+        check(
+          'M3 圆桌：椭圆桌面结构就绪、座位圆周锚点齐全且在视口内',
+          arena4p.arena &&
+            arena4p.dataCount === 3 &&
+            arena4p.seatCount === 3 &&
+            arena4p.relativeOk &&
+            arena4p.seats.every((seat) => seat.hasX && seat.hasY && seat.hasAngle && seat.inside),
+          JSON.stringify({ arena: arena4p.arena, seatCount: arena4p.seatCount, seats: arena4p.seats }),
+        );
+        check(
+          'M3 行动状态：#turn-stamp 含玩家名、data-phase/current-seat/viewer-seat 同步、普通回合 #phase-label 隐藏',
+          arena4p.stamp.length > 0 &&
+            arena4p.phase.length > 0 &&
+            arena4p.currentSeat !== '' &&
+            arena4p.viewerSeat !== '' &&
+            (arena4p.phase !== 'await-play' || arena4p.phaseLabelHidden),
+          JSON.stringify({
+            stamp: arena4p.stamp,
+            phase: arena4p.phase,
+            currentSeat: arena4p.currentSeat,
+            viewerSeat: arena4p.viewerSeat,
+            phaseLabelText: arena4p.phaseLabelText,
+          }),
+        );
+        await shot('v2/M3-table-4p-1440.png');
         // BUG-06 用户要求：删除「你的手牌 / N 张」；操作栏只留功能按钮（出牌改为点手牌）；无冗余提示文字
         await waitFor(
           '!window.__verify.busy() && window.__verify.humanReady()',
@@ -718,11 +866,17 @@ async function main() {
       const inside = opponents.every((item) => item.x >= 0 && item.y >= 0 && item.x + item.w <= window.innerWidth && item.y + item.h <= window.innerHeight);
       const handTop = document.querySelector('#hand').getBoundingClientRect().top;
       const overlapHand = opponents.filter((item) => item.y + item.h > handTop + 2).map((item) => item.seat);
+      // M3：座位 chip 不得覆盖中心牌堆（契约 §4.2 规则 7——中心牌安全区）
+      const pile = document.querySelector('#discard-pile').getBoundingClientRect();
+      const overlapCenter = opponents
+        .filter((item) => item.x < pile.right + 2 && item.x + item.w > pile.left - 2 && item.y < pile.bottom + 2 && item.y + item.h > pile.top - 2)
+        .map((item) => item.seat);
       return {
         seats: opponents.length,
         overlaps,
         inside,
         overlapHand,
+        overlapCenter,
         overflow: { scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth, scrollH: document.documentElement.scrollHeight, clientH: document.documentElement.clientHeight },
         drawPileCount: Number(document.querySelector('#draw-pile').dataset.count),
         drawPileHud: document.querySelector('#draw-count').textContent,
@@ -749,11 +903,12 @@ async function main() {
         JSON.stringify({ inside: layout.inside, overlaps: layout.overlaps }),
       );
       check(
-        `${multiplayerCount} 人：座位不压手牌区、页面无横向溢出/竖向滚动`,
+        `${multiplayerCount} 人：座位不压手牌区与中心牌堆、页面无横向溢出/竖向滚动`,
         layout.overlapHand.length === 0 &&
+          layout.overlapCenter.length === 0 &&
           layout.overflow.scrollW <= layout.overflow.clientW &&
           layout.overflow.scrollH <= layout.overflow.clientH + 2,
-        JSON.stringify({ overlapHand: layout.overlapHand, overflow: layout.overflow }),
+        JSON.stringify({ overlapHand: layout.overlapHand, overlapCenter: layout.overlapCenter, overflow: layout.overflow }),
       );
       check(
         `${multiplayerCount} 人：抽牌堆计数与 HUD 一致`,
@@ -784,7 +939,20 @@ async function main() {
       );
       multiplayerLayouts.push({ playerCount: multiplayerCount, layout });
       if (multiplayerCount === 6) await shot('ui-m5-6p-1440.png');
-      if (multiplayerCount === 10) await shot('ui-m5-10p-1440.png');
+      if (multiplayerCount === 10) {
+        const arena10 = await evaluate('window.__verify.arenaAudit()');
+        check(
+          'M3 10 人：9 个座位圆周锚点齐全、relative-seat 1..9、全部在视口内',
+          arena10.arena &&
+            arena10.seatCount === 9 &&
+            arena10.dataCount === 9 &&
+            arena10.relativeOk &&
+            arena10.seats.every((seat) => seat.hasX && seat.hasY && seat.hasAngle && seat.inside),
+          JSON.stringify({ seatCount: arena10.seatCount, relativeOk: arena10.relativeOk, seats: arena10.seats }),
+        );
+        await shot('ui-m5-10p-1440.png');
+        await shot('v2/M3-table-10p-1440.png');
+      }
     }
     // 10 人 @1024 宽度：布局同样无溢出、无遮挡
     await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -795,6 +963,15 @@ async function main() {
     });
     await navigate(`${BASE_URL}/?test=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '1024 大厅');
+    // M2：1024 宽大厅品牌可见性与开局路径
+    await waitFor('window.__verify.brandAudit().versionVisible', 5000, '1024 大厅版本号可见');
+    const brand1024 = await evaluate('window.__verify.brandAudit()');
+    check(
+      'M2 @1024 大厅：品牌、版本号与开启对局可见、无横向溢出',
+      brand1024.titleVisible && brand1024.versionVisible && brand1024.startVisible && !brand1024.overflow,
+      JSON.stringify(brand1024),
+    );
+    await shot('v2/M2-lobby-1024.png');
     await evaluate('window.__verify.selectPlayers(10)');
     await evaluate('window.__verify.clickStart()');
     await waitFor('window.__verify.visibleScreen() === "game"', 10000, '1024 十人牌桌');
@@ -815,6 +992,7 @@ async function main() {
       }),
     );
     await shot('ui-m5-10p-1024.png');
+    await shot('v2/M3-table-10p-1024.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -1763,6 +1941,15 @@ async function main() {
     });
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '760 大厅');
+    // M2：760 宽大厅品牌可见性、Tab 顺序与开局路径
+    await waitFor('window.__verify.brandAudit().versionVisible', 5000, '760 大厅版本号可见');
+    const brand760 = await evaluate('window.__verify.brandAudit()');
+    check(
+      'M2 @760 大厅：品牌、版本号与开启对局可见、Tab 顺序正确、无横向溢出',
+      brand760.titleVisible && brand760.versionVisible && brand760.startVisible && brand760.tabOrder && !brand760.overflow,
+      JSON.stringify(brand760),
+    );
+    await shot('v2/M2-lobby-760.png');
     const mobileLobby = await evaluate('window.__verify.overflow()');
     check(
       '760 宽大厅无横向溢出',
@@ -1816,6 +2003,37 @@ async function main() {
           (await evaluate('window.__verify.overflow()')).client,
       JSON.stringify(compactHands),
     );
+    // M3 @420：座位隐藏头像（卡背由 M13 断言覆盖），姓名与精确牌数保留
+    const compact420 = await evaluate(
+      `(() => {
+        const seats = [...document.querySelectorAll('#opponents .opponent')];
+        return {
+          avatarHidden: seats.every((node) => {
+            const avatar = node.querySelector('.avatar');
+            return !avatar || getComputedStyle(avatar).display === 'none';
+          }),
+          names: seats.every((node) => (node.querySelector('.opponent-name')?.textContent || '').length > 0),
+          counts: seats.every((node) => (node.querySelector('.opponent-meta')?.textContent || '').includes('张')),
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`,
+    );
+    check(
+      'M3 @420：座位隐藏头像、保留姓名与精确牌数、无横向溢出',
+      compact420.avatarHidden && compact420.names && compact420.counts && !compact420.overflow,
+      JSON.stringify(compact420),
+    );
+    // M2：420 宽大厅品牌可见性、Tab 顺序与开局路径（契约 B01/B02 的 W6 断点）
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '420 大厅');
+    await waitFor('window.__verify.brandAudit().versionVisible', 5000, '420 大厅版本号可见');
+    const brand420 = await evaluate('window.__verify.brandAudit()');
+    check(
+      'M2 @420 大厅：品牌、版本号与开启对局可见、Tab 顺序正确、无横向溢出',
+      brand420.titleVisible && brand420.versionVisible && brand420.startVisible && brand420.tabOrder && !brand420.overflow,
+      JSON.stringify(brand420),
+    );
+    await shot('v2/M2-lobby-420.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -1905,6 +2123,13 @@ async function main() {
       '- review-assets/ui-m6-effects-1440.png',
       '- review-assets/ui-m6-settings-1440.png',
       '- review-assets/ui-m6-mobile-760.png',
+      '- review-assets/v2/M2-lobby-1440.png',
+      '- review-assets/v2/M2-lobby-1024.png',
+      '- review-assets/v2/M2-lobby-760.png',
+      '- review-assets/v2/M2-lobby-420.png',
+      '- review-assets/v2/M3-table-4p-1440.png',
+      '- review-assets/v2/M3-table-10p-1440.png',
+      '- review-assets/v2/M3-table-10p-1024.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');

@@ -11,7 +11,6 @@
  * - `runDifficultyLadder({ gamesPerPairing })` / `runMixedTable({ games })`：自对弈基准；
  * - `playSelfPlayGame(config)`：单局 AI vs AI。
  */
-export const AI_VERSION = '0.2.0';
 
 export * from './types.ts';
 export * from './difficulty.ts';

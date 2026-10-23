@@ -84,7 +84,8 @@ describe('静态资源（M3-2 引擎模式）', () => {
     const res = await fetch(`${baseUrl}/`);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain('UNO 单机版');
+    // v2.0.0 M2：唯一品牌为 UNO Local（旧文案「UNO 单机版」已按契约移除）
+    expect(html).toContain('UNO Local');
     expect(html).toContain('js/app.js');
   });
 

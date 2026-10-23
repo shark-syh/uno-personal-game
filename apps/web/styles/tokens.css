@@ -35,6 +35,25 @@
   --shadow-focus: 0 0 0 3px rgba(255, 255, 255, 0.92), 0 0 0 6px rgba(85, 85, 255, 0.75);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* v2.0.0 UI 重构（M2）：主操作金色与统一减速曲线 */
+  --v2-gold: #ffc247;
+  --v2-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* v2.0.0 UI 重构（M3）：椭圆牌桌、座位锚点、层级表面 */
+  --v2-gold-soft: rgba(255, 194, 71, 0.22);
+  --v2-gold-line: rgba(255, 194, 71, 0.58);
+  --v2-surface-0: rgba(4, 18, 12, 0.72);
+  --v2-surface-1: rgba(7, 31, 21, 0.88);
+  --v2-surface-2: rgba(14, 77, 46, 0.48);
+  --v2-line-soft: rgba(210, 239, 219, 0.14);
+  --v2-line-strong: rgba(210, 239, 219, 0.3);
+  --v2-text-dim: #9fb9a8;
+  --v2-arena-w: min(72vw, 820px);
+  --v2-arena-h: min(56vh, 520px);
+  --v2-arena-min-h: 340px;
+  --v2-seat-w: 132px;
+  --v2-seat-h: 64px;
+  --v2-center-card-w: clamp(76px, 8.4vw, 120px);
+  --v2-dur-slow: 280ms;
   --z-table: 1;
   --z-hud: 10;
   --z-dev: 20;

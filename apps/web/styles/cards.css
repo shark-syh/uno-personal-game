@@ -23,6 +23,12 @@
 .card.is-drawn { box-shadow: 0 0 0 3px var(--yellow), var(--shadow-card); }
 .card.is-drawn::before { content: "刚抽"; position: absolute; z-index: 3; top: 5px; left: 5px; padding: 2px 5px; border-radius: 4px; color: #1b1400; background: var(--yellow); font-size: 10px; font-weight: 800; }
 .card.is-top { width: calc(var(--card-w) * .88); height: calc(var(--card-h) * .88); }
+/* M3：中心牌堆随 --v2-center-card-w 缩放，堆内卡牌铺满槽位（保持 2:3） */
+.pile-stack .card { width: 100%; height: 100%; flex: 0 0 100%; }
+.pile-stack .card.is-top { width: 88%; height: 88%; }
+.pile-stack .card .fallback-label { font-size: 24px; }
+.pile-stack .card .card-back-label { font-size: 20px; }
+@media (max-width: 999px) { .pile-stack .card .fallback-label { font-size: 20px; } }
 .card-back { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9px; background: #e51d3f; }
 .card-back img { object-fit: cover; }
 .card-back-label { position: absolute; z-index: 2; color: white; font-size: 25px; font-weight: 900; transform: rotate(-18deg); }

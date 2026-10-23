@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#0e4d2e">
   <link rel="icon" type="image/svg+xml" href="assets/card-back.svg">
-  <title>UNO 单机版</title>
+  <title>UNO Local</title>
   <link rel="stylesheet" href="styles/tokens.css">
   <link rel="stylesheet" href="styles/layout.css">
   <link rel="stylesheet" href="styles/cards.css">
@@ -17,12 +17,13 @@
   <main id="app" aria-live="polite">
     <section id="lobby-screen" class="screen" data-screen="lobby" aria-labelledby="lobby-title">
       <div class="lobby-shell">
-        <div class="lobby-brand">
+        <header class="lobby-brand">
           <img class="lobby-mark" src="assets/card-back.svg" width="120" height="180" alt="UNO 卡背">
-          <h1 id="lobby-title">UNO 单机版</h1>
-          <p>个人练习项目，非官方</p>
-        </div>
+          <h1 id="lobby-title">UNO Local</h1>
+          <span id="lobby-version" class="app-version" hidden></span>
+        </header>
         <div class="lobby-panel" id="single-panel">
+          <p id="lobby-lead">v2.0.0 UI 重构与交互升级</p>
           <form id="lobby-form" class="lobby-form">
             <div class="form-grid">
 
@@ -50,7 +51,7 @@
               </div>
             </div>
             <div class="lobby-actions">
-              <button class="btn btn-primary btn-large" type="submit" aria-label="开始游戏">开始游戏</button>
+              <button id="lobby-start" class="btn btn-primary btn-large" type="submit" aria-label="开启对局">开启对局</button>
               <button class="btn btn-ghost" type="button" data-open-dialog="settings" aria-label="设置">设置</button>
               <button class="btn btn-ghost" type="button" data-open-dialog="stats" aria-label="战绩">战绩</button>
             </div>
@@ -96,7 +97,7 @@
               <button id="room-emote-toggle" class="btn btn-ghost" type="button" aria-label="发送表情" hidden>表情</button>
             </div>
             <div class="lobby-actions">
-              <button id="room-start" class="btn btn-primary" type="button" aria-label="开始游戏" hidden>开始游戏</button>
+              <button id="room-start" class="btn btn-primary" type="button" aria-label="开启对局" hidden>开启对局</button>
               <button id="room-leave" class="btn btn-ghost" type="button" aria-label="离开房间">离开房间</button>
             </div>
           </div>
@@ -106,6 +107,10 @@
 
     <section id="game-screen" class="screen" data-screen="game" aria-label="牌桌">
       <header id="top-bar">
+        <div id="game-brand">
+          <span id="brand-name">UNO Local</span>
+          <span id="game-version" class="app-version" hidden></span>
+        </div>
         <div class="top-status">
           <span class="status-chip status-color"><span id="color-indicator" class="color-dot" data-color="red" aria-hidden="true"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
           <span class="status-chip"><span id="direction-indicator" data-direction="1" aria-label="顺时针">↻</span><span id="direction-label">顺时针</span></span>

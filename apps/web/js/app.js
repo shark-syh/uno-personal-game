@@ -8,7 +8,7 @@ import { startEngineMode, stopEngineMode } from "./engine/engineMode.js";
 import { initOnlineMode } from "./net/onlineMode.js";
 import { installAudioUnlock } from "./audio/sfx.js";
 
-// M3-2：默认进入「引擎模式」（真实对局）；mock 只用于 UI 回归/开发。
+// 默认进入「引擎模式」（真实对局）；mock 只用于 UI 回归/开发。
 // - 直接打开页面：引擎模式（大厅 → 真实对局），零构建，引擎由 js/vendor/uno-engine.js 提供。
 // - ?mock=1 / ?dev=1：mock 开发模式（显示工具条，动作只打印/演示）。
 // - ?test=1：引擎模式 + AI 快速/事件日志（自动化 UI 验证用，见 scripts/verify-ui.ts）。
@@ -130,6 +130,18 @@ window.addEventListener("uno:settings-changed", () => {
 installDialogKeyboard();
 // M6-02：浏览器 autoplay 限制——首次用户交互时创建/恢复 AudioContext
 installAudioUnlock();
+// M2：品牌版本号只显示服务端 /api/health 的 version（形如 v1.3.0）；请求失败保持隐藏，不显示假版本
+fetch("/api/health")
+  .then((response) => (response.ok ? response.json() : null))
+  .then((health) => {
+    const version = typeof health?.version === "string" ? health.version.trim().replace(/^v/, "") : "";
+    if (!version) return;
+    for (const node of document.querySelectorAll("#lobby-version, #game-version")) {
+      node.textContent = `v${version}`;
+      node.hidden = false;
+    }
+  })
+  .catch(() => {});
 // M8-01：大厅「局域网联机」入口（创建/加入房间）；退出联机时回到单机引擎大厅
 initOnlineMode({ toast, onExit: () => startEngineMode({ toast }) });
 if (mode === "mock") rerender(view);

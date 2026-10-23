@@ -346,6 +346,56 @@ try {
     check(`${ownName} 牌桌只看到 1 个对手座位框`, layout.count === 1 && layout.dataCount === '1', JSON.stringify(layout.seats));
     check(`${ownName} 座位框不显示自己且名字/牌数正确`, !layout.names.includes(ownName) && layout.meta.every((text) => text.includes('张')), layout.names.join(','));
     check(`${ownName} 座位框在视口内且不压手牌区`, layout.inside && layout.boxBottoms.every((bottom) => bottom < layout.handTop), JSON.stringify(layout.boxBottoms));
+    // M3：联机视角下的圆桌契约——椭圆桌面、座位圆周锚点、data-* 状态同步、视角座位换位正确
+    const arena = await page.evaluate(`(() => {
+      const screen = document.querySelector('#game-screen');
+      const seats = [...document.querySelectorAll('#opponents .opponent')].map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          seat: Number(node.dataset.seat),
+          relative: Number(node.dataset.relativeSeat || 0),
+          anchor: [node.style.getPropertyValue('--seat-x'), node.style.getPropertyValue('--seat-y')],
+          current: node.dataset.current === 'true',
+          rect: [Math.round(rect.left), Math.round(rect.top), Math.round(rect.right), Math.round(rect.bottom)],
+        };
+      });
+      return {
+        arena: Boolean(document.querySelector('#table-area.arena .arena-rail')),
+        phase: screen?.dataset.phase || '',
+        currentSeat: screen?.dataset.currentSeat ?? '',
+        viewerSeat: screen?.dataset.viewerSeat ?? '',
+        seatCount: Number(document.querySelector('#opponents')?.dataset.seatCount || 0),
+        seats,
+        stamp: (document.querySelector('#turn-stamp')?.textContent || '').trim(),
+        pile: (() => {
+          const rect = document.querySelector('#discard-pile').getBoundingClientRect();
+          return [Math.round(rect.left), Math.round(rect.top), Math.round(rect.right), Math.round(rect.bottom)];
+        })(),
+        overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      };
+    })()`);
+    const overlapsCenter = arena.seats.filter((seat) => {
+      const [l, t, r, b] = seat.rect;
+      const [pl, pt, pr, pb] = arena.pile;
+      return l < pr + 2 && r > pl - 2 && t < pb + 2 && b > pt - 2;
+    });
+    check(
+      `${ownName} M3 圆桌：椭圆桌面就绪、座位圆周锚点齐全且不压中心牌堆`,
+      arena.arena &&
+        arena.seatCount === 1 &&
+        arena.seats.every((seat) => seat.relative === 1 && seat.anchor.every(Boolean)) &&
+        overlapsCenter.length === 0 &&
+        !arena.overflow,
+      JSON.stringify({ arena: arena.arena, seatCount: arena.seatCount, seats: arena.seats, pile: arena.pile }),
+    );
+    check(
+      `${ownName} M3 状态同步：data-phase/current-seat/viewer-seat 就绪、#turn-stamp 含行动者`,
+      arena.phase.length > 0 &&
+        arena.currentSeat !== '' &&
+        arena.viewerSeat !== '' &&
+        arena.stamp.length > 0,
+      JSON.stringify({ phase: arena.phase, currentSeat: arena.currentSeat, viewerSeat: arena.viewerSeat, stamp: arena.stamp }),
+    );
     check(
       `${ownName} 对手卡背按手牌数显示且不压名字/张数`,
       layout.hands.length === 1 &&

@@ -142,7 +142,8 @@ export function createAiRouter(deps: AiRouterDeps): Router {
       ],
       temperature: 0,
       maxTokens: 64,
-      timeoutMs: 8000,
+      // 诊断接口给足预算：主模型偶发拥塞时仍能切到备用模型，避免误报失败
+      timeoutMs: 12000,
     });
     if (!result.ok) {
       res.status(failureStatus(result.code)).json(failureBody(result));

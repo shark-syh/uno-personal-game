@@ -80,5 +80,3 @@ export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "deck-edge-one") return common({ name, drawPileCount: 1, events: [{ type: "DRAW", seat: 1, count: 1 }] });
   return normal("normal-play", 4);
 }
-
-export function mockAction(view, actionValue) { console.log("[UNO mock action]", actionValue); return view; }

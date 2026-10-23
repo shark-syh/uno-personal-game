@@ -3,6 +3,26 @@ import { setViewerSeat } from "../state/viewer.js";
 import { restoreEmoteBubbles } from "./emotes.js";
 
 const OPPONENT_HAND_MAX = 5;
+// M3：圆周座位锚点角度表（CSS 角度：0°=右，90°=下；覆盖 1~9 个对手，N 为 10 人局上限）。
+// 相对座位 1 从玩家左侧开始顺时针；JS 只负责把角度换算成 --seat-x/--seat-y，CSS 只消费。
+const SEAT_ANGLES = {
+  1: [270],
+  2: [210, 330],
+  3: [180, 270, 360],
+  4: [160, 220, 320, 380],
+  5: [150, 210, 270, 330, 390],
+  6: [150, 198, 246, 294, 342, 390],
+  7: [150, 190, 230, 270, 310, 350, 390],
+  8: [150, 184, 219, 254, 286, 321, 356, 390],
+  9: [150, 180, 210, 240, 270, 300, 330, 360, 390],
+};
+
+function seatAnchor(relativeSeat, opponentCount) {
+  const table = SEAT_ANGLES[opponentCount] || SEAT_ANGLES[9];
+  const angle = table[relativeSeat - 1] ?? 270;
+  const rad = (angle * Math.PI) / 180;
+  return { angle, x: 50 + 46 * Math.cos(rad), y: 50 + 40 * Math.sin(rad) };
+}
 
 function renderOpponentHand(player) {
   const visible = Math.min(OPPONENT_HAND_MAX, Math.max(0, Number(player.handCount) || 0));
@@ -53,14 +73,31 @@ export function renderPlayers(view) {
   // 在服务端都是 isHuman=true，自己的座位由 view.human.seat 给出。
   const viewer = view.human?.seat ?? 0;
   setViewerSeat(viewer);
+  const gameScreen = document.querySelector("#game-screen");
+  if (gameScreen) gameScreen.dataset.viewerSeat = String(viewer);
   const total = view.players.length;
-  // 对手座位框按「相对视角座位的距离」套用 opponent-seat-N 布局类（单机 viewer=0 时与绝对座位一致），
+  // M3：座位按「相对视角座位的距离」计算圆周锚点（相对座位 1 = 玩家左侧），
   // data-seat 仍保留真实座位号，供动效落点 / 挑战展示 / 台词气泡按座位查找。
   const relativeSeat = (seat) => (seat - viewer + total) % Math.max(total, 1);
   const opponents = view.players.filter((player) => player.seat !== viewer);
   root.dataset.count = String(opponents.length);
+  root.dataset.seatCount = String(opponents.length);
   root.replaceChildren(...opponents.map((player) => {
-    const node = document.createElement("article"); node.className = `opponent opponent-seat-${relativeSeat(player.seat)}${player.seat === view.currentSeat ? " is-current" : ""}`; node.dataset.seat = String(player.seat); node.dataset.handCount = String(player.handCount); node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
+    const relative = relativeSeat(player.seat);
+    const anchor = seatAnchor(relative, opponents.length);
+    const isCurrent = player.seat === view.currentSeat;
+    const node = document.createElement("article");
+    node.className = `opponent${isCurrent ? " is-current" : ""}`;
+    node.dataset.seat = String(player.seat);
+    node.dataset.relativeSeat = String(relative);
+    node.dataset.handCount = String(player.handCount);
+    node.dataset.current = String(isCurrent);
+    node.dataset.uno = String(Boolean(player.saidUno));
+    node.dataset.thinking = String(Boolean(player.thinking));
+    node.style.setProperty("--seat-x", `${anchor.x.toFixed(2)}%`);
+    node.style.setProperty("--seat-y", `${anchor.y.toFixed(2)}%`);
+    node.style.setProperty("--seat-angle", `${anchor.angle}deg`);
+    node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
     const avatar = document.createElement("span"); avatar.className = "avatar"; avatar.textContent = player.avatar;
     const name = document.createElement("strong"); name.className = "opponent-name"; name.textContent = player.name;
     const meta = document.createElement("span"); meta.className = "opponent-meta"; meta.textContent = `${player.handCount} 张${player.saidUno ? " · UNO" : ""}`;
