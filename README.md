@@ -134,9 +134,9 @@ AI 不是陪练，也不是一个只会「能出就出」的脚本。它们分�
 
 <img align="right" width="420" src="docs/images/game-10p.webp" alt="10 人对局">
 
-最多 10 个座位。人一多，牌桌就变成另一种东西：一圈头像，此起彼伏的「思考中」，还有你几乎记不过来的出牌速度。10 人真实对局在 1440 与 1024 宽度下都不会重叠、溢出；每个座位都在自己的位置上，手牌数、UNO 状态和最近出的牌都能看见。
+最多 10 个座位。人一多，牌桌就变成另一种东西：一圈头像，此起彼伏的「思考中」，还有你几乎记不过来的出牌速度。10 人真实对局在 1440 与 1024 宽度下都不会重叠、溢出；每个座位都在自己的位置上，手牌数、UNO 状态和最近出的牌都能看见。对手框左下角还会用 1~5 张小卡背直观表示剩余手牌，超过 5 张时仍以「N 张」文字为准。
 
-小屏幕也能玩。760 宽度下，座位会折成网格，手牌区允许横向滚动；布局不横向溢出，操作栏仍然可用。移动端目前是基础适配，还没有做真机验收——桌面仍是主要场景。
+小屏幕也能玩。760 宽度下，座位会折成网格，手牌区允许横向滚动，对手卡背缩为 18×27；420 以下隐藏卡背、保留「N 张」文字。布局不横向溢出，操作栏仍然可用。移动端目前是基础适配，还没有做真机验收——桌面仍是主要场景。
 
 <p align="center">
   <img src="docs/images/mobile-760.webp" width="340" alt="760 宽布局">
@@ -233,8 +233,8 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | `npm run typecheck` | TypeScript 类型检查 |
 | `npm run lint` | ESLint 检查 |
 | `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`） |
-| `npm run verify:ui` | 单机浏览器自动验收（103 项，无头 Chrome + CDP，需服务已启动） |
-| `npm run verify:online` | 联机多客户端验收（24 项：双客户端房间/布局/表情/UNO 窗口分流/房主移交，需服务已启动） |
+| `npm run verify:ui` | 单机浏览器自动验收（107 项，无头 Chrome + CDP，需服务已启动） |
+| `npm run verify:online` | 联机多客户端验收（26 项：双客户端房间/布局/表情/UNO 窗口分流/房主移交，需服务已启动） |
 | `npm run desktop:dev` | 构建并启动 Electron 桌面版（开发模式） |
 | `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-1.3.0.exe` |
 | `npm run verify:desktop` | 双 Electron 实例验收（UDP 发现/加入/主机退出；沙箱 GUI 不可用时 SKIP） |
@@ -252,8 +252,8 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | --- | --- |
 | `npm test` | 32 文件 / 335 用例全部通过（引擎规则、公开视图隐藏信息、结算统计、联机限频、房主迁移、AI 自对弈等） |
 | `npm run typecheck` / `npm run lint` | 0 错误 |
-| `npm run verify:ui` | 103 / 103 通过（3 局完整真实对局 + 6/10 人布局轮转 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
-| `npm run verify:online` | 24 / 24 通过（双客户端建房/加入、座位框视角、表情广播与冷却、UNO 窗口喊/抓分流、对局中房主移交、控制台 0 error） |
+| `npm run verify:ui` | 107 / 107 通过（3 局完整真实对局 + 6/10 人布局轮转 + M13 对手卡背 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
+| `npm run verify:online` | 26 / 26 通过（双客户端建房/加入、座位框视角、M13 对手卡背、表情广播与冷却、UNO 窗口喊/抓分流、对局中房主移交、控制台 0 error） |
 | `npm run verify:desktop` | 双 Electron 实例（独立 userData / 9351+9352）：建房、UDP 发现或手动地址加入、开局、主机退出回大厅；本机沙箱 GUI 不可用时输出 SKIP，需真机执行 |
 | `npm run selfplay` | 700 局通过（非法动作 0、异常 0；难度胜率单调、混战排名单调） |
 | `npm run perf` | 首屏 FCP 160ms / FPS 60 / 内存平稳（报告在本地 `review-assets/` 生成） |

@@ -3,7 +3,7 @@
 > 自 M7-01 起，`npm run verify:ui` 是单机正式 E2E 回归套件；M9-04 起新增 `npm run verify:online` 覆盖联机双客户端；M10-06 起新增 `npm run verify:desktop` 覆盖双 Electron 实例。
 > 三者都不引入 Playwright 等第三方依赖：直接用无头 Chrome/Edge（桌面套件为 Electron）+ CDP（DevTools 协议）+ Node 原生 WebSocket 实现，脚本分别是 [`scripts/verify-ui.mjs`](../scripts/verify-ui.mjs)、[`scripts/verify-online.mjs`](../scripts/verify-online.mjs) 与 [`scripts/verify-desktop.mjs`](../scripts/verify-desktop.mjs)。
 
-## 1. 覆盖范围（约 5 分钟 / 103 项）
+## 1. 覆盖范围（约 5 分钟 / 107 项）
 
 | # | 章节 | 覆盖内容 |
 | --- | --- | --- |
@@ -18,6 +18,7 @@
 | 4b/4c | 规则设置（M5-06） | 设置页 4 项规则保存与生效、挑战手牌展示（M5-01） |
 | 5 | mock 弹窗回归 | UNO 按钮尺寸 / 单击即喊 / uno-pulse / **UNO 窗口倒计时条**、抓 UNO 确认弹窗、+4 挑战弹窗动画、牌堆边界提示 |
 | 5b | 响应式（M6-05） | 760 宽布局、减少动态效果回归 |
+| 5c | 对手手牌（M13） | 4/5/6 张映射、22×33 卡背、`lastPlayed` 共存、1024/760/420 响应式与文字不遮挡 |
 | 6 | 质量红线 | 控制台 0 error、网络全部同源且无 4xx/5xx、卡面加载无失败、无横向溢出、隐藏信息不外泄 |
 
 产物：
@@ -58,10 +59,11 @@ Windows 下的查找顺序：`CHROME_PATH` → Program Files 下 Chrome (x64/x86
 
 ## 2b. 联机双客户端验收（verify:online）
 
-前置与 `verify:ui` 相同，但使用调试端口 **9334**（可与单机套件并行），默认输出 24 项结果到控制台：
+前置与 `verify:ui` 相同，但使用调试端口 **9334**（可与单机套件并行），默认输出 26 项结果到控制台：
 
 - 单机隐藏表情入口；双客户端创建/加入房间；
 - 双方座位框按视角座位渲染（不显示自己、名字/牌数正确、视口内且不压手牌）；
+- M13：双方对手卡背按手牌数显示、22×33、不压名字/张数；
 - 大厅与对局表情广播、发送者提示、气泡位置；连发 5 条进入 2 秒冷却并恢复；
 - 自动对局最多 3 局，直到 UNO 窗口出现，断言窗口主人只看到「UNO!」、其他座位只看到「抓他」；
 - M10-05：对局中房主离开，断言服务端把房主移交给下一位在线玩家，且新房主收到「你成为新房主」提示；

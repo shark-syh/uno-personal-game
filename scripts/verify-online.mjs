@@ -309,6 +309,32 @@ try {
         seats: boxes.map((node) => Number(node.dataset.seat)),
         names: boxes.map((node) => node.querySelector('.opponent-name')?.textContent || ''),
         meta: boxes.map((node) => node.querySelector('.opponent-meta')?.textContent || ''),
+        hands: boxes.map((node) => {
+          const stack = node.querySelector('.opponent-hand');
+          const cards = [...node.querySelectorAll('.opponent-hand-card')];
+          const rect = (element) => {
+            const box = element.getBoundingClientRect();
+            return [box.left, box.top, box.right, box.bottom];
+          };
+          let union = null;
+          for (const card of cards) {
+            const box = rect(card);
+            union = union
+              ? [Math.min(union[0], box[0]), Math.min(union[1], box[1]), Math.max(union[2], box[2]), Math.max(union[3], box[3])]
+              : box;
+          }
+          const overlaps = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+          return {
+            handCount: Number(node.dataset.handCount),
+            visible: Number(stack?.dataset.visible || 0),
+            cards: cards.length,
+            display: stack ? getComputedStyle(stack).display : 'missing',
+            cardW: cards[0]?.offsetWidth || 0,
+            cardH: cards[0]?.offsetHeight || 0,
+            nameOverlap: union ? overlaps(union, rect(node.querySelector('.opponent-name'))) : false,
+            metaOverlap: union ? overlaps(union, rect(node.querySelector('.opponent-meta'))) : false,
+          };
+        }),
         inside: boxes.every((node) => {
           const rect = node.getBoundingClientRect();
           return rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
@@ -320,6 +346,21 @@ try {
     check(`${ownName} 牌桌只看到 1 个对手座位框`, layout.count === 1 && layout.dataCount === '1', JSON.stringify(layout.seats));
     check(`${ownName} 座位框不显示自己且名字/牌数正确`, !layout.names.includes(ownName) && layout.meta.every((text) => text.includes('张')), layout.names.join(','));
     check(`${ownName} 座位框在视口内且不压手牌区`, layout.inside && layout.boxBottoms.every((bottom) => bottom < layout.handTop), JSON.stringify(layout.boxBottoms));
+    check(
+      `${ownName} 对手卡背按手牌数显示且不压名字/张数`,
+      layout.hands.length === 1 &&
+        layout.hands.every(
+          (hand) =>
+            hand.visible === Math.min(5, hand.handCount) &&
+            hand.cards === hand.visible &&
+            hand.display === 'block' &&
+            hand.cardW === 22 &&
+            hand.cardH === 33 &&
+            !hand.nameOverlap &&
+            !hand.metaOverlap,
+        ),
+      JSON.stringify(layout.hands),
+    );
   }
 
   await b.evaluate(`document.querySelector('#game-emote-toggle').click(); true`);

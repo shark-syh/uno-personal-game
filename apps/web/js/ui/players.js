@@ -2,6 +2,28 @@ import { renderCard } from "./hand.js";
 import { setViewerSeat } from "../state/viewer.js";
 import { restoreEmoteBubbles } from "./emotes.js";
 
+const OPPONENT_HAND_MAX = 5;
+
+function renderOpponentHand(player) {
+  const visible = Math.min(OPPONENT_HAND_MAX, Math.max(0, Number(player.handCount) || 0));
+  if (!visible) return null;
+  const stack = document.createElement("div");
+  stack.className = "opponent-hand";
+  stack.dataset.visible = String(visible);
+  stack.dataset.layout = "fan";
+  stack.setAttribute("aria-hidden", "true");
+  const center = (visible - 1) / 2;
+  for (let index = 0; index < visible; index += 1) {
+    const card = document.createElement("span");
+    card.className = "opponent-hand-card";
+    card.style.setProperty("--oh-i", String(index));
+    card.style.setProperty("--oh-center", String(center));
+    card.style.zIndex = String(index + 1);
+    stack.append(card);
+  }
+  return stack;
+}
+
 /**
  * BUG-04：AI 台词 TTL 到期时只清对应座位的气泡文本。
  * 这里刻意不做整页 render：避免把玩家刚打开的设置/战绩弹窗关掉，
@@ -38,11 +60,13 @@ export function renderPlayers(view) {
   const opponents = view.players.filter((player) => player.seat !== viewer);
   root.dataset.count = String(opponents.length);
   root.replaceChildren(...opponents.map((player) => {
-    const node = document.createElement("article"); node.className = `opponent opponent-seat-${relativeSeat(player.seat)}${player.seat === view.currentSeat ? " is-current" : ""}`; node.dataset.seat = String(player.seat); node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
+    const node = document.createElement("article"); node.className = `opponent opponent-seat-${relativeSeat(player.seat)}${player.seat === view.currentSeat ? " is-current" : ""}`; node.dataset.seat = String(player.seat); node.dataset.handCount = String(player.handCount); node.setAttribute("aria-label", `${player.name}，${player.handCount} 张牌`);
     const avatar = document.createElement("span"); avatar.className = "avatar"; avatar.textContent = player.avatar;
     const name = document.createElement("strong"); name.className = "opponent-name"; name.textContent = player.name;
     const meta = document.createElement("span"); meta.className = "opponent-meta"; meta.textContent = `${player.handCount} 张${player.saidUno ? " · UNO" : ""}`;
     node.append(avatar, name, meta);
+    const hand = renderOpponentHand(player);
+    if (hand) node.append(hand);
     if (player.lastPlayed) node.append(renderCard(player.lastPlayed, { mini: true }));
     if (player.saidUno) { const uno = document.createElement("span"); uno.className = "status-pill"; uno.textContent = "UNO"; node.append(uno); }
     return node;

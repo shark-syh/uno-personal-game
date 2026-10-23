@@ -144,6 +144,44 @@ window.__verify = {
   resultRows: () => [...document.querySelectorAll('.result-row')].map((row) => row.textContent.trim()),
   handCount: () => document.querySelectorAll('#hand .card').length,
   opponentCount: () => document.querySelectorAll('#opponents .opponent').length,
+  opponentHands: () =>
+    [...document.querySelectorAll('#opponents .opponent')].map((node) => {
+      const stack = node.querySelector('.opponent-hand');
+      const cards = [...node.querySelectorAll('.opponent-hand-card')];
+      const rect = (element) => {
+        const box = element.getBoundingClientRect();
+        return [box.left, box.top, box.right, box.bottom];
+      };
+      let union = null;
+      for (const card of cards) {
+        const box = rect(card);
+        union = union
+          ? [
+              Math.min(union[0], box[0]),
+              Math.min(union[1], box[1]),
+              Math.max(union[2], box[2]),
+              Math.max(union[3], box[3]),
+            ]
+          : box;
+      }
+      const intersects = (a, b) => Boolean(a && b) && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+      const first = cards[0];
+      return {
+        seat: Number(node.dataset.seat),
+        handCount: Number(node.dataset.handCount),
+        visible: Number(stack?.dataset.visible || 0),
+        cards: cards.length,
+        lastPlayed: Boolean(node.querySelector('.mini-card')),
+        display: stack ? getComputedStyle(stack).display : 'missing',
+        cardW: first ? first.offsetWidth : 0,
+        cardH: first ? first.offsetHeight : 0,
+        nameOverlap: intersects(union, rect(node.querySelector('.opponent-name'))),
+        metaOverlap: intersects(union, rect(node.querySelector('.opponent-meta'))),
+        inside: !union
+          ? true
+          : union[0] >= 0 && union[1] >= 0 && union[2] <= window.innerWidth && union[3] <= window.innerHeight,
+      };
+    }),
   activeDialogTitle: () => document.querySelector('#dialog-root.is-open #dialog-title')?.textContent || '',
   dialogs: () => [...document.querySelectorAll('#dialog-root.is-open button')].map((button) => button.textContent.trim()).filter(Boolean),
   actionLabels: () => [...document.querySelectorAll('#action-bar button')].map((button) => ({ text: button.textContent.trim(), disabled: button.disabled })),
@@ -1112,6 +1150,24 @@ async function main() {
       JSON.stringify(mockUi.labels),
     );
     check('mock 牌桌：正常回合无冗余提示文字', mockUi.hint === '', `hint=${mockUi.hint}`);
+    const mockHands = await evaluate('window.__verify.opponentHands()');
+    check(
+      'M13 对手手牌：几何张数映射（4/5/6 → 4/5/5）、22×33 卡背、避开名字/张数、lastPlayed 共存',
+      mockHands.length === 3 &&
+        mockHands.every(
+          (hand) =>
+            hand.visible === Math.min(5, hand.handCount) &&
+            hand.cards === hand.visible &&
+            hand.display === 'block' &&
+            hand.cardW === 22 &&
+            hand.cardH === 33 &&
+            !hand.nameOverlap &&
+            !hand.metaOverlap &&
+            hand.inside,
+        ) &&
+        mockHands[0].lastPlayed,
+      JSON.stringify(mockHands),
+    );
     const queueMeasure = await evaluate(`(async () => {
       const events = Array.from({ length: 5 }, () => ({ type: 'DRAW', seat: 1, count: 1, cards: [] }));
       const startedAt = performance.now();
@@ -1675,6 +1731,22 @@ async function main() {
       !game1024.labels.some((item) => item.text.startsWith('出 ') || item.text.startsWith('叠 ')),
       JSON.stringify(game1024.labels),
     );
+    const mockHands1024 = await evaluate('window.__verify.opponentHands()');
+    check(
+      'M13 @1024：卡背保持 22×33 且不压名字/张数',
+      mockHands1024.length === 3 &&
+        mockHands1024.every(
+          (hand) =>
+            hand.visible === Math.min(5, hand.handCount) &&
+            hand.cards === hand.visible &&
+            hand.cardW === 22 &&
+            hand.cardH === 33 &&
+            !hand.nameOverlap &&
+            !hand.metaOverlap &&
+            hand.inside,
+        ),
+      JSON.stringify(mockHands1024),
+    );
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -1710,7 +1782,40 @@ async function main() {
         mobileGame.actionBar >= 1,
       JSON.stringify(mobileGame),
     );
+    const mobileHands = await evaluate('window.__verify.opponentHands()');
+    check(
+      'M13 @760：卡背缩为 18×27、张数映射不变、避开名字/张数',
+      mobileHands.length === 3 &&
+        mobileHands.every(
+          (hand) =>
+            hand.visible === Math.min(5, hand.handCount) &&
+            hand.cards === hand.visible &&
+            hand.display === 'block' &&
+            hand.cardW === 18 &&
+            hand.cardH === 27 &&
+            !hand.nameOverlap &&
+            !hand.metaOverlap &&
+            hand.inside,
+        ),
+      JSON.stringify(mobileHands),
+    );
     await shot('ui-m6-mobile-760.png');
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 420,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await sleep(250);
+    const compactHands = await evaluate('window.__verify.opponentHands()');
+    check(
+      'M13 @420：极窄屏隐藏对手卡背，保留「N 张」文字且无横向溢出',
+      compactHands.length === 3 &&
+        compactHands.every((hand) => hand.display === 'none') &&
+        (await evaluate('window.__verify.overflow()')).scroll <=
+          (await evaluate('window.__verify.overflow()')).client,
+      JSON.stringify(compactHands),
+    );
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,

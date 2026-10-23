@@ -49,6 +49,36 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 .opponent-meta { color: var(--ink-muted); font-size: 12px; }
 .opponent .mini-card { position: absolute; right: 5px; top: 5px; }
 .opponent .status-pill { position: absolute; right: 6px; bottom: 5px; }
+.opponent-hand {
+  --oh-card-w: 22px;
+  --oh-card-h: 33px;
+  --oh-step: 3px;
+  --oh-rotate: 5deg;
+  --oh-offset-y: -2px;
+  position: absolute;
+  left: 4px;
+  bottom: -6px;
+  z-index: 2;
+  width: calc(var(--oh-card-w) + 4 * var(--oh-step));
+  height: var(--oh-card-h);
+  pointer-events: none;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, .45));
+}
+.opponent-hand-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: var(--oh-card-w);
+  height: var(--oh-card-h);
+  border: 1px solid rgba(255, 255, 255, .45);
+  border-radius: 4px;
+  background: url("../assets/card-back.svg") center / 100% 100% no-repeat;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .38);
+  transform: translateX(calc(var(--oh-i, 0) * var(--oh-step))) rotate(calc((var(--oh-i, 0) - var(--oh-center, 0)) * var(--oh-rotate)));
+  transform-origin: 50% 100%;
+}
+.opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
 #opponents:is([data-count="1"], [data-count="2"], [data-count="3"], [data-count="4"]) { position: relative; grid-row: 1; display: flex; justify-content: center; align-items: start; gap: 24px; padding-top: 4px; }
 #opponents:is([data-count="1"], [data-count="2"], [data-count="3"], [data-count="4"]) .opponent { position: relative; inset: auto; }
 #opponents:is([data-count="3"], [data-count="4"]) .opponent:first-child, #opponents:is([data-count="3"], [data-count="4"]) .opponent:last-child { transform: translateY(10px); }
@@ -142,6 +172,7 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
   #opponents[data-count] .opponent { position: relative; inset: auto; width: auto; min-width: 0; min-height: 68px; padding: 7px; transform: none; }
   #opponents[data-count="1"] { grid-template-columns: minmax(130px, 200px); justify-content: center; }
   .opponent .avatar { width: 28px; height: 28px; font-size: 18px; }
+  .opponent-hand { --oh-card-w: 18px; --oh-card-h: 27px; left: 3px; bottom: -4px; }
   #table-center { min-height: 176px; }
   #table-direction { left: calc(50% + 133px); font-size: 28px; }
   #event-feed, #speech-layer { width: 100%; }
@@ -158,6 +189,7 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
   #player-count-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .opponent { grid-template-columns: 25px minmax(0, 1fr); gap: 3px; }
   .opponent-name { font-size: 12px; } .opponent .mini-card { display: none; }
+  .opponent-hand { display: none; }
   .top-actions .btn { padding-inline: 8px; } .top-status { max-width: 220px; }
 }
 /* 矮屏减少手牌顶部留白（配合 cards.css 中矮屏更小的上浮幅度，避免裁剪） */
