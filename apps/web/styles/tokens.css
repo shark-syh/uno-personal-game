@@ -53,6 +53,10 @@
   --v2-seat-w: 132px;
   --v2-seat-h: 64px;
   --v2-center-card-w: clamp(76px, 8.4vw, 120px);
+  /* v2.0.0 UI 重构（M4）：悬浮手牌与动作区 */
+  --v2-hand-card-w: clamp(76px, 8.4vw, 120px);
+  --v2-dur-fast: 120ms;
+  --v2-dur-base: 180ms;
   --v2-dur-slow: 280ms;
   --z-table: 1;
   --z-hud: 10;

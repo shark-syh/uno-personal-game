@@ -12,7 +12,7 @@
   background: #fff;
   box-shadow: var(--shadow-card);
   transform-origin: center bottom;
-  transition: transform 180ms var(--ease-out), filter 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+  transition: transform var(--v2-dur-base) var(--ease-out), filter var(--v2-dur-base) ease, opacity var(--v2-dur-base) ease, box-shadow var(--v2-dur-base) ease;
 }
 .card::after { content: ""; position: absolute; inset: 8px; border: 2px solid rgba(255,255,255,.75); border-radius: 50% 44%; transform: rotate(-18deg); pointer-events: none; }
 .card img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -32,6 +32,8 @@
 .card-back { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9px; background: #e51d3f; }
 .card-back img { object-fit: cover; }
 .card-back-label { position: absolute; z-index: 2; color: white; font-size: 25px; font-weight: 900; transform: rotate(-18deg); }
+/* M4：手牌卡宽跟随 --v2-hand-card-w（W1~W6 断点缩放，保持 2:3；中心牌堆/迷你牌不受影响） */
+#hand .card { width: var(--v2-hand-card-w); height: calc(var(--v2-hand-card-w) * 1.5); flex: 0 0 var(--v2-hand-card-w); }
 #hand .card + .card { margin-left: calc(-1 * var(--hand-overlap, 0px)); }
 /* 悬停/聚焦时当前牌提到最上层，折叠状态下也能完整看清 */
 #hand .card:hover,

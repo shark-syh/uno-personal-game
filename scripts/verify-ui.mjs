@@ -287,6 +287,43 @@ window.__verify = {
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   },
+  // M4：悬浮手牌与动作区审计（hand-dock / data-count / data-state / data-phase / 滚动边界 / 触控目标）
+  handDock: () => {
+    const zone = document.querySelector('#hand-zone');
+    const hand = document.querySelector('#hand');
+    const cards = [...(hand?.querySelectorAll('.card') || [])];
+    const zoneStyle = zone ? getComputedStyle(zone) : null;
+    const handStyle = hand ? getComputedStyle(hand) : null;
+    const actionBar = document.querySelector('#action-bar');
+    const buttons = [...(actionBar?.querySelectorAll('button') || [])];
+    const state = (card) => card.dataset.state || '';
+    return {
+      dockClass: Boolean(zone?.classList.contains('hand-dock')),
+      dockBg: zoneStyle?.backgroundImage || '',
+      safePad: zoneStyle ? parseFloat(zoneStyle.paddingBottom) >= 8 : false,
+      hasVisibleTitle:
+        Boolean(document.querySelector('.hand-heading')) ||
+        Boolean(document.querySelector('#hand-count')) ||
+        (hand?.textContent || '').includes('你的手牌'),
+      dataCount: hand?.dataset.count || '',
+      cardCount: cards.length,
+      everyCardHasState: cards.length > 0 && cards.every((card) => ['legal', 'illegal', 'drawn'].includes(state(card))),
+      stateMatchesClass:
+        cards
+          .filter((card) => card.classList.contains('is-legal'))
+          .every((card) => state(card) === 'legal' || state(card) === 'drawn') &&
+        cards
+          .filter((card) => card.classList.contains('is-illegal'))
+          .every((card) => state(card) === 'illegal') &&
+        cards.filter((card) => state(card) === 'drawn').every((card) => card.classList.contains('is-drawn')),
+      scrollBoundary: handStyle?.overflowX || '',
+      scrollable: hand ? hand.scrollWidth >= hand.clientWidth : false,
+      actionBarPhase: actionBar?.dataset.phase || '',
+      screenPhase: document.querySelector('#game-screen')?.dataset.phase || '',
+      minTouchTarget: buttons.length ? Math.min(...buttons.map((button) => button.getBoundingClientRect().height)) : 0,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
   colorMetrics: () => {
     const dot = document.querySelector('#color-indicator');
     const label = document.querySelector('#color-label');
@@ -782,6 +819,48 @@ async function main() {
             uiState.color.labelRect.right <= uiState.color.viewportW,
           JSON.stringify(uiState.color),
         );
+        // ---------------- M4：悬浮手牌与动作区（契约 B07/B08） ----------------
+        const dock1440 = await evaluate('window.__verify.handDock()');
+        check(
+          'M4 悬浮手牌：hand-dock 融合底、安全区留白、无可见标题/张数、#hand 独立横向滚动边界',
+          dock1440.dockClass &&
+            dock1440.dockBg.includes('gradient') &&
+            dock1440.safePad &&
+            !dock1440.hasVisibleTitle &&
+            dock1440.scrollBoundary === 'auto',
+          JSON.stringify({
+            dockClass: dock1440.dockClass,
+            safePad: dock1440.safePad,
+            hasVisibleTitle: dock1440.hasVisibleTitle,
+            scrollBoundary: dock1440.scrollBoundary,
+          }),
+        );
+        check(
+          'M4 手牌契约：#hand[data-count] 与牌数一致、每张牌 data-state 正确且与合法性类同步',
+          Number(dock1440.dataCount) === dock1440.cardCount &&
+            dock1440.everyCardHasState &&
+            dock1440.stateMatchesClass,
+          JSON.stringify({
+            dataCount: dock1440.dataCount,
+            cardCount: dock1440.cardCount,
+            everyCardHasState: dock1440.everyCardHasState,
+            stateMatchesClass: dock1440.stateMatchesClass,
+          }),
+        );
+        check(
+          'M4 动作区：#action-bar[data-phase] 与牌桌阶段同步、按钮触控目标 ≥44px、无页面横向溢出',
+          dock1440.actionBarPhase !== '' &&
+            dock1440.actionBarPhase === dock1440.screenPhase &&
+            (dock1440.minTouchTarget === 0 || dock1440.minTouchTarget >= 44) &&
+            !dock1440.overflow,
+          JSON.stringify({
+            actionBarPhase: dock1440.actionBarPhase,
+            screenPhase: dock1440.screenPhase,
+            minTouchTarget: dock1440.minTouchTarget,
+            overflow: dock1440.overflow,
+          }),
+        );
+        await shot('v2/M4-hand-dock-1440.png');
       }
 
       const startedAt = Date.now();
@@ -2023,6 +2102,32 @@ async function main() {
       compact420.avatarHidden && compact420.names && compact420.counts && !compact420.overflow,
       JSON.stringify(compact420),
     );
+    // M4 @420：极窄屏手牌——dock 保留、卡宽 76、区高 ≥168、无页面横向溢出（折叠/滚动都在 #hand 内）
+    const dock420 = await evaluate(
+      `(() => {
+        const dock = window.__verify.handDock();
+        const card = document.querySelector('#hand .card');
+        return { ...dock, cardW: card ? card.offsetWidth : 0, handMinH: parseFloat(getComputedStyle(document.querySelector('#hand')).minHeight) };
+      })()`,
+    );
+    check(
+      'M4 @420：hand-dock 保留、手牌 76px、区高 ≥168px、data-count 一致、页面无横向溢出',
+      dock420.dockClass &&
+        !dock420.hasVisibleTitle &&
+        dock420.cardW === 76 &&
+        dock420.handMinH >= 168 &&
+        Number(dock420.dataCount) === dock420.cardCount &&
+        dock420.everyCardHasState &&
+        !dock420.overflow,
+      JSON.stringify({
+        dockClass: dock420.dockClass,
+        cardW: dock420.cardW,
+        handMinH: dock420.handMinH,
+        dataCount: dock420.dataCount,
+        cardCount: dock420.cardCount,
+        overflow: dock420.overflow,
+      }),
+    );
     // M2：420 宽大厅品牌可见性、Tab 顺序与开局路径（契约 B01/B02 的 W6 断点）
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '420 大厅');
@@ -2128,6 +2233,7 @@ async function main() {
       '- review-assets/v2/M2-lobby-760.png',
       '- review-assets/v2/M2-lobby-420.png',
       '- review-assets/v2/M3-table-4p-1440.png',
+      '- review-assets/v2/M4-hand-dock-1440.png',
       '- review-assets/v2/M3-table-10p-1440.png',
       '- review-assets/v2/M3-table-10p-1024.png',
       '',

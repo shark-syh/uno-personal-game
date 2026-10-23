@@ -53,13 +53,16 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 /* M3：椭圆牌桌（.arena）——中心固定上一手牌/颜色/行动状态，座位贴合圆周锚点（--seat-x/y 由 players.js 计算） */
 #table-area { position: relative; min-width: 0; }
 #table-area.arena {
-  width: var(--v2-arena-w);
+  /* 高度驱动 + 8:5 比例：任意视口下都是完整椭圆，不再下沉外溢或被左右压扁 */
   height: 100%;
   max-height: var(--v2-arena-h);
-  min-height: var(--v2-arena-min-h);
+  min-height: min(var(--v2-arena-min-h), 100%);
+  aspect-ratio: 8 / 5;
+  width: auto;
+  max-width: min(var(--v2-arena-w), 100%);
   justify-self: center;
   align-self: center;
-  border-radius: 49% / 43%;
+  border-radius: 50%;
   background: radial-gradient(ellipse at center, var(--v2-surface-2), transparent 72%);
   box-shadow: inset 0 0 0 1px var(--v2-line-soft), inset 0 18px 48px rgba(0, 0, 0, 0.35);
 }
@@ -125,7 +128,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
 
 #table-center { position: absolute; inset: 0; z-index: 2; display: flex; justify-content: center; align-items: center; gap: 36px; }
-#color-glow { position: absolute; left: 50%; top: 50%; width: min(62%, 430px); aspect-ratio: 2 / 1.15; transform: translate(-50%, -50%); border: 2px solid rgba(255, 255, 255, .18); border-radius: 50%; opacity: .25; pointer-events: none; }
+#color-glow { position: absolute; left: 50%; top: 50%; width: min(62%, 430px); aspect-ratio: 2 / 1.15; translate: -50% -50%; border: 2px solid rgba(255, 255, 255, .18); border-radius: 50%; opacity: .25; pointer-events: none; }
 /* 中心行动状态：位于顶部位座与中心牌之间；普通回合只显示 #turn-stamp */
 .table-status { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); z-index: 2; display: grid; gap: 5px; justify-items: center; max-width: 92%; }
 #turn-stamp { color: var(--ink); font-size: 14px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
@@ -142,15 +145,39 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .opponent-line:empty { display: none; }
 /* M3 断点 token（W2/W3；W4~W6 并入 760/420 块） */
 @media (max-width: 1199px) {
-  :root { --v2-arena-w: min(70vw, 680px); --v2-arena-h: min(54vh, 450px); --v2-seat-w: 116px; --v2-seat-h: 60px; --v2-center-card-w: 108px; }
+  :root { --v2-arena-w: min(70vw, 680px); --v2-arena-h: min(54vh, 450px); --v2-seat-w: 116px; --v2-seat-h: 60px; --v2-center-card-w: 108px; --v2-hand-card-w: 108px; }
 }
 @media (max-width: 999px) {
-  :root { --v2-arena-w: calc(100% - 24px); --v2-arena-h: 400px; --v2-seat-w: 100px; --v2-seat-h: 56px; --v2-center-card-w: 96px; }
+  :root { --v2-arena-w: calc(100% - 24px); --v2-arena-h: 400px; --v2-seat-w: 100px; --v2-seat-h: 56px; --v2-center-card-w: 96px; --v2-hand-card-w: 96px; }
   #table-direction { left: auto; right: 10px; }
 }
 
+/* M4：悬浮手牌 dock——#hand-zone 背景与牌桌渐变融合，不设可见标题/张数；触底安全区留白 */
 #hand-zone { position: relative; display: grid; gap: 8px; min-width: 0; }
-#hand { min-height: 188px; display: flex; justify-content: safe center; align-items: end; column-gap: var(--hand-gap, 10px); padding: 26px 12px 8px; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+#hand-zone.hand-dock {
+  padding: 0 8px max(8px, env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(180deg, rgba(7, 31, 21, 0), var(--v2-surface-1) 62%);
+  box-shadow: inset 0 1px 0 var(--v2-line-soft);
+}
+/* 手牌独立滚动边界：页面永不横向滚动，横向浏览只发生在 #hand 内部 */
+#hand {
+  min-height: 188px;
+  display: flex;
+  justify-content: safe center;
+  align-items: end;
+  column-gap: var(--hand-gap, 10px);
+  padding: 26px 12px 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--v2-line-strong) transparent;
+}
+#hand::-webkit-scrollbar { height: 6px; }
+#hand::-webkit-scrollbar-track { background: transparent; }
+#hand::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--v2-line-strong); }
 #action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 44px; }
 #hint-bar { min-height: 30px; padding: 5px 12px; color: var(--ink-muted); text-align: center; font-size: 13px; }
 /* BUG-06：正常回合没有提示文本时整块不占位（特殊阶段仍显示提示） */
@@ -212,13 +239,15 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   #table-area.arena { height: var(--v2-arena-h); }
   #top-bar { align-items: start; } .top-status { gap: 7px; } .top-actions { gap: 5px; }
   /* W4/W5：牌桌占满宽度，座位/中心牌同步缩小 */
-  :root { --v2-arena-w: calc(100% - 16px); --v2-arena-h: 380px; --v2-seat-w: 96px; --v2-seat-h: 54px; --v2-center-card-w: 88px; }
+  :root { --v2-arena-w: calc(100% - 16px); --v2-arena-h: 380px; --v2-seat-w: 96px; --v2-seat-h: 54px; --v2-center-card-w: 88px; --v2-hand-card-w: 88px; }
   #table-direction { right: 6px; font-size: 24px; }
   #event-feed { width: 92%; }
   #speech-layer { width: 94%; }
   .opponent .avatar { width: 28px; height: 28px; font-size: 18px; }
   .opponent-hand { --oh-card-w: 18px; --oh-card-h: 27px; left: 3px; bottom: -4px; }
   #hand { min-height: 154px; justify-content: safe center; }
+  /* M4：W3 以下动作栏改两行网格（主操作在前），按钮不再随文案换行跳动 */
+  #action-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #result-charts { grid-template-columns: minmax(0, 1fr); }
   #result-charts .result-chart[data-chart="hand-colors"] { grid-column: auto; }
   .chart-ops-row, .chart-hand-row { grid-template-columns: 64px minmax(0, 1fr) 52px; gap: 8px; }
@@ -228,13 +257,19 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 }
 @media (max-width: 420px) {
   /* W6：极窄屏——座位隐藏头像与卡背，姓名/精确牌数/UNO/当前回合保留（契约 §9.2） */
-  :root { --v2-arena-w: calc(100% - 8px); --v2-arena-h: 330px; --v2-seat-w: 88px; --v2-seat-h: 52px; --v2-center-card-w: 76px; }
+  :root { --v2-arena-w: calc(100% - 8px); --v2-arena-h: 330px; --v2-seat-w: 88px; --v2-seat-h: 52px; --v2-center-card-w: 76px; --v2-hand-card-w: 76px; }
   #player-count-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .opponent { grid-template-columns: minmax(0, 1fr); gap: 3px; padding: 7px 8px; }
   .opponent .avatar { display: none; }
   .opponent-name { font-size: 12px; padding-right: 14px; } .opponent .mini-card { display: none; }
   .opponent-hand { display: none; }
   .top-actions .btn { padding-inline: 8px; } .top-status { max-width: 220px; }
+  /* M4：W6 手牌区最小高度 168px，触底安全区由 .hand-dock 提供 */
+  #hand { min-height: 168px; }
+}
+@media (max-width: 559px) and (min-width: 421px) {
+  /* W5：手牌 80×120（契约 §4.1 断点表） */
+  :root { --v2-hand-card-w: 80px; }
 }
 /* 矮屏减少手牌顶部留白（配合 cards.css 中矮屏更小的上浮幅度，避免裁剪） */
 @media (max-height: 820px) {

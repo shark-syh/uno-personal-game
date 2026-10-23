@@ -23,7 +23,7 @@ function layoutHand() {
   const styles = getComputedStyle(root);
   const padding = (parseFloat(styles.paddingLeft) || 0) + (parseFloat(styles.paddingRight) || 0);
   const available = Math.max(0, root.clientWidth - padding);
-  const cardWidth = cards[0].offsetWidth || parseFloat(styles.getPropertyValue("--card-w")) || 120;
+  const cardWidth = cards[0].offsetWidth || parseFloat(styles.getPropertyValue("--v2-hand-card-w")) || parseFloat(styles.getPropertyValue("--card-w")) || 120;
   const count = cards.length;
   const needed = count * cardWidth + (count - 1) * HAND_GAP;
   if (needed <= available) {
@@ -45,7 +45,7 @@ function ensureHandLayoutObserver() {
 }
 
 export function renderCard(card, { mini = false, legal = false, drawn = false, onSelect = null } = {}) {
-  const node = document.createElement(onSelect ? "button" : "div"); if (onSelect) { node.type = "button"; node.disabled = !legal; } node.className = `card${mini ? " mini-card" : ""}${onSelect ? legal ? " is-legal" : " is-illegal" : ""}${drawn ? " is-drawn" : ""}`; node.dataset.cardId = card.id; node.dataset.faceCode = card.faceCode; node.setAttribute("aria-label", cardLabel(card)); node.style.setProperty("--card-color", cardColors[card.color]);
+  const node = document.createElement(onSelect ? "button" : "div"); if (onSelect) { node.type = "button"; node.disabled = !legal; } node.className = `card${mini ? " mini-card" : ""}${onSelect ? legal ? " is-legal" : " is-illegal" : ""}${drawn ? " is-drawn" : ""}`; node.dataset.cardId = card.id; node.dataset.faceCode = card.faceCode; if (onSelect) node.dataset.state = drawn ? "drawn" : legal ? "legal" : "illegal"; node.setAttribute("aria-label", cardLabel(card)); node.style.setProperty("--card-color", cardColors[card.color]);
   const image = document.createElement("img"); image.src = `cards/${card.faceCode}.png`; image.alt = cardLabel(card); image.width = 240; image.height = 360; image.draggable = false;
   const fallback = document.createElement("span"); fallback.className = "fallback-label"; fallback.textContent = card.faceCode === "WC" ? "W" : card.faceCode === "W4" ? "+4" : card.faceCode.slice(1);
   image.addEventListener("error", () => { node.classList.add("is-fallback"); image.remove(); node.append(fallback); });
@@ -57,6 +57,9 @@ export function renderCard(card, { mini = false, legal = false, drawn = false, o
 export function renderHand(view, { onAction, openDialog }) {
   const root = document.querySelector("#hand");
   const legal = view.human.legalActions || [];
+  // M4：悬浮手牌 dock（id 不变，class 供布局/断言使用；不新增可见标题或张数文字）
+  document.querySelector("#hand-zone")?.classList.add("hand-dock");
+  root.dataset.count = String(view.human.hand.length);
   // 出牌类动作只承载在「点手牌」路径上（BUG-06：操作栏不再渲染出牌按钮）。
   const cardTypes = ["PLAY_CARD", "PLAY_DRAWN", "STACK_PLAY"];
   const isCardAction = (item) => cardTypes.includes(item.type);
@@ -70,6 +73,7 @@ export function renderHand(view, { onAction, openDialog }) {
   } })));
   // 操作栏只保留功能动作：摸牌 / 结束回合 / 叠牌弃权 / UNO / 抓 UNO / 选色兜底 / +4 挑战。
   const actionRoot = document.querySelector("#action-bar");
+  actionRoot.dataset.phase = view.phase || "";
   actionRoot.replaceChildren(...legal.filter((item) => !isCardAction(item)).map((item) => {
     const button = document.createElement("button"); button.type = "button"; button.className = `btn${item.type === "CALL_UNO" ? " uno-button" : ""}`; button.dataset.actionId = item.id; button.textContent = item.label; button.disabled = Boolean(item.disabled); button.setAttribute("aria-label", item.label);
     // UNO 窗口倒计时条：动画关闭 / reduced-motion 时不创建
