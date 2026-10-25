@@ -2,7 +2,7 @@
 
 > v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。当前开发阶段为 v2.0.0 UI 升级。
 
-## v2.0.0（2026-10-25）
+## v2.0.0（2026-10-25，[GitHub Release](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)）
 
 v2.0.0 UI 重构整体发布：执行编号 M1~M8（视觉契约 → 大厅品牌 → 圆桌座位 → 悬浮手牌 → UNO 金环 → 结算转场 → 无障碍收口 → 发布），外加一次用户确认的 radical 风格重塑。规则引擎、`GameView`/`UiAction`、WebSocket 协议、服务端权威与脱敏边界零改动；`window.UnoApp` 五个 API 与 DOM 锚点只增不改。
 
@@ -38,7 +38,7 @@ v2.0.0 UI 重构整体发布：执行编号 M1~M8（视觉契约 → 大厅品�
 ### 版本口径
 
 - 代码版本 1.3.0 → **2.0.0**（根 package.json / 服务端 `/api/health` / 桌面壳 package.json 同步）；顶栏与大厅版本号随之显示 v2.0.0。
-- 桌面安装包（NSIS）与 GitHub Release 由本地打包流程产出（本会话环境安全策略拦截 esbuild，无法在会话内打包）。
+- 桌面安装包（NSIS）`UNO-Setup-2.0.0.exe` 已本地打包并上传 GitHub Release `v2.0.0`（约 107 MiB，SHA256 `15884337046AFB9805555BC30EB7A177A7C32325B90CAE849B35F794A3AC361A`），`SHA256SUMS.txt` 一并提供；源码由 tag 自动生成。
 
 ### M3 圆形牌桌与座位（2026-10-23）
 

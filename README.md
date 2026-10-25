@@ -7,7 +7,7 @@
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-v2.0.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)
-![Status](https://img.shields.io/badge/M0%7EM10%20%C2%B7%20v2%20M1%7EM7-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+![Status](https://img.shields.io/badge/M0%7EM10%20%C2%B7%20v2%20M1%7EM8-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
@@ -19,7 +19,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v2.0.0**（2026-10-25，v2.0.0 UI 重构 · radical 黑绿主题；桌面安装包待打包）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v2.0.0**（2026-10-25，v2.0.0 UI 重构 · radical 黑绿主题；Windows 安装包已随 Release 发布）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <a href="https://github.com/shark-syh/uno-personal-game/releases"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
@@ -30,10 +30,10 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| [`UNO-Setup-2.0.0.exe`](https://github.com/shark-syh/uno-personal-game/releases) | Windows 10/11 x64 安装包，当前用户安装，无需管理员（v2.0.0 安装包待本地打包后上传；[v1.3 历史版本](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)仍可下载） |
+| [`UNO-Setup-2.0.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.0.0/UNO-Setup-2.0.0.exe) | Windows 10/11 x64 安装包（约 107 MiB），当前用户安装，无需管理员 |
 | [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.tar.gz) | v2.0.0 完整源码（radical 黑绿主题 UI 重构版） |
 
-安装包 SHA256：`B14FBB835DAF81E66BF692DC7F9AD041581FC1425D17CCFB493A9A5633B61A6E`。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
+安装包 SHA256：`15884337046AFB9805555BC30EB7A177A7C32325B90CAE849B35F794A3AC361A`（与 Release 附带的 `SHA256SUMS.txt` 一致）。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
 
 <p align="center">
   <img src="docs/images/game-4p.webp" width="900" alt="4 人对局">
@@ -318,7 +318,7 @@ uno/
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。
 - v1.0：UNO 规则引擎、四档本地 AI、智谱混合决策与自动降级、事件动效与合成音效、规则设置页、6~10 人布局、结算操作统计（无分数）。
-- v2.0.0：详见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0`~`v1.3`、`v2.0.0-alpha.2~5`、`v2.0.0-beta.1`、`v2.0.0`），`v1.3` Release 附带历史安装包。
+- v2.0.0：详见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0`~`v1.3`、`v2.0.0-alpha.2~5`、`v2.0.0-beta.1`、`v2.0.0`），`v1.3` Release 附带历史安装包；`v2.0.0` Release 附带 `UNO-Setup-2.0.0.exe` 与 `SHA256SUMS.txt`。
 - 后续可选方向见「已知限制与路线图」。
 
 ## 文档
