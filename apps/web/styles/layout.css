@@ -68,6 +68,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 }
 .arena-rail { position: absolute; inset: 14px; z-index: 0; border: 1px solid var(--v2-line-soft); border-radius: 50%; pointer-events: none; }
 #opponents { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+/* 10 人局：座位盒收窄到 104px——中窄牌桌上「左列夹紧座位 ↔ 斜上座位 ↔ 顶部中央座位」
+   三只 116px 盒在椭圆带内放不下（角部重叠 ~8px），收窄后 r3/r4/r5 中心距恰好≥盒宽。 */
+#opponents[data-seat-count="9"] { --v2-seat-w: 104px; }
 .opponent {
   position: absolute;
   left: clamp(calc(var(--v2-seat-w) / 2 + 8px), var(--seat-x, 50%), calc(100% - var(--v2-seat-w) / 2 - 8px));
