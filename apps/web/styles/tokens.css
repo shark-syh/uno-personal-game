@@ -101,4 +101,4 @@ button, input, select { -webkit-tap-highlight-color: transparent; }
   box-shadow: var(--shadow-focus);
 }
 
-::selection { background: rgba(255, 170, 0, 0.35); color: var(--white); }
+::selection { background: rgba(217, 255, 75, 0.32); color: var(--white); }

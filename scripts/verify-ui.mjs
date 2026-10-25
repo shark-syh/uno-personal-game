@@ -998,7 +998,9 @@ async function main() {
         const seats = new Set();
         const startedAt = performance.now();
         let steps = 0;
-        while (performance.now() - startedAt < 5000 && steps < 40) {
+        // M7：采样窗 5s→9s、步数上限 40→90——智谱模式单次决策可达 3.8s，
+        // 旧窗口可能在一次 AI 思考期间耗尽，只采到人类座位（偶发失败根因）
+        while (performance.now() - startedAt < 9000 && steps < 90) {
           window.__verify.autoStep();
           steps += 1;
           if (window.__verify.visibleScreen() !== 'game') break;
@@ -2161,6 +2163,81 @@ async function main() {
       JSON.stringify(m6Draw),
     );
     await shot('v2/M6-result-draw.png');
+
+    // ---------------- M7：无障碍与触控收口 ----------------
+    // M7-a 键盘焦点环：真实 Tab 键后 :focus-visible 生效且有可见焦点环（radical 荧光绿 --shadow-focus）
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'M7 键盘局面');
+    await sleep(250);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+    const m7Focus = await evaluate(
+      `(() => {
+        const el = document.activeElement;
+        const cs = getComputedStyle(el);
+        return {
+          tag: el.tagName,
+          cls: String(el.className).slice(0, 40),
+          visible: el.matches(':focus-visible'),
+          ring: cs.boxShadow !== 'none' || cs.outlineStyle !== 'none',
+        };
+      })()`,
+    );
+    check(
+      'M7 键盘焦点环：Tab 聚焦后 :focus-visible 生效且有可见焦点环',
+      m7Focus.visible && m7Focus.ring,
+      JSON.stringify(m7Focus),
+    );
+
+    // M7-b 键盘出牌：聚焦合法牌 + 真实 Enter 键 → 出牌提交（mock：红 7）
+    // 注意：事件队列播放期间 aria-busy=true 会丢弃动作（app.js handleAction 输入锁），先等锁释放
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'M7 键盘出牌局面');
+    await waitFor('document.querySelector("#game-screen").getAttribute("aria-busy") !== "true"', 8000, 'M7 输入锁释放');
+    await evaluate(`(() => {
+      const card = document.querySelector('#hand .card.is-legal');
+      card.focus();
+      return card.dataset.cardId || '';
+    })()`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+    await sleep(300);
+    const m7Enter = await evaluate(
+      `({ toast: document.querySelector('#toast-region')?.textContent || '' })`,
+    );
+    check(
+      'M7 键盘出牌：聚焦合法牌按 Enter 成功提交（「出 红7」）',
+      m7Enter.toast.includes('出 红7'),
+      JSON.stringify(m7Enter),
+    );
+
+    // M7-c 触控目标：操作栏/顶栏全部可见按钮高度 ≥44px
+    const m7Touch = await evaluate(
+      `(() => {
+        const buttons = [...document.querySelectorAll('#action-bar button, .top-actions button')]
+          .filter((button) => !button.hidden && button.getBoundingClientRect().height > 0);
+        return { count: buttons.length, min: buttons.length ? Math.min(...buttons.map((button) => button.getBoundingClientRect().height)) : 0 };
+      })()`,
+    );
+    check(
+      'M7 触控目标：操作栏/顶栏可见按钮 ≥44px',
+      m7Touch.count > 0 && m7Touch.min >= 44,
+      JSON.stringify(m7Touch),
+    );
+
+    // M7-d 装饰不进读屏：对手卡背扇 aria-hidden、抽牌堆卡背保留可读名称
+    const m7Aria = await evaluate(
+      `(() => ({
+        fanHidden: [...document.querySelectorAll('.opponent-hand')].every((node) => node.getAttribute('aria-hidden') === 'true'),
+        drawPileAlt: document.querySelector('#draw-pile img')?.getAttribute('alt') || '',
+      }))()`,
+    );
+    check(
+      'M7 装饰不进读屏：对手卡背 aria-hidden、抽牌堆有名称',
+      m7Aria.fanHidden && m7Aria.drawPileAlt.length > 0,
+      JSON.stringify(m7Aria),
+    );
+    await shot('v2/M7-a11y-game.png');
 
     // M5-04：牌堆只剩 0/1 张时 HUD 计数与洗回提示（mock 静态局面，真实引擎边界由单测覆盖）
     await evaluate('window.__verify.selectMock("deck-edge-zero")');

@@ -45,7 +45,7 @@
 .mini-card::after { inset: 2px; border-width: 1px; }
 .mini-card .fallback-label { font-size: 12px; }
 .pile-count { position: absolute; z-index: 3; right: -9px; bottom: -9px; min-width: 28px; padding: 4px 6px; border-radius: 999px; color: #05180e; background: var(--white); font-size: 12px; font-weight: 900; text-align: center; }
-#stack-badge { position: absolute; z-index: 5; top: 12px; left: 50%; min-width: 58px; padding: 7px 10px; border: 2px solid var(--white); border-radius: 999px; color: #3a1100; background: var(--yellow); font-size: 18px; font-weight: 900; text-align: center; transform: translateX(-50%) rotate(-3deg); }
+#stack-badge { position: absolute; z-index: 5; top: 12px; left: 50%; min-width: 58px; padding: 7px 10px; border: 2px solid var(--white); border-radius: 999px; color: #172000; background: var(--v2-gold); font-size: 18px; font-weight: 900; text-align: center; transform: translateX(-50%) rotate(-3deg); }
 #direction-indicator { font-size: 20px; }
 
 @media (hover: hover) and (pointer: fine) {
