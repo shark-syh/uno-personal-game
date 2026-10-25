@@ -2,11 +2,11 @@
 
 ![Node](https://img.shields.io/badge/Node-%E2%89%A5%2022-3c873a)
 ![Tests](https://img.shields.io/badge/tests-335%20passed-brightgreen)
-![E2E](https://img.shields.io/badge/E2E-127%20passed-blue)
+![E2E](https://img.shields.io/badge/E2E-137%20%2B%2032%20passed-blue)
 ![Desktop](https://img.shields.io/badge/desktop-Electron%20%2B%20NSIS-47848f)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.0.0--beta.1-blue)](https://github.com/shark-syh/uno-personal-game/releases)
+[![Release](https://img.shields.io/badge/release-v2.0.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)
 ![Status](https://img.shields.io/badge/M0%7EM10%20%C2%B7%20v2%20M1%7EM7-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
@@ -22,17 +22,16 @@
 **当前版本：v2.0.0**（2026-10-25，v2.0.0 UI 重构 · radical 黑绿主题；桌面安装包待打包）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
-  <a href="https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
-  <a href="https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.zip"><img src="https://img.shields.io/badge/%E6%BA%90%E7%A0%81-v1.3.zip-555?style=for-the-badge&logo=github" alt="下载源码"></a>
+  <a href="https://github.com/shark-syh/uno-personal-game/releases"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
+  <a href="https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.zip"><img src="https://img.shields.io/badge/%E6%BA%90%E7%A0%81-v2.0.0.zip-555?style=for-the-badge&logo=github" alt="下载源码"></a>
 </p>
 
 ## 下载与安装
 
 | 文件 | 说明 |
 | --- | --- |
-| [`UNO-Setup-1.3.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v1.3/UNO-Setup-1.3.0.exe) | Windows 10/11 x64 安装包（约 107 MiB），当前用户安装，无需管理员 |
-| [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v1.3.tar.gz) | v1.3 完整源码，与安装包同一 Release |
-| [`SHA256SUMS.txt`](https://github.com/shark-syh/uno-personal-game/releases/download/v1.3/SHA256SUMS.txt) | 安装包校验值 |
+| [`UNO-Setup-2.0.0.exe`](https://github.com/shark-syh/uno-personal-game/releases) | Windows 10/11 x64 安装包，当前用户安装，无需管理员（v2.0.0 安装包待本地打包后上传；[v1.3 历史版本](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)仍可下载） |
+| [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.tar.gz) | v2.0.0 完整源码（radical 黑绿主题 UI 重构版） |
 
 安装包 SHA256：`B14FBB835DAF81E66BF692DC7F9AD041581FC1425D17CCFB493A9A5633B61A6E`。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
 
@@ -186,10 +185,10 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 
 ```bash
 npm run desktop:dev   # 构建并启动 Electron 窗口（内嵌服务，随机端口）
-npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-1.3.0.exe
+npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-2.0.0.exe
 ```
 
-桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。v1.3.0 安装包已发布到 [GitHub Releases](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)；安装与双机联机仍待真机验收。
+桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。v2.0.0 起桌面版与网页版共用 radical 黑绿主题；安装与双机联机仍待真机验收。
 
 > 修改 `apps/web` 静态资源后浏览器 `Ctrl+F5` 强刷；修改 `packages/game-core` / `packages/ai` 后必须执行 `npm run build:web-engine`（`npm run dev` 启动前会自动重建）。
 
@@ -233,10 +232,10 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | `npm run typecheck` | TypeScript 类型检查 |
 | `npm run lint` | ESLint 检查 |
 | `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`） |
-| `npm run verify:ui` | 单机浏览器自动验收（107 项，无头 Chrome + CDP，需服务已启动） |
-| `npm run verify:online` | 联机多客户端验收（26 项：双客户端房间/布局/表情/UNO 窗口分流/房主移交，需服务已启动） |
+| `npm run verify:ui` | 单机浏览器自动验收（137 项：M2~M7 全量断言，无头 Chrome + CDP，需服务已启动） |
+| `npm run verify:online` | 联机多客户端验收（32 项：双客户端圆桌/表情/UNO 分流/金环/房主移交，需服务已启动） |
 | `npm run desktop:dev` | 构建并启动 Electron 桌面版（开发模式） |
-| `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-1.3.0.exe` |
+| `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-2.0.0.exe` |
 | `npm run verify:desktop` | 双 Electron 实例验收（UDP 发现/加入/主机退出；沙箱 GUI 不可用时 SKIP） |
 | `npm run perf` | 性能检查（首屏 / 帧率 / 内存 / AI 耗时），本地生成 `review-assets/perf-report.md` |
 | `npm run selfplay` | AI 自对弈基准（难度单调性 / 混战排名 / 非法动作数） |
@@ -313,14 +312,13 @@ uno/
 
 ## 版本与更新
 
-当前版本 **v1.3.0**（2026-10-21）：M0~M10 完成，桌面安装版已打包并标记 `v1.3`（待真机验收）。
-当前开发阶段：**v2.0.0 UI 重构**（M1 契约已产出，生产代码未改，待验收），见 [`docs/v2.0.0-UI重构开发方案.md`](docs/v2.0.0-UI重构开发方案.md) 与 [`docs/v2.0.0-M1-视觉契约.md`](docs/v2.0.0-M1-视觉契约.md)。
+当前版本 **v2.0.0**（2026-10-25，已标记 `v2.0.0`）：M1~M8 UI 重构完成——radical 黑绿主题（近黑基底 + 荧光绿点缀）、椭圆牌桌与圆周座位、悬浮手牌坞、UNO 金色倒计时环（按难度 10/8/6/4s）、结算飞牌转场与数据总结、无障碍与触控收口；`verify:ui` 137 项 / `verify:online` 32 项全过，FPS 60。方案与契约见 [`docs/v2.0.0-UI重构开发方案.md`](docs/v2.0.0-UI重构开发方案.md) 与 [`docs/v2.0.0-M1-视觉契约.md`](docs/v2.0.0-M1-视觉契约.md)。
 
 - v1.3：Electron 桌面壳与 NSIS 安装包、内嵌随机端口服务；桌面自填智谱 Key（DPAPI 加密）；UDP 局域网房间发现与房间码加入；远程主机断线重连、房主自动移交、主机关闭通知；新增 `verify:desktop` 双实例验收。
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。
 - v1.0：UNO 规则引擎、四档本地 AI、智谱混合决策与自动降级、事件动效与合成音效、规则设置页、6~10 人布局、结算操作统计（无分数）。
-- 完整变更摘要见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0` / `v1.1` / `v1.2` / `v1.3` 均已推送远端，`v1.3` Release 附带安装包与源码）。
+- v2.0.0：详见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0`~`v1.3`、`v2.0.0-alpha.2~5`、`v2.0.0-beta.1`、`v2.0.0`），`v1.3` Release 附带历史安装包。
 - 后续可选方向见「已知限制与路线图」。
 
 ## 文档
