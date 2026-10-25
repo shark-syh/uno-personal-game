@@ -1842,15 +1842,130 @@ async function main() {
       Boolean(unoButton) && unoButton.h >= 56 && unoButton.font >= 20,
       JSON.stringify(unoButton),
     );
-    // M7 反馈修复：UNO 窗口 4s + 按钮内倒计时条（动画开启时）
+    // M5：UNO 窗口金色倒计时环（mock 难度 = realistic → 6s；契约 §7.1/§7.4）
     const unoCountdown = await evaluate(
-      `(() => { const bar = document.querySelector('.uno-button .uno-countdown'); if (!bar) return null; return { duration: getComputedStyle(bar).animationDuration }; })()`,
+      `(() => {
+        const bar = document.querySelector('.uno-button .uno-countdown');
+        if (!bar) return null;
+        const style = getComputedStyle(bar);
+        return {
+          duration: style.animationDuration,
+          animationName: style.animationName,
+          windowKey: bar.dataset.windowKey || '',
+          bgImage: style.backgroundImage || '',
+        };
+      })()`,
     );
     check(
-      'UNO 窗口：按钮显示倒计时条（时长 = 窗口时长）',
-      Boolean(unoCountdown) && Number.parseFloat(unoCountdown.duration) === 4,
+      'M5 UNO 金环：倒计时条升级为金色环（uno-ring 动画、conic-gradient、data-window-key）',
+      Boolean(unoCountdown) &&
+        unoCountdown.animationName.includes('uno-ring') &&
+        unoCountdown.bgImage.includes('conic-gradient') &&
+        unoCountdown.windowKey.length > 0,
       JSON.stringify(unoCountdown),
     );
+    check(
+      'M5 UNO 金环：环时长 = 难度映射（mock realistic → 6s）',
+      Boolean(unoCountdown) && Number.parseFloat(unoCountdown.duration) === 6,
+      JSON.stringify(unoCountdown),
+    );
+    // M5 验收：重复 render 3 次环不重启（data-window-key 不变 + 负 animation-delay 续走进度）
+    await evaluate('window.__verify.selectMock("uno-window")');
+    await sleep(150);
+    await evaluate('window.__verify.selectMock("uno-window")');
+    await sleep(150);
+    await evaluate('window.__verify.selectMock("uno-window")');
+    await sleep(150);
+    const unoRerender = await evaluate(
+      `(() => {
+        const bar = document.querySelector('.uno-button .uno-countdown');
+        if (!bar) return null;
+        return {
+          windowKey: bar.dataset.windowKey || '',
+          delay: getComputedStyle(bar).animationDelay,
+        };
+      })()`,
+    );
+    check(
+      'M5 UNO 金环：重复 render 3 次窗口 key 不变且进度不重置（负 animation-delay）',
+      Boolean(unoRerender) &&
+        unoRerender.windowKey === unoCountdown.windowKey &&
+        Number.parseFloat(unoRerender.delay) < 0,
+      JSON.stringify({ before: unoCountdown?.windowKey, after: unoRerender }),
+    );
+    // M5 验收负向：手牌 2 张 / 0 张时即使 canCallUno=true 也无 UNO 按钮（契约 §7.6）
+    await evaluate('window.__verify.selectMock("uno-window-two-cards")');
+    await sleep(150);
+    const unoTwoCards = await evaluate(
+      `({ uno: Boolean(document.querySelector('#action-bar .uno-button')) })`,
+    );
+    check('M5 UNO 条件：手牌 2 张时不显示 UNO 按钮', !unoTwoCards.uno, JSON.stringify(unoTwoCards));
+    await evaluate('window.__verify.selectMock("uno-window-empty")');
+    await sleep(150);
+    const unoEmpty = await evaluate(
+      `({ uno: Boolean(document.querySelector('#action-bar .uno-button')) })`,
+    );
+    check('M5 UNO 条件：手牌 0 张时不显示 UNO 按钮', !unoEmpty.uno, JSON.stringify(unoEmpty));
+    // M5 静态降级：动画关闭时金环静止（is-static + 秒数文本），按钮可见（契约 §7.6）
+    // 注意：render.js 每次 render 都会用 settings 覆盖 data-animation，必须改 localStorage 而非 dataset
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
+    );
+    await evaluate('window.__verify.selectMock("uno-window")');
+    await sleep(150);
+    const unoStatic = await evaluate(
+      `(() => {
+        const button = document.querySelector('.uno-button');
+        const bar = button?.querySelector('.uno-countdown');
+        if (!button || !bar) return null;
+        const style = getComputedStyle(bar);
+        return {
+          visible: !button.hidden && button.getBoundingClientRect().height > 0,
+          isStatic: bar.classList.contains('is-static'),
+          animationName: style.animationName,
+          seconds: button.querySelector('.uno-seconds')?.textContent || '',
+          windowKey: bar.dataset.windowKey || '',
+        };
+      })()`,
+    );
+    check(
+      'M5 UNO 静态降级：动画关闭时金环静止、按钮可见、文本秒数可读',
+      Boolean(unoStatic) &&
+        unoStatic.visible &&
+        unoStatic.isStatic &&
+        unoStatic.animationName === 'none' &&
+        /^\d+s$/.test(unoStatic.seconds),
+      JSON.stringify(unoStatic),
+    );
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
+    );
+    await shot('v2/M5-uno-ring-static.png');
+    // M5 到期行为（契约 §7.5）：环结束 → data-window-state=expired、按钮隐藏、#hint-bar 提示，不提交动作
+    await evaluate('window.__verify.selectMock("uno-window")');
+    await sleep(150);
+    const unoExpired = await evaluate(
+      `(() => {
+        const bar = document.querySelector('.uno-button .uno-countdown');
+        if (!bar) return null;
+        bar.dispatchEvent(new Event('animationend'));
+        const button = document.querySelector('.uno-button');
+        return {
+          state: button?.dataset.windowState || '',
+          hidden: Boolean(button?.hidden),
+          hint: document.querySelector('#hint-bar')?.textContent || '',
+        };
+      })()`,
+    );
+    check(
+      'M5 UNO 到期：环结束隐藏按钮 + 「UNO 窗口已结束」提示，不提交动作',
+      Boolean(unoExpired) &&
+        unoExpired.state === 'expired' &&
+        unoExpired.hidden &&
+        unoExpired.hint.includes('UNO 窗口已结束'),
+      JSON.stringify(unoExpired),
+    );
+    await shot('v2/M5-uno-ring-expired.png');
     await evaluate(`document.querySelector('.uno-button').click(); true`);
     await sleep(250);
     const unoClick = await evaluate(

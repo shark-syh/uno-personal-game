@@ -27,7 +27,7 @@ function normal(name = "normal-play", count = 4) {
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 
-export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
+export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
 
 export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "lobby") return common({ name, count: 4, phase: "lobby" });
@@ -41,6 +41,9 @@ export function createMockView(name = "lobby", playerCount = 4) {
   }
   if (name === "challenge-decide") return common({ name, phase: "challenge-decide", discardTop: card("W4"), pendingChallenge: { opponentSeat: 1 }, legalActions: [action("decline-challenge", "DECLINE_CHALLENGE", "摸 4 张"), action("challenge", "CHALLENGE_W4", "挑战！查看手牌")], events: [{ type: "PLAY", seat: 1, card: card("W4") }] });
   if (name === "uno-window") return common({ name, phase: "uno-window", hand: [card("R7")], players: basePlayers(4), canCallUno: true, legalActions: [action("uno", "CALL_UNO", "UNO!")] });
+  // M5 验收负向用例：非 1 张手牌时即使 canCallUno=true 也不渲染 UNO 按钮（契约 §7.2/§7.6）
+  if (name === "uno-window-two-cards") return common({ name, phase: "uno-window", hand: [card("R7"), card("B3", 9)], players: basePlayers(4), canCallUno: true, legalActions: [action("uno", "CALL_UNO", "UNO!")] });
+  if (name === "uno-window-empty") return common({ name, phase: "uno-window", hand: [], players: basePlayers(4), canCallUno: true, legalActions: [action("uno", "CALL_UNO", "UNO!")] });
   if (name === "catch-uno") { const players = basePlayers(4); players[1].handCount = 1; return common({ name, phase: "uno-window", players, canCatch: [1], legalActions: [action("catch:1", "CATCH_UNO", "抓他！", { targetSeat: 1 })], events: [{ type: "PLAY", seat: 1, card: card("B3") }] }); }
   if (name === "result") {
     const players = basePlayers(4).map((p, i) => ({

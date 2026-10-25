@@ -2,7 +2,7 @@
  * 引擎模式：把真实规则引擎 + 本地/智谱混合 AI 接到现有 UI 上（原生 JS，零构建）。
  *
  * M3-2：大厅 START_GAME → createInitialGame → getGameView → render + playEvents；AI 本地决策 + 思考延迟；
- *        UNO 窗口 4s；结算/再来一局/回大厅；默认入口为引擎模式，mock 保留 ?mock=1。
+ *        UNO 窗口按难度 10/8/6/4s（ui/unoTiming.js 唯一映射）；结算/再来一局/回大厅；默认入口为引擎模式，mock 保留 ?mock=1。
  * M4：AI 回合先尝试「本地候选 → 服务端 /api/ai/decide（智谱）→ 校验 → 应用」，失败/超时/限流
  *      自动降级 M2 本地 AI；台词写入玩家气泡；状态栏显示 智谱 / 本地 / 本地·降级。
  *
@@ -29,11 +29,12 @@ import { aiErrorMessage, createAiClient, getServerAiConfig } from '../ai/aiClien
 import { getSettings } from '../state/settings.js';
 import { recordResult } from '../state/stats.js';
 import { clearAllLines, clearPlayerLine } from '../ui/players.js';
+// M5：UNO 窗口时长唯一映射（契约 §7.1）；?test=1 仍为 120ms
+import { resolveUnoWindowMs } from '../ui/unoTiming.js';
 
 const AI_BASE_DELAY = { casual: 900, easy: 1100, realistic: 1400, hardcore: 1700 };
 const SPEED_SCALE = { slow: 1.6, normal: 1, fast: 0.45 };
 const LLM_CHANCE = { casual: 0.3, easy: 0.6, realistic: 1, hardcore: 1 };
-const UNO_WINDOW_MS = 4000;
 /** M6 复验：即使智谱/预取返回很快，也让「思考中」至少展示这么久，避免 AI 瞬间出牌 */
 const MIN_LLM_THINKING_MS = 500;
 /** BUG-04：AI 台词存活时间（到期只删该座位气泡并清 map，不做整页 render） */
@@ -473,7 +474,7 @@ function scheduleAi(rt) {
   void runAiAction(rt, seat);
 }
 
-/** UNO 反应窗口：人类有 4s 点 UNO / 抓人（按钮带倒计时条）；超时后由当前行动者继续 */
+/** UNO 反应窗口：人类按难度 10/8/6/4s 点 UNO / 抓人（按钮带金色倒计时环）；超时后由当前行动者继续 */
 function handleUnoWindow(rt) {
   const state = rt.state;
   const view = currentView(rt);
@@ -490,8 +491,8 @@ function handleUnoWindow(rt) {
     return;
   }
 
-  // 倒计时条时长与真实窗口一致（按钮内进度条读取 --uno-window-ms）
-  const windowMs = isTestMode() ? 120 : UNO_WINDOW_MS;
+  // M5：窗口时长 = 难度映射（与按钮金环读取的 --uno-window-ms 同源）；测试模式 120ms
+  const windowMs = resolveUnoWindowMs(state.config.aiDifficulty);
   document.documentElement.style.setProperty('--uno-window-ms', `${windowMs}ms`);
   window.UnoApp.render(view);
   setTimer(

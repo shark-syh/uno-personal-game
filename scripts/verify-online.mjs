@@ -484,6 +484,29 @@ try {
     })()`);
     check('UNO 窗口主人只看到「UNO!」、看不到「抓他」', ownerBar.hasUno && !ownerBar.hasCatch, JSON.stringify(ownerBar));
     check('其他座位只看到「抓他」、看不到「UNO!」', catcherBar.hasCatch && !catcherBar.hasUno, JSON.stringify(catcherBar));
+
+    // M5：联机 UNO 金色倒计时环——主人侧渲染 conic 金环，时长 = 房间难度映射（10/8/6/4s 之一）
+    const ownerRing = await owner.evaluate(`(() => {
+      const button = document.querySelector('#action-bar .uno-button');
+      const ring = button?.querySelector('.uno-countdown.uno-ring');
+      return {
+        hasRing: Boolean(ring),
+        windowKey: ring?.dataset.windowKey || '',
+        varMs: document.documentElement.style.getPropertyValue('--uno-window-ms').trim(),
+        duration: ring ? getComputedStyle(ring).animationDuration : '',
+      };
+    })()`);
+    check(
+      'M5 联机 UNO 金环：主人侧渲染倒计时环（uno-ring + data-window-key）',
+      ownerRing.hasRing && ownerRing.windowKey.length > 0,
+      JSON.stringify(ownerRing),
+    );
+    check(
+      'M5 联机 UNO 金环：环时长与 --uno-window-ms 同源且为难度映射之一（10/8/6/4s）',
+      ['10000ms', '8000ms', '6000ms', '4000ms'].includes(ownerRing.varMs) &&
+        Number.parseFloat(ownerRing.duration) * 1000 === Number.parseInt(ownerRing.varMs, 10),
+      JSON.stringify(ownerRing),
+    );
   }
 
   // M10-05：对局中房主离开 → 服务端把房主移交给下一位在线玩家
