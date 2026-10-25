@@ -128,7 +128,14 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
 
 #table-center { position: absolute; inset: 0; z-index: 2; display: flex; justify-content: center; align-items: center; gap: 36px; }
-#color-glow { position: absolute; left: 50%; top: 50%; width: min(62%, 430px); aspect-ratio: 2 / 1.15; translate: -50% -50%; border: 2px solid rgba(255, 255, 255, .18); border-radius: 50%; opacity: .25; pointer-events: none; }
+/* 颜色光晕：按牌桌百分比取尺寸（任何视口都是居中完整椭圆，不再下坠/被压扁） */
+#color-glow { position: absolute; left: 50%; top: 50%; width: 72%; height: 62%; translate: -50% -50%; border: 2px solid rgba(255, 255, 255, .18); border-radius: 50%; opacity: .28; pointer-events: none; will-change: opacity; }
+/* 换色脉冲只用透明度/外光，不做 transform/filter，避免椭圆抽动 */
+#color-glow.fx-pulse { animation: color-glow-pulse 300ms ease-out; }
+@keyframes color-glow-pulse {
+  0%, 100% { opacity: .28; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+  45% { opacity: .55; box-shadow: 0 0 26px 6px rgba(255, 255, 255, .22); }
+}
 /* 中心行动状态：位于顶部位座与中心牌之间；普通回合只显示 #turn-stamp */
 .table-status { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); z-index: 2; display: grid; gap: 5px; justify-items: center; max-width: 92%; }
 #turn-stamp { color: var(--ink); font-size: 14px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
