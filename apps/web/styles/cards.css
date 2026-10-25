@@ -18,10 +18,10 @@
 .card img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .card.is-fallback { color: var(--white); background: var(--card-color, #777); }
 .card.is-fallback .fallback-label { position: relative; z-index: 1; font-size: 34px; font-weight: 900; text-shadow: 0 2px 2px rgba(0,0,0,.35); }
-.card.is-legal { cursor: pointer; box-shadow: 0 0 0 3px var(--yellow), var(--shadow-card); }
+.card.is-legal { cursor: pointer; box-shadow: 0 0 0 3px var(--v2-gold), var(--shadow-card); }
 .card.is-illegal { opacity: .42; filter: saturate(.35); cursor: not-allowed; }
-.card.is-drawn { box-shadow: 0 0 0 3px var(--yellow), var(--shadow-card); }
-.card.is-drawn::before { content: "刚抽"; position: absolute; z-index: 3; top: 5px; left: 5px; padding: 2px 5px; border-radius: 4px; color: #1b1400; background: var(--yellow); font-size: 10px; font-weight: 800; }
+.card.is-drawn { box-shadow: 0 0 0 3px var(--v2-gold), var(--shadow-card); }
+.card.is-drawn::before { content: "刚抽"; position: absolute; z-index: 3; top: 5px; left: 5px; padding: 2px 5px; border-radius: 4px; color: #172000; background: var(--v2-gold); font-size: 10px; font-weight: 800; }
 .card.is-top { width: calc(var(--card-w) * .88); height: calc(var(--card-h) * .88); }
 /* M3：中心牌堆随 --v2-center-card-w 缩放，堆内卡牌铺满槽位（保持 2:3） */
 .pile-stack .card { width: 100%; height: 100%; flex: 0 0 100%; }
@@ -49,7 +49,7 @@
 #direction-indicator { font-size: 20px; }
 
 @media (hover: hover) and (pointer: fine) {
-  .card.is-legal:hover { z-index: 20; transform: translateY(-14px) scale(1.05); box-shadow: 0 0 0 3px var(--yellow), 0 16px 26px rgba(0,0,0,.45); }
+  .card.is-legal:hover { z-index: 20; transform: translateY(-14px) scale(1.05); box-shadow: 0 0 0 3px var(--v2-gold), 0 16px 26px rgba(0,0,0,.45); }
   .card.is-illegal:hover { z-index: 20; transform: translateY(-14px); box-shadow: 0 12px 20px rgba(0,0,0,.38); }
 }
 

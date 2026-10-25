@@ -1,8 +1,8 @@
 @keyframes dialog-in { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 /* BUG-02：UNO 按钮脉冲加强（扩散光环 + 轻微放大）；动画名保持不变 */
 @keyframes uno-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 0 2px rgba(255, 255, 255, .32), 0 0 14px rgba(255, 170, 0, .55), 0 8px 18px rgba(255, 102, 0, .35); }
-  50% { transform: scale(1.045); box-shadow: 0 0 0 12px rgba(255, 170, 0, 0), 0 0 30px 6px rgba(255, 170, 0, .9), 0 10px 26px rgba(255, 102, 0, .55); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 2px rgba(23, 32, 0, .25), 0 0 14px rgba(217, 255, 75, .5), 0 8px 18px rgba(0, 0, 0, .4); }
+  50% { transform: scale(1.045); box-shadow: 0 0 0 12px rgba(217, 255, 75, 0), 0 0 30px 6px rgba(217, 255, 75, .85), 0 10px 26px rgba(0, 0, 0, .5); }
 }
 /* M5：UNO 金环进度变量（@property 注册后 conic-gradient 才能随动画平滑消退；契约 §7.4） */
 @property --uno-progress {

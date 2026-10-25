@@ -193,7 +193,7 @@ function flash(duration = 320) {
 }
 
 function confetti(count = 24) {
-  const colors = ["#ff5555", "#ffaa00", "#55aa55", "#5555ff", "#ffffff", "#ffd86b"];
+  const colors = ["#ff5555", "#ffaa00", "#55aa55", "#5555ff", "#ffffff", "#d9ff4b"];
   const travel = window.innerHeight + 48;
   for (let index = 0; index < count; index += 1) {
     const node = document.createElement("div");

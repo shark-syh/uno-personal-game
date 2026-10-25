@@ -19,6 +19,8 @@ export function renderHud(view) {
   if (!aiIndicator.title) aiIndicator.removeAttribute("title");
   const draw = document.querySelector("#draw-pile"); draw.dataset.count = String(view.table.drawPileCount); draw.replaceChildren(cardBack()); document.querySelector("#draw-count").textContent = String(view.table.drawPileCount); document.querySelector("#draw-count").setAttribute("aria-label", `抽牌堆剩余 ${view.table.drawPileCount} 张`);
   const discard = document.querySelector("#discard-pile"); discard.dataset.topCard = view.table.discardTop?.faceCode || ""; discard.replaceChildren(...(view.table.discardTop3 || []).slice(1, 3).reverse().map((card) => { const node = renderCard(card); node.classList.add("discard-under"); node.setAttribute("aria-hidden", "true"); return node; }), view.table.discardTop ? renderCard(view.table.discardTop) : document.createTextNode("无"));
-  const glow = document.querySelector("#color-glow"); glow.dataset.color = color; glow.style.setProperty("background", `var(--${color})`);
+  // 风格重塑（radical）：颜色指示从整块色填充改为「细色环 + 边缘光」——大面积低透明色填充
+  // 在近黑基底上会染成浑浊色块；具体颜色由 layout.css 的 data-color 映射表提供。
+  const glow = document.querySelector("#color-glow"); glow.dataset.color = color; glow.style.removeProperty("background");
   const badge = document.querySelector("#stack-badge"); if (view.table.stack) { badge.hidden = false; badge.dataset.total = String(view.table.stack.total); badge.textContent = `+${view.table.stack.total}`; } else { badge.hidden = true; badge.textContent = ""; badge.dataset.total = ""; }
 }

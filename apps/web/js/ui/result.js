@@ -7,12 +7,13 @@ import { isResultTransitionRunning, playResultTransition } from "../animation/re
  * 与 result.turns / actions / draws / plays / stackPlays / unoCalls / challenges / durationMs；
  * UI 只做展示与图表布局，不算分、不写规则。
  */
+// radical 配色：荧光绿 / 薄荷 / 橙 / 蓝 / 珊瑚（图表五类操作）
 const OPS = [
-  { key: "plays", label: "出牌", color: "#ffb300" },
-  { key: "draws", label: "摸牌", color: "#7fd1ae" },
-  { key: "stackPlays", label: "叠牌", color: "#ff8a65" },
-  { key: "unoCalls", label: "喊 UNO", color: "#b39ddb" },
-  { key: "challenges", label: "挑战", color: "#90caf9" },
+  { key: "plays", label: "出牌", color: "#d9ff4b" },
+  { key: "draws", label: "摸牌", color: "#8de2ba" },
+  { key: "stackPlays", label: "叠牌", color: "#ff9d2e" },
+  { key: "unoCalls", label: "喊 UNO", color: "#7d9bff" },
+  { key: "challenges", label: "挑战", color: "#ff5f55" },
 ];
 const HAND_COLORS = [
   { key: "red", label: "红", color: "var(--red)" },

@@ -1,23 +1,25 @@
 :root {
-  --felt-900: #071f15;
-  --felt-800: #0e4d2e;
-  --felt-700: #14532d;
-  --felt-600: #1a6b3d;
-  --ink: #f8fbf8;
-  --ink-muted: #b9d0c1;
-  --surface: rgba(7, 31, 21, 0.82);
-  --surface-raised: rgba(20, 83, 45, 0.88);
+  /* 风格重塑（2026-10-25，用户指令采用 radical 原型）：近黑基底 + 荧光绿点缀。
+     令牌名不变（70+ 处引用级联），值换为 radical 配色；UNO 原始牌面四色不动。 */
+  --felt-900: #060b09;
+  --felt-800: #0a110d;
+  --felt-700: #101a15;
+  --felt-600: #18241e;
+  --ink: #f1f5ed;
+  --ink-muted: #8ea097;
+  --surface: rgba(10, 21, 16, 0.88);
+  --surface-raised: rgba(11, 21, 16, 0.85);
   --surface-light: #f7fbf7;
-  --line: rgba(255, 255, 255, 0.16);
-  --line-strong: rgba(255, 255, 255, 0.3);
+  --line: rgba(215, 243, 223, 0.13);
+  --line-strong: rgba(215, 243, 223, 0.27);
   --red: #ff5555;
   --yellow: #ffaa00;
   --green: #55aa55;
   --blue: #5555ff;
   --white: #fff;
   --black: #000;
-  --danger: #ff6b6b;
-  --success: #8fe2a7;
+  --danger: #ff5f55;
+  --success: #8de2ba;
   --radius: 12px;
   --radius-sm: 8px;
   --card-w: 120px;
@@ -31,26 +33,26 @@
   --space-8: 32px;
   --space-10: 40px;
   --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.35);
-  --shadow-panel: 0 14px 32px rgba(0, 0, 0, 0.25);
-  --shadow-focus: 0 0 0 3px rgba(255, 255, 255, 0.92), 0 0 0 6px rgba(85, 85, 255, 0.75);
+  --shadow-panel: 0 24px 80px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 2px #d9ff4b, 0 0 0 5px rgba(217, 255, 75, 0.35);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  /* v2.0.0 UI 重构（M2）：主操作金色与统一减速曲线 */
-  --v2-gold: #ffc247;
+  /* 主操作点缀色：金色 → radical 荧光绿（名称保留，契约引用不变） */
+  --v2-gold: #d9ff4b;
   --v2-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  /* v2.0.0 UI 重构（M3）：椭圆牌桌、座位锚点、层级表面 */
-  --v2-gold-soft: rgba(255, 194, 71, 0.22);
-  --v2-gold-line: rgba(255, 194, 71, 0.58);
-  --v2-surface-0: rgba(4, 18, 12, 0.72);
-  --v2-surface-1: rgba(7, 31, 21, 0.88);
-  --v2-surface-2: rgba(14, 77, 46, 0.48);
-  --v2-line-soft: rgba(210, 239, 219, 0.14);
-  --v2-line-strong: rgba(210, 239, 219, 0.3);
-  /* v2.0.0 UI 重构（M6）：胜利填充四色（契约 §8.4，只作用于 #result-title 与获胜牌边缘光） */
-  --v2-win-red: #ff6b6b;
-  --v2-win-gold: #ffc247;
-  --v2-win-green: #65e6a6;
-  --v2-win-blue: #7aa2ff;
+  /* v2.0.0 UI 重构（M3）：椭圆牌桌、座位锚点、层级表面（radical 换肤后的暗色表面） */
+  --v2-gold-soft: rgba(217, 255, 75, 0.14);
+  --v2-gold-line: rgba(217, 255, 95, 0.42);
+  --v2-surface-0: rgba(8, 19, 14, 0.91);
+  --v2-surface-1: rgba(10, 21, 16, 0.91);
+  --v2-surface-2: rgba(23, 62, 43, 0.5);
+  --v2-line-soft: rgba(215, 243, 223, 0.14);
+  --v2-line-strong: rgba(215, 243, 223, 0.26);
+  /* v2.0.0 UI 重构（M6）：胜利填充四色（radical：珊瑚红→荧光绿→薄荷→蓝） */
+  --v2-win-red: #ff5f55;
+  --v2-win-gold: #d9ff4b;
+  --v2-win-green: #8de2ba;
+  --v2-win-blue: #7d9bff;
   --v2-text-dim: #9fb9a8;
   --v2-arena-w: min(72vw, 820px);
   --v2-arena-h: min(56vh, 520px);
@@ -88,7 +90,7 @@ body {
 }
 
 button, input, select { font: inherit; }
-input, select { font-size: 16px; }
+input, select { font-size: 16px; accent-color: var(--v2-gold); }
 button { touch-action: manipulation; user-select: none; }
 h1, h2 { text-wrap: balance; overflow-wrap: anywhere; }
 button { color: inherit; }

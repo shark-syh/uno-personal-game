@@ -1,11 +1,24 @@
 body { overflow-x: clip; }
 #app { min-height: 100dvh; isolation: isolate; }
+/* 风格重塑（radical）：全屏 36px 网格纹理，向下 65% 渐隐——控制面材质签名 */
+#app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .35;
+  background-image: linear-gradient(#ffffff08 1px, transparent 1px), linear-gradient(90deg, #ffffff08 1px, transparent 1px);
+  background-size: 36px 36px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, transparent 65%);
+          mask-image: linear-gradient(to bottom, #000 0, transparent 65%);
+}
 .screen { display: none; min-height: 100dvh; }
 .screen.is-active { display: block; }
 body:has(#dev-toolbar:not([hidden])) .screen { min-height: calc(100dvh - 64px); }
 body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 
-#lobby-screen { padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); background: radial-gradient(ellipse at center, transparent 35%, #071f1580), linear-gradient(145deg, var(--felt-800), var(--felt-700)); }
+#lobby-screen { padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); background: linear-gradient(135deg, var(--felt-800) 0%, var(--felt-700) 50%, var(--felt-900) 100%); }
 #lobby-screen.is-active { display: grid; place-items: center; }
 .lobby-shell { width: min(960px, 100%); display: grid; grid-template-columns: 1fr minmax(440px, 1.1fr); gap: 48px; align-items: center; }
 .lobby-brand h1 { margin: 0; font-size: 60px; line-height: 1.12; }
@@ -25,10 +38,10 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 #player-count-options { grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 5px; }
 .choice-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .choice-grid button { min-height: 44px; min-width: 0; padding: 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #ffffff0d; cursor: pointer; transition: background 180ms ease, transform 180ms ease; }
-.choice-grid button[aria-pressed="true"] { border-color: var(--yellow); background: #ffaa002e; }
+.choice-grid button[aria-pressed="true"] { border-color: var(--v2-gold); color: var(--v2-gold); background: var(--v2-gold-soft); }
 .lobby-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
-#game-screen { position: relative; padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: radial-gradient(ellipse at center, transparent 35%, #0005), linear-gradient(145deg, var(--felt-800), var(--felt-700)); }
+#game-screen { position: relative; padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: linear-gradient(135deg, var(--felt-800) 0%, var(--felt-700) 50%, var(--felt-900) 100%); }
 /* M3：牌桌屏占满视口高度（中行 minmax(0,1fr) 吃剩余空间，arena 在行内封顶，避免 56vh 硬高度撑出竖向滚动） */
 #game-screen.is-active { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; height: 100dvh; }
 body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dvh - 64px); }
@@ -63,10 +76,11 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   justify-self: center;
   align-self: center;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, var(--v2-surface-2), transparent 72%);
-  box-shadow: inset 0 0 0 1px var(--v2-line-soft), inset 0 18px 48px rgba(0, 0, 0, 0.35);
+  /* radical：暗绿黑呢面 + 内阴影（原色 #173e2b→#0b1912 渐变） */
+  background: radial-gradient(ellipse at center, #173e2b 0%, #102c20 45%, #0b1912 100%);
+  box-shadow: inset 0 0 0 1px var(--v2-line-soft), inset 0 18px 48px rgba(0, 0, 0, 0.45);
 }
-.arena-rail { position: absolute; inset: 14px; z-index: 0; border: 1px solid var(--v2-line-soft); border-radius: 50%; pointer-events: none; }
+.arena-rail { position: absolute; inset: 14px; z-index: 0; border: 1px solid rgba(217, 255, 75, 0.11); border-radius: 50%; pointer-events: none; }
 #opponents { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 /* 10 人局：座位盒收窄到 104px——中窄牌桌上「左列夹紧座位 ↔ 斜上座位 ↔ 顶部中央座位」
    三只 116px 盒在椭圆带内放不下（角部重叠 ~8px），收窄后 r3/r4/r5 中心距恰好≥盒宽。 */
@@ -131,18 +145,23 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
 
 #table-center { position: absolute; inset: 0; z-index: 2; display: flex; justify-content: center; align-items: center; gap: 36px; }
-/* 颜色光晕：按牌桌百分比取尺寸（任何视口都是居中完整椭圆，不再下坠/被压扁） */
-#color-glow { position: absolute; left: 50%; top: 50%; width: 72%; height: 62%; translate: -50% -50%; border: 2px solid rgba(255, 255, 255, .18); border-radius: 50%; opacity: .28; pointer-events: none; will-change: opacity; }
+/* 颜色指示环（radical）：细色环 + 同色边缘光，替代旧大面积色填充——近黑基底上
+   低透明色块会染成浑浊色。颜色经 data-color 映射（hud.js 只写 dataset）。 */
+#color-glow { position: absolute; left: 50%; top: 50%; width: 72%; height: 62%; translate: -50% -50%; border: 2px solid var(--glow-color, rgba(255, 255, 255, .2)); border-radius: 50%; box-shadow: 0 0 30px var(--glow-soft, transparent), inset 0 0 26px var(--glow-soft, transparent); opacity: .9; pointer-events: none; will-change: opacity; }
+#color-glow[data-color="red"] { --glow-color: rgba(255, 85, 85, .55); --glow-soft: rgba(255, 85, 85, .16); }
+#color-glow[data-color="yellow"] { --glow-color: rgba(255, 170, 0, .55); --glow-soft: rgba(255, 170, 0, .16); }
+#color-glow[data-color="green"] { --glow-color: rgba(85, 200, 120, .55); --glow-soft: rgba(85, 200, 120, .16); }
+#color-glow[data-color="blue"] { --glow-color: rgba(125, 155, 255, .6); --glow-soft: rgba(125, 155, 255, .18); }
 /* 换色脉冲只用透明度/外光，不做 transform/filter，避免椭圆抽动 */
 #color-glow.fx-pulse { animation: color-glow-pulse 300ms ease-out; }
 @keyframes color-glow-pulse {
-  0%, 100% { opacity: .28; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
-  45% { opacity: .55; box-shadow: 0 0 26px 6px rgba(255, 255, 255, .22); }
+  0%, 100% { opacity: .9; box-shadow: 0 0 30px var(--glow-soft, transparent), inset 0 0 26px var(--glow-soft, transparent); }
+  45% { opacity: 1; box-shadow: 0 0 52px 8px var(--glow-soft, transparent), inset 0 0 40px var(--glow-soft, transparent); }
 }
 /* 中心行动状态：位于顶部位座与中心牌之间；普通回合只显示 #turn-stamp */
 .table-status { position: absolute; top: 20%; left: 50%; transform: translateX(-50%); z-index: 2; display: grid; gap: 5px; justify-items: center; max-width: 92%; }
-#turn-stamp { color: var(--ink); font-size: 14px; font-weight: 800; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
-#phase-label { padding: 3px 10px; border: 1px solid var(--v2-gold-line); border-radius: 999px; color: var(--v2-gold); background: var(--v2-gold-soft); font-size: 12px; font-weight: 700; white-space: nowrap; }
+#turn-stamp { color: var(--ink); font-size: 14px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+#phase-label { padding: 3px 10px; border: 1px solid var(--v2-gold-line); border-radius: 5px; color: var(--v2-gold); background: #08120de8; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
 #table-direction { position: absolute; left: calc(50% + 168px); top: 50%; transform: translateY(-50%); z-index: 1; font-size: 30px; color: var(--v2-text-dim); pointer-events: none; }
 .pile-stack { position: relative; width: var(--v2-center-card-w); height: calc(var(--v2-center-card-w) * 1.5); }
 #draw-pile, #discard-pile { position: absolute; inset: 0; }
@@ -167,7 +186,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 #hand-zone.hand-dock {
   padding: 0 8px max(8px, env(safe-area-inset-bottom));
   border-radius: 16px 16px 0 0;
-  background: linear-gradient(180deg, rgba(7, 31, 21, 0), var(--v2-surface-1) 62%);
+  background: linear-gradient(180deg, rgba(16, 26, 21, 0), var(--v2-surface-1) 62%);
   box-shadow: inset 0 1px 0 var(--v2-line-soft);
 }
 /* 手牌独立滚动边界：页面永不横向滚动，横向浏览只发生在 #hand 内部 */
@@ -198,8 +217,8 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .result-panel { width: min(840px, 100%); }
 /* M6（契约 §8.2/§8.4）：标题、获胜牌、meta 各自独立布局槽；胜利填充只作用于标题文本 */
 .result-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "kicker kicker" "title wincard" "meta wincard"; align-items: center; column-gap: 24px; row-gap: 4px; }
-.result-kicker { grid-area: kicker; margin: 0; color: var(--ink-muted); font-size: 13px; letter-spacing: .12em; }
-.result-header h2 { grid-area: title; margin: 0; font-size: 44px; line-height: 1.15; }
+.result-kicker { grid-area: kicker; margin: 0; color: var(--v2-gold); font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+.result-header h2 { grid-area: title; margin: 0; font-size: 48px; line-height: 1.12; letter-spacing: -.03em; }
 .result-header h2:not(.is-draw) {
   background: linear-gradient(92deg, var(--v2-win-red), var(--v2-win-gold) 38%, var(--v2-win-green) 68%, var(--v2-win-blue));
   -webkit-background-clip: text;
@@ -218,21 +237,22 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .result-fly-card { position: fixed; z-index: 95; margin: 0; pointer-events: none; will-change: transform; filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .5)); }
 .result-list { display: grid; margin: 28px 0; }
 .result-row { display: grid; grid-template-columns: minmax(70px, 1fr) 1fr auto; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid var(--line); }
-.result-row.is-winner { background: #ffaa001a; }
+.result-row.is-winner { background: var(--v2-gold-soft); }
 .result-cards { display: flex; flex-wrap: wrap; gap: 5px; }
 .result-score { color: var(--ink-muted); font-size: 13px; white-space: nowrap; }
-.result-row.is-winner .result-score { color: #ffd86b; font-weight: 800; }
+.result-row.is-winner .result-score { color: var(--v2-gold); font-weight: 800; }
 .result-uno-pill { margin-left: 2px; }
 .result-actions { display: flex; gap: 10px; }
 
 /* 2026-10-18：取消分数计算，结算页改为数据图表总结操作 */
 .result-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin: 20px 0 6px; }
-.result-stat { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #ffffff0d; }
-.result-stat small { display: block; color: var(--ink-muted); font-size: 11px; }
-.result-stat strong { color: var(--ink); font-size: 22px; line-height: 1.25; }
+/* radical：stat 卡改顶线式（2px 上边线 + 极淡底，无圆角） */
+.result-stat { padding: 13px; border: 0; border-top: 2px solid var(--line-strong); border-radius: 0; background: #ffffff07; }
+.result-stat small { display: block; color: var(--ink-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+.result-stat strong { display: block; margin-top: 7px; color: var(--ink); font-size: 24px; line-height: 1.2; }
 #result-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0 22px; }
 #result-charts .result-chart[data-chart="hand-colors"] { grid-column: 1 / -1; }
-.result-chart { padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #071f1599; }
+.result-chart { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: rgba(10, 21, 16, 0.86); }
 .result-chart h3 { margin: 0 0 2px; color: var(--ink); font-size: 15px; }
 .result-chart small { color: var(--ink-muted); font-size: 11px; }
 .chart-ops-row, .chart-hand-row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 60px; gap: 10px; align-items: center; margin-top: 8px; }
@@ -247,7 +267,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .chart-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
 .chart-mix-wrap { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin-top: 10px; }
 .chart-donut { position: relative; display: grid; place-items: center; flex: none; width: 132px; height: 132px; border-radius: 50%; }
-.chart-donut::after { content: ""; position: absolute; inset: 26px; border-radius: 50%; background: #0a2a1b; }
+.chart-donut::after { content: ""; position: absolute; inset: 26px; border-radius: 50%; background: #111815; }
 .chart-donut-center { position: relative; z-index: 1; color: var(--ink-muted); font-size: 12px; line-height: 1.3; text-align: center; }
 .chart-donut-center strong { display: block; color: var(--ink); font-size: 22px; }
 
