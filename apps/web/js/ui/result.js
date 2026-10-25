@@ -1,4 +1,5 @@
 import { renderCard } from "./hand.js";
+import { isResultTransitionRunning, playResultTransition } from "../animation/resultTransition.js";
 
 /**
  * 结算页（2026-10-18 用户要求：取消分数计算，保留最终结算，改为数据图表总结操作）。
@@ -75,17 +76,29 @@ export function renderResult(view, { onAction }) {
     challenges: num(result.challenges),
   };
 
-  // ---- 头部：胜者 / 回合 / 用时 ----
-  const header = document.createElement("div");
+  // ---- 头部（契约 §8.2）：kicker / 标题（去 emoji，胜者名保留）/ meta 数据行 ----
+  const header = document.createElement("header");
   header.className = "result-header";
+  const kicker = document.createElement("p");
+  kicker.className = "result-kicker";
+  kicker.textContent = "本局结算";
   const title = document.createElement("h2");
   title.id = "result-title";
-  title.textContent = isDraw ? "🤝 平局" : `🏆 ${winner?.name || "赢家"} 获胜`;
-  const stats = document.createElement("div");
-  stats.className = "result-stats";
+  if (isDraw) title.classList.add("is-draw");
+  title.textContent = isDraw ? "平局" : `${winner?.name || "赢家"} 获胜`;
+  const meta = document.createElement("p");
+  meta.id = "result-meta";
+  meta.className = "result-stats";
   const reasonText = result.reason === "deck-empty" ? " · 牌堆耗尽" : "";
-  stats.textContent = `回合 ${totals.turns} · 用时 ${Math.round((num(result.durationMs) || 0) / 1000)} 秒${reasonText}`;
-  header.append(title, stats);
+  meta.textContent = `人数 ${players.length} · 手数 ${totals.turns} · 用时 ${Math.round((num(result.durationMs) || 0) / 1000)} 秒 · 行动 ${totals.actions}${reasonText}`;
+
+  // ---- 获胜牌槽（契约 §8.1）：empty-hand 用 discardTop；平局/无牌隐藏，不飞 ----
+  const winCardWrap = document.createElement("div");
+  winCardWrap.id = "result-win-card";
+  const winCard = !isDraw && result.reason !== "deck-empty" ? view.table?.discardTop || null : null;
+  if (winCard) winCardWrap.append(renderCard(winCard));
+  else winCardWrap.hidden = true;
+  header.append(kicker, title, meta, winCardWrap);
 
   // ---- 总览数字卡（数据图表辅助数据） ----
   const summary = document.createElement("div");
@@ -264,22 +277,28 @@ export function renderResult(view, { onAction }) {
     list.append(row);
   }
 
-  // ---- 操作按钮 ----
+  // ---- 操作按钮（转场 running 期间忽略重复点击，契约 §8.3 规则 6） ----
   const actions = document.createElement("div");
   actions.className = "result-actions";
+  const guard = (type) => () => {
+    if (isResultTransitionRunning()) return;
+    onAction({ type });
+  };
   const restart = document.createElement("button");
   restart.className = "btn btn-primary";
   restart.type = "button";
   restart.textContent = "再来一局";
   restart.setAttribute("aria-label", "再来一局");
-  restart.addEventListener("click", () => onAction({ type: "RESTART" }));
+  restart.addEventListener("click", guard("RESTART"));
   const lobby = document.createElement("button");
   lobby.className = "btn btn-ghost";
   lobby.type = "button";
   lobby.textContent = "回大厅";
   lobby.setAttribute("aria-label", "回大厅");
-  lobby.addEventListener("click", () => onAction({ type: "BACK_TO_LOBBY" }));
+  lobby.addEventListener("click", guard("BACK_TO_LOBBY"));
   actions.append(restart, lobby);
 
   root.replaceChildren(header, summary, charts, list, actions);
+  // 结算 DOM 就绪后启动飞牌转场（源 rect 由 render() 切屏前缓存；无效则静态降级）
+  playResultTransition(winCard);
 }

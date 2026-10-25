@@ -2039,6 +2039,129 @@ async function main() {
       await evaluate('window.__verify.resultTitle()'),
     );
 
+    // ---------------- M6：结算转场与对局总结（契约 §8） ----------------
+    // 头部契约 §8.2：kicker + 胜者名标题（去 emoji）+ meta 数据行（人数/手数/用时/行动）
+    const m6Header = await evaluate(
+      `(() => {
+        const header = document.querySelector('.result-header');
+        const title = document.querySelector('#result-title');
+        const titleStyle = title ? getComputedStyle(title) : null;
+        return {
+          kicker: document.querySelector('.result-kicker')?.textContent || '',
+          title: title?.textContent || '',
+          meta: document.querySelector('#result-meta')?.textContent || '',
+          hasEmoji: /[\\u{1F300}-\\u{1FAFF}]/u.test(title?.textContent || ''),
+          gradient: titleStyle ? titleStyle.backgroundImage.includes('linear-gradient') : false,
+          clip: titleStyle ? titleStyle.webkitTextFillColor === 'rgba(0, 0, 0, 0)' : false,
+          headerTag: header?.tagName || '',
+        };
+      })()`,
+    );
+    check(
+      'M6 结算头部：kicker「本局结算」+ 胜者名标题（无 emoji）+ 四色渐变填充',
+      m6Header.kicker === '本局结算' &&
+        m6Header.title.includes('获胜') &&
+        !m6Header.hasEmoji &&
+        m6Header.gradient &&
+        m6Header.clip,
+      JSON.stringify(m6Header),
+    );
+    check(
+      'M6 结算 meta：人数/手数/用时/行动齐全（mock：人数 4 · 手数 23 · 用时 184 秒 · 行动 42）',
+      m6Header.meta.includes('人数 4') &&
+        m6Header.meta.includes('手数 23') &&
+        m6Header.meta.includes('用时 184 秒') &&
+        m6Header.meta.includes('行动 42'),
+      m6Header.meta,
+    );
+
+    // 飞牌转场 §8.3：game(mock) → result(mock) 切屏缓存源 rect，结算后 520ms 飞入
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'M6 飞牌源局面');
+    await sleep(250);
+    await evaluate('window.__verify.selectMock("result")');
+    await sleep(140);
+    const m6Flying = await evaluate(
+      `(() => ({
+        flyCard: Boolean(document.querySelector('.result-fly-card')),
+        occupied: Boolean(document.querySelector('#result-win-card.is-occupied')),
+        running: document.querySelector('#result-screen')?.dataset.transition === 'running',
+        slotCard: Boolean(document.querySelector('#result-win-card .card')),
+      }))()`,
+    );
+    check(
+      'M6 飞牌转场：飞行克隆 + 目标槽占位 + data-transition=running',
+      m6Flying.flyCard && m6Flying.occupied && m6Flying.running,
+      JSON.stringify(m6Flying),
+    );
+    await sleep(800);
+    const m6Settled = await evaluate(
+      `(() => {
+        const title = document.querySelector('#result-title')?.getBoundingClientRect();
+        const win = document.querySelector('#result-win-card')?.getBoundingClientRect();
+        const overlap = title && win ? title.top < win.bottom && win.top < title.bottom && title.left < win.right && win.left < title.right : false;
+        return {
+          flyGone: !document.querySelector('.result-fly-card'),
+          released: !document.querySelector('#result-win-card.is-occupied'),
+          idle: !document.querySelector('#result-screen')?.dataset.transition,
+          slotShown: Boolean(document.querySelector('#result-win-card .card')),
+          titleWinOverlap: overlap,
+        };
+      })()`,
+    );
+    check(
+      'M6 飞牌落位：克隆清理、槽位恢复显示、转场解锁、不遮标题',
+      m6Settled.flyGone && m6Settled.released && m6Settled.idle && m6Settled.slotShown && !m6Settled.titleWinOverlap,
+      JSON.stringify(m6Settled),
+    );
+
+    // 静态降级 §8.3/§8.5：动画关闭时不飞，槽内静态显示
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
+    );
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'M6 降级源局面');
+    await sleep(200);
+    await evaluate('window.__verify.selectMock("result")');
+    await sleep(300);
+    const m6Static = await evaluate(
+      `(() => ({
+        noFly: !document.querySelector('.result-fly-card'),
+        noOccupied: !document.querySelector('#result-win-card.is-occupied'),
+        slotShown: Boolean(document.querySelector('#result-win-card .card')),
+        title: document.querySelector('#result-title')?.textContent || '',
+      }))()`,
+    );
+    check(
+      'M6 静态降级：动画关闭时无飞牌/无占位锁，获胜牌静态可读',
+      m6Static.noFly && m6Static.noOccupied && m6Static.slotShown,
+      JSON.stringify(m6Static),
+    );
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
+    );
+    await shot('v2/M6-result-fly-settled.png');
+
+    // 平局 §8.5：标题「平局」、获胜牌槽隐藏、meta 含「牌堆耗尽」
+    await evaluate('window.__verify.selectMock("result-draw")');
+    await waitFor('window.__verify.visibleScreen() === "result"', 5000, 'M6 平局结算');
+    await sleep(250);
+    const m6Draw = await evaluate(
+      `(() => ({
+        title: document.querySelector('#result-title')?.textContent || '',
+        winHidden: Boolean(document.querySelector('#result-win-card')?.hidden),
+        noFly: !document.querySelector('.result-fly-card'),
+        meta: document.querySelector('#result-meta')?.textContent || '',
+        charts: document.querySelectorAll('#result-charts .result-chart').length,
+      }))()`,
+    );
+    check(
+      'M6 平局：标题「平局」+ 无获胜牌槽（不飞）+ meta 含「牌堆耗尽」+ 图表完整',
+      m6Draw.title === '平局' && m6Draw.winHidden && m6Draw.noFly && m6Draw.meta.includes('牌堆耗尽') && m6Draw.charts === 3,
+      JSON.stringify(m6Draw),
+    );
+    await shot('v2/M6-result-draw.png');
+
     // M5-04：牌堆只剩 0/1 张时 HUD 计数与洗回提示（mock 静态局面，真实引擎边界由单测覆盖）
     await evaluate('window.__verify.selectMock("deck-edge-zero")');
     await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'mock 牌堆边界局面（0 张）');

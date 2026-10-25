@@ -46,6 +46,11 @@
   --v2-surface-2: rgba(14, 77, 46, 0.48);
   --v2-line-soft: rgba(210, 239, 219, 0.14);
   --v2-line-strong: rgba(210, 239, 219, 0.3);
+  /* v2.0.0 UI 重构（M6）：胜利填充四色（契约 §8.4，只作用于 #result-title 与获胜牌边缘光） */
+  --v2-win-red: #ff6b6b;
+  --v2-win-gold: #ffc247;
+  --v2-win-green: #65e6a6;
+  --v2-win-blue: #7aa2ff;
   --v2-text-dim: #9fb9a8;
   --v2-arena-w: min(72vw, 820px);
   --v2-arena-h: min(56vh, 520px);

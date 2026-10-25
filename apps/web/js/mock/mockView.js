@@ -18,7 +18,7 @@ function basePlayers(count, { thinking = false, oneUno = false } = {}) {
 function humanHand() { return [card("R7", 0), card("GS", 0), card("B0", 0), card("WC", 0), card("YA2", 0)]; }
 function colorActions(type, cardId) { return Object.keys(colors).map((color) => action(`${type}:${cardId}:${color}`, type, type === "CHOOSE_COLOR" ? `${colors[color]}色` : `出 ${cardId.split("#")[0]} · ${colors[color]}`, { cardId, ...(type === "CHOOSE_COLOR" ? { color } : { colorChoice: color }) })); }
 function common({ name = "normal-play", count = 4, phase = "await-play", drawPileCount = 41, players = basePlayers(count), hand = humanHand(), legalActions = [], currentColor = "red", stack = null, events = [], pendingColorChoice = false, pendingChallenge = null, canCallUno = false, canCatch = [], drawnThisTurn = null, discardTop = card("R3"), discardTop3 = [discardTop, card("B3"), card("Y5")] } = {}) {
-  return { mock: true, screen: name === "lobby" ? "lobby" : name === "result" ? "result" : "game", phase, config: { playerCount: count, difficulty: "realistic", aiMode: "auto", challengeWild4: true }, currentSeat: players.find((player) => player.thinking)?.seat ?? 0, direction: 1, currentColor, players: players.map((player) => player.isHuman ? { ...player, handCount: hand.length } : player), human: { seat: 0, hand, legalActions, drawnThisTurn, mustRespondStack: phase === "stack-response", canCallUno, canCatch, pendingChallenge }, table: { discardTop, discardTop3, drawPileCount, stack, pendingColorChoice, winnerSeat: null }, events, result: null, settings: { autoCallUno: false, aiSpeed: "normal", sound: true, animation: true, showHint: true, aiChatter: true }, dev: { mockName: name } };
+  return { mock: true, screen: name === "lobby" ? "lobby" : name.startsWith("result") ? "result" : "game", phase, config: { playerCount: count, difficulty: "realistic", aiMode: "auto", challengeWild4: true }, currentSeat: players.find((player) => player.thinking)?.seat ?? 0, direction: 1, currentColor, players: players.map((player) => player.isHuman ? { ...player, handCount: hand.length } : player), human: { seat: 0, hand, legalActions, drawnThisTurn, mustRespondStack: phase === "stack-response", canCallUno, canCatch, pendingChallenge }, table: { discardTop, discardTop3, drawPileCount, stack, pendingColorChoice, winnerSeat: null }, events, result: null, settings: { autoCallUno: false, aiSpeed: "normal", sound: true, animation: true, showHint: true, aiChatter: true }, dev: { mockName: name } };
 }
 
 function normal(name = "normal-play", count = 4) {
@@ -27,7 +27,7 @@ function normal(name = "normal-play", count = 4) {
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 
-export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
+export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "result-draw", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
 
 export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "lobby") return common({ name, count: 4, phase: "lobby" });
@@ -72,6 +72,29 @@ export function createMockView(name = "lobby", playerCount = 4) {
         unoCalls: 2,
         challenges: 1,
         reason: "empty-hand",
+      },
+    };
+  }
+  // M6 验收负向用例：平局——标题「平局」、获胜牌槽隐藏、统计完整（契约 §8.5）
+  if (name === "result-draw") {
+    const players = basePlayers(4).map((p, i) => ({
+      seat: p.seat, name: p.name, remaining: [card("R1", i)], saidUno: false,
+      plays: 5, draws: 3, stackPlays: 0, unoCalls: 0, unoCaught: 0, challenges: 0,
+    }));
+    return {
+      ...common({ name, phase: "round-end", hand: [] }),
+      result: {
+        winnerSeat: null,
+        players,
+        turns: 30,
+        durationMs: 90000,
+        actions: 32,
+        plays: 20,
+        draws: 12,
+        stackPlays: 0,
+        unoCalls: 0,
+        challenges: 0,
+        reason: "deck-empty",
       },
     };
   }

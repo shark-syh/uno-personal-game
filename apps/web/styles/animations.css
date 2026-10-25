@@ -14,6 +14,12 @@
   from { --uno-progress: 1; }
   to { --uno-progress: 0; }
 }
+/* M6（契约 §8.4）：胜利标题一次 520ms 亮度扫过——不循环、不闪烁；reduced-motion 由全局规则压成静态渐变 */
+@keyframes win-sheen {
+  from { filter: brightness(1); }
+  40% { filter: brightness(1.6); }
+  to { filter: brightness(1); }
+}
 @keyframes dots { 0% { content: ""; } 33% { content: "."; } 66% { content: ".."; } 100% { content: "..."; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 html[data-animation="false"] *, html[data-animation="false"] *::before, html[data-animation="false"] *::after { animation: none !important; transition: none !important; }
