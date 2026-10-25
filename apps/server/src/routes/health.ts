@@ -19,7 +19,7 @@ export function createHealthRouter(deps: HealthRouterDeps): Router {
     res.json({
       status: 'ok',
       service: 'uno-server',
-      version: '1.3.0',
+      version: '2.0.0',
       uptimeSec: Math.round(process.uptime()),
       time: new Date().toISOString(),
       // M8 联机：局域网访问地址（房主面板据此显示「好友打开这个网址」提示）

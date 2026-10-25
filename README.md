@@ -6,8 +6,8 @@
 ![Desktop](https://img.shields.io/badge/desktop-Electron%20%2B%20NSIS-47848f)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v1.3.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3)
-![Status](https://img.shields.io/badge/M0%7EM10-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+[![Release](https://img.shields.io/badge/release-v2.0.0--beta.1-blue)](https://github.com/shark-syh/uno-personal-game/releases)
+![Status](https://img.shields.io/badge/M0%7EM10%20%C2%B7%20v2%20M1%7EM7-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
@@ -19,7 +19,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**当前版本：v1.3.0**（2026-10-21，桌面安装版）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**当前版本：v2.0.0**（2026-10-25，v2.0.0 UI 重构 · radical 黑绿主题；桌面安装包待打包）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <a href="https://github.com/shark-syh/uno-personal-game/releases/tag/v1.3"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>

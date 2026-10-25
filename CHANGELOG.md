@@ -2,7 +2,43 @@
 
 > v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。当前开发阶段为 v2.0.0 UI 升级。
 
-## 未发布
+## v2.0.0（2026-10-25）
+
+v2.0.0 UI 重构整体发布：执行编号 M1~M8（视觉契约 → 大厅品牌 → 圆桌座位 → 悬浮手牌 → UNO 金环 → 结算转场 → 无障碍收口 → 发布），外加一次用户确认的 radical 风格重塑。规则引擎、`GameView`/`UiAction`、WebSocket 协议、服务端权威与脱敏边界零改动；`window.UnoApp` 五个 API 与 DOM 锚点只增不改。
+
+### M7 响应式/无障碍/性能收口（2026-10-25）
+
+- 荧光绿焦点环（`:focus-visible`）；CDP 真实键盘验证「Tab 聚焦合法牌 → Enter 出牌」完整键盘路径；对手卡背 `aria-hidden`、触控目标 ≥44px 断言。
+- 420/760/1024/1440 四档布局断言在 radical 配色下复测；`npm run perf` FCP 280ms / FPS 60。
+- 根治「6 人轮转」偶发断言（采样窗 5s→9s：智谱单次决策可达 3.8s，旧窗口只采到人类座位）。
+- 验证：`verify:ui` 137/137（新增 4 项 M7 断言）、`verify:online` 32/32。
+
+### 风格重塑 · radical 主题（2026-10-25，用户确认采用原型配色）
+
+- 全套换肤为 radical 设计语言：近黑基底 `#090d0b` + 荧光绿点缀 `#d9ff4b` + 全屏网格纹理；令牌名不变、值替换（`--v2-gold` 即荧光绿）。
+- 牌桌当前颜色指示改为「细色环 + 同色边缘光」；UNO 按钮/金环/合法牌/刚抽角标荧光绿；结算四色渐变标题、顶线式统计卡、radical 图表配色；弹窗/输入框暗色化。
+- 契约 B03 同步改写（radical 主题为唯一视觉基线）；M2~M6 结构与交互零改动。
+
+### M6 结算转场与对局总结（2026-10-25）
+
+- 结算头部：`本局结算` kicker + 胜者名标题（去 emoji）+ `人数/手数/用时/行动` meta（不再显示恒为 1 的「局数」）。
+- 获胜牌飞入：切屏前缓存弃牌堆顶 rect，结算后克隆飞行 520ms 入槽；转场期间锁定重复点击；源缺失/平局/牌堆耗尽/动画关闭/reduced-motion 静态降级。
+- 标题四色胜利渐变 + 一次 520ms 亮度扫过；平局/牌堆耗尽负向断言。
+
+### M5 UNO 条件与金色倒计时环（2026-10-25）
+
+- UNO 按钮只在「1 张 + uno-window + canCallUno + CALL_UNO 合法」时渲染；窗口时长唯一映射（休闲 10s / 简单 8s / 真实 6s / 骨灰级 4s，`?test=1` 固定 120ms）。
+- 金色倒计时环（conic-gradient + `@property --uno-progress` 插值）；`data-window-key` + 负 `animation-delay` 保证重复渲染不重置进度；到期只改 UI 不提交动作；动画关闭/reduced-motion 静态降级（金边框 + 文本秒数）。
+
+### M4 悬浮手牌与动作区（2026-10-24）
+
+- `#hand-zone.hand-dock` 悬浮手牌坞（背景与牌桌融合、触底 safe-area 留白）；`#hand[data-count]`、`.card[data-state]`（legal/illegal/drawn）、`#action-bar[data-phase]`。
+- 手牌卡宽六档（120/108/96/88/80/76，保持 2:3）；`#hand` 独立横向滚动边界（`overscroll-behavior-x: contain`）；W3 以下动作栏两行网格；触控目标 ≥44px。
+
+### 版本口径
+
+- 代码版本 1.3.0 → **2.0.0**（根 package.json / 服务端 `/api/health` / 桌面壳 package.json 同步）；顶栏与大厅版本号随之显示 v2.0.0。
+- 桌面安装包（NSIS）与 GitHub Release 由本地打包流程产出（本会话环境安全策略拦截 esbuild，无法在会话内打包）。
 
 ### M3 圆形牌桌与座位（2026-10-23）
 
