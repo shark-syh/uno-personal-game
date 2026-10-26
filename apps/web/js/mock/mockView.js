@@ -27,7 +27,18 @@ function normal(name = "normal-play", count = 4) {
   return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
 }
 
-export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "result-draw", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success"];
+export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "result-draw", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success", "opponent-hands", "opponent-hands-shift"];
+
+/**
+ * M2 验收：固定对手手牌数的 10 人局面（9 名对手，counts 依次对应座位 1~9）。
+ * `opponent-hands` 覆盖 0/3/5/6/10/12/11/2/9 张分档；`opponent-hands-shift` 用同一批座位换一个
+ * 张数分布，验证 data-hand-count diff 驱动的一次性动效（推入 / 弹出 / 徽标 bump / 满堆退出）。
+ */
+function handCountView(name, counts) {
+  const players = basePlayers(counts.length + 1);
+  counts.forEach((handCount, index) => { players[index + 1].handCount = handCount; });
+  return common({ name, count: counts.length + 1, players, legalActions: [] });
+}
 
 export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "lobby") return common({ name, count: 4, phase: "lobby" });
@@ -104,5 +115,8 @@ export function createMockView(name = "lobby", playerCount = 4) {
   if (name === "challenge-success") return common({ name, events: [{ type: "CHALLENGE_SUCCESS", challenger: 0, target: 1, hand: [card("R9"), card("GS"), card("W4"), card("B0"), card("YA2")] }], legalActions: [action("draw", "DRAW", "摸牌")] });
   if (name === "deck-edge-zero") return common({ name, drawPileCount: 0, events: [{ type: "PILE_RESHUFFLE", reason: "draw" }, { type: "DRAW", seat: 0, count: 2 }] });
   if (name === "deck-edge-one") return common({ name, drawPileCount: 1, events: [{ type: "DRAW", seat: 1, count: 1 }] });
+  // M2 验收（契约 §2.1/§2.2）：0/3/5/6/10/12/11/2/9 张分档 + 同座位换分布触发一次性数量动效
+  if (name === "opponent-hands") return handCountView(name, [0, 3, 5, 6, 10, 12, 11, 2, 9]);
+  if (name === "opponent-hands-shift") return handCountView(name, [1, 2, 6, 5, 9, 12, 12, 2, 3]);
   return normal("normal-play", 4);
 }

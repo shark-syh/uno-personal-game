@@ -21,5 +21,40 @@
   to { filter: brightness(1); }
 }
 @keyframes dots { 0% { content: ""; } 33% { content: "."; } 66% { content: ".."; } 100% { content: "..."; } }
+/* M2（契约 §2.2）：对手卡背数量变化一次性反馈——最顶卡背推入 / 弹出，180ms（<240ms 上限）。
+   transform 必须复刻 .opponent-hand-card 的基础扇面变换，否则播放期间卡背会跳出扇面。 */
+@keyframes oh-card-enter {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--oh-i, 0) * var(--oh-step, 3px))) translateY(-6px)
+      rotate(calc((var(--oh-i, 0) - var(--oh-center, 0)) * var(--oh-rotate, 5deg))) scale(.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(calc(var(--oh-i, 0) * var(--oh-step, 3px)))
+      rotate(calc((var(--oh-i, 0) - var(--oh-center, 0)) * var(--oh-rotate, 5deg))) scale(1);
+  }
+}
+@keyframes oh-card-leave {
+  from {
+    opacity: 1;
+    transform: translateX(calc(var(--oh-i, 0) * var(--oh-step, 3px)))
+      rotate(calc((var(--oh-i, 0) - var(--oh-center, 0)) * var(--oh-rotate, 5deg)));
+  }
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--oh-i, 0) * var(--oh-step, 3px))) translateY(-10px)
+      rotate(calc((var(--oh-i, 0) - var(--oh-center, 0)) * var(--oh-rotate, 5deg))) scale(1.12);
+  }
+}
+@keyframes oh-badge-bump {
+  0% { opacity: .35; transform: scale(.82); }
+  55% { opacity: 1; transform: scale(1.14); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes oh-badge-leave {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(.8) translateY(-4px); }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 html[data-animation="false"] *, html[data-animation="false"] *::before, html[data-animation="false"] *::after { animation: none !important; transition: none !important; }

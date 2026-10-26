@@ -312,6 +312,12 @@ try {
         hands: boxes.map((node) => {
           const stack = node.querySelector('.opponent-hand');
           const cards = [...node.querySelectorAll('.opponent-hand-card')];
+          const badge = stack?.querySelector('.opponent-hand-overflow') || null;
+          const childNodes = stack ? [...stack.childNodes] : [];
+          const allowedChild = (child) =>
+            child.nodeType === 1 &&
+            child.tagName === 'SPAN' &&
+            (child.classList.contains('opponent-hand-card') || child.classList.contains('opponent-hand-overflow'));
           const rect = (element) => {
             const box = element.getBoundingClientRect();
             return [box.left, box.top, box.right, box.bottom];
@@ -333,6 +339,16 @@ try {
             cardH: cards[0]?.offsetHeight || 0,
             nameOverlap: union ? overlaps(union, rect(node.querySelector('.opponent-name'))) : false,
             metaOverlap: union ? overlaps(union, rect(node.querySelector('.opponent-meta'))) : false,
+            // M2 契约 §2.3：卡背分档锚点——data-overflow / .is-full / .opponent-hand-overflow
+            overflowAttr: stack?.dataset.overflow ?? 'missing',
+            isFull: Boolean(stack?.classList.contains('is-full')),
+            badgeCount: stack ? stack.querySelectorAll('.opponent-hand-overflow').length : 0,
+            badgeText: badge ? badge.textContent : 'missing',
+            badgeAria: badge ? badge.getAttribute('aria-hidden') : 'missing',
+            // M2 契约 §2.1：卡背层是纯装饰，不得泄露任何牌面信息
+            faceLeaks: stack ? stack.querySelectorAll('img, .card, [data-face-code]').length : 0,
+            childTotal: childNodes.length,
+            childIssues: childNodes.filter((child) => !allowedChild(child)).length,
           };
         }),
         inside: boxes.every((node) => {
@@ -410,6 +426,54 @@ try {
             !hand.metaOverlap,
         ),
       JSON.stringify(layout.hands),
+    );
+
+    // M2 契约 §2.1/§2.3：卡背 N 张分档 + 溢出徽标（期望值全部按动态 handCount 计算，不写死 +2）
+    const m2OverflowOk =
+      layout.hands.length > 0 &&
+      layout.hands.every((hand) => {
+        if (hand.handCount === 0) return hand.visible === 0 && hand.cards === 0 && hand.overflowAttr === 'missing';
+        const expected = String(Math.max(0, hand.handCount - 5));
+        const expectsBadge = hand.handCount > 5;
+        return (
+          hand.overflowAttr === expected &&
+          hand.visible === Math.min(5, hand.handCount) &&
+          hand.badgeCount === (expectsBadge ? 1 : 0) &&
+          (expectsBadge
+            ? hand.badgeText === `+${Math.max(0, hand.handCount - 5)}` && hand.badgeAria === 'true'
+            : hand.badgeText === 'missing' && hand.badgeAria === 'missing')
+        );
+      });
+    check(
+      `${ownName} M2 联机：卡背 data-overflow 与 handCount 一致、+N 徽标 aria-hidden`,
+      m2OverflowOk,
+      JSON.stringify(
+        layout.hands.map(({ handCount, visible, overflowAttr, badgeText, badgeAria }) => ({
+          handCount, visible, overflowAttr, badgeText, badgeAria,
+        })),
+      ),
+    );
+
+    const m2LeakOk =
+      layout.hands.length > 0 &&
+      layout.hands.every((hand) => hand.faceLeaks === 0 && hand.childIssues === 0);
+    check(
+      `${ownName} M2 联机：卡背层不泄露牌面`,
+      m2LeakOk,
+      JSON.stringify(
+        layout.hands.map(({ handCount, faceLeaks, childTotal, childIssues }) => ({
+          handCount, faceLeaks, childTotal, childIssues,
+        })),
+      ),
+    );
+
+    // ≥10 张才出现 .is-full（联机初始 7 张通常走「不存在」分支，断言双向一致）
+    const m2FullOk =
+      layout.hands.length > 0 && layout.hands.every((hand) => hand.isFull === (hand.handCount >= 10));
+    check(
+      `${ownName} M2 联机：≥10 张 is-full 与 handCount 一致（条件）`,
+      m2FullOk,
+      JSON.stringify(layout.hands.map(({ handCount, isFull }) => ({ handCount, isFull }))),
     );
   }
 

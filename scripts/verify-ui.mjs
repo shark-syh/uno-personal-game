@@ -150,11 +150,14 @@ window.__verify = {
   opponentHands: () =>
     [...document.querySelectorAll('#opponents .opponent')].map((node) => {
       const stack = node.querySelector('.opponent-hand');
-      const cards = [...node.querySelectorAll('.opponent-hand-card')];
+      // M2：ghost（is-leave 弹出中的临时卡背）不计入张数/几何并集——避免动效期间误判
+      const cards = [...node.querySelectorAll('.opponent-hand-card:not(.is-leave)')];
+      const badge = node.querySelector('.opponent-hand-overflow');
       const rect = (element) => {
         const box = element.getBoundingClientRect();
         return [box.left, box.top, box.right, box.bottom];
       };
+      const intersects = (a, b) => Boolean(a && b) && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
       let union = null;
       for (const card of cards) {
         const box = rect(card);
@@ -167,7 +170,6 @@ window.__verify = {
             ]
           : box;
       }
-      const intersects = (a, b) => Boolean(a && b) && a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
       const first = cards[0];
       return {
         seat: Number(node.dataset.seat),
@@ -183,8 +185,34 @@ window.__verify = {
         inside: !union
           ? true
           : union[0] >= 0 && union[1] >= 0 && union[2] <= window.innerWidth && union[3] <= window.innerHeight,
+        // M2（契约 §2.1/§2.3）：溢出分档、徽标、满堆、装饰层隔离
+        overflow: stack ? Number(stack.dataset.overflow) : -1,
+        overflowAttr: stack ? stack.dataset.overflow ?? null : null,
+        isFull: Boolean(stack?.classList.contains('is-full')),
+        step: stack ? getComputedStyle(stack).getPropertyValue('--oh-step').trim() : '',
+        ghosts: node.querySelectorAll('.opponent-hand-card.is-leave').length,
+        badgeCount: badge ? 1 : 0,
+        badgeText: badge ? badge.textContent : '',
+        badgeAria: badge ? badge.getAttribute('aria-hidden') : null,
+        badgeDisplay: badge ? getComputedStyle(badge).display : 'missing',
+        badgeInsideSeat: badge
+          ? (() => {
+              const b = rect(badge);
+              const s = rect(node);
+              return b[0] >= s[0] - 1 && b[1] >= s[1] - 1 && b[2] <= s[2] + 1 && b[3] <= s[3] + 1;
+            })()
+          : null,
+        badgeOverlapName: badge ? intersects(rect(badge), rect(node.querySelector('.opponent-name'))) : false,
+        badgeOverlapMeta: badge ? intersects(rect(badge), rect(node.querySelector('.opponent-meta'))) : false,
+        faceLeak: node.querySelectorAll('.opponent-hand img, .opponent-hand .card, .opponent-hand [data-face-code]').length,
+        foreignChildren: [...(stack?.children || [])].filter(
+          (child) =>
+            !child.classList.contains('opponent-hand-card') &&
+            !child.classList.contains('opponent-hand-overflow'),
+        ).length,
       };
     }),
+  handFx: () => document.documentElement.dataset.handFx || '',
   activeDialogTitle: () => document.querySelector('#dialog-root.is-open #dialog-title')?.textContent || '',
   dialogs: () => [...document.querySelectorAll('#dialog-root.is-open button')].map((button) => button.textContent.trim()).filter(Boolean),
   actionLabels: () => [...document.querySelectorAll('#action-bar button')].map((button) => ({ text: button.textContent.trim(), disabled: button.disabled })),
@@ -1427,6 +1455,189 @@ async function main() {
         mockHands[0].lastPlayed,
       JSON.stringify(mockHands),
     );
+
+    // ---------------- 4a. M2：对手卡背 N 张分档 + 溢出徽标 + 数量变化动效（契约 §2.1/§2.2） ----------------
+    // 先回 mock 大厅再进固定张数局面：render.js 在「进入牌桌首帧」清空 diff 基线，首帧不播数量动效。
+    const tierAudit = await evaluate(`(() => {
+      window.__verify.selectMock("lobby");
+      window.__verify.selectMock("opponent-hands");
+      return {
+        hands: window.__verify.opponentHands(),
+        firstFrameFx: window.__verify.handFx(),
+        overflow: window.__verify.overflow(),
+        meta: [...document.querySelectorAll('#opponents .opponent-meta')].map((node) => node.textContent.trim()),
+        labels: [...document.querySelectorAll('#opponents .opponent')].map((node) => node.getAttribute('aria-label') || ''),
+      };
+    })()`);
+    const expectedTiers = [
+      { count: 0, visible: 0, overflow: null, badge: '', full: false },
+      { count: 3, visible: 3, overflow: 0, badge: '', full: false },
+      { count: 5, visible: 5, overflow: 0, badge: '', full: false },
+      { count: 6, visible: 5, overflow: 1, badge: '+1', full: false },
+      { count: 10, visible: 5, overflow: 5, badge: '+5', full: true },
+      { count: 12, visible: 5, overflow: 7, badge: '+7', full: true },
+      { count: 11, visible: 5, overflow: 6, badge: '+6', full: true },
+      { count: 2, visible: 2, overflow: 0, badge: '', full: false },
+      { count: 9, visible: 5, overflow: 4, badge: '+4', full: false },
+    ];
+    check(
+      'M2 分档：0/3/5/6/10/12/11/2/9 张 → 卡背 0/3/5/5/5/5/5/2/5 + data-overflow/徽标/is-full 正确',
+      tierAudit.hands.length === expectedTiers.length &&
+        tierAudit.hands.every((hand, index) => {
+          const expected = expectedTiers[index];
+          const overflowOk = expected.overflow === null
+            ? hand.overflowAttr === null && hand.overflow === -1
+            : hand.overflow === expected.overflow && hand.overflowAttr === String(expected.overflow);
+          return (
+            hand.handCount === expected.count &&
+            hand.visible === expected.visible &&
+            hand.cards === expected.visible &&
+            overflowOk &&
+            hand.isFull === expected.full &&
+            hand.badgeCount === (expected.badge ? 1 : 0) &&
+            hand.badgeText === expected.badge &&
+            (expected.badge ? hand.badgeAria === 'true' && hand.badgeDisplay !== 'none' : true)
+          );
+        }) &&
+        tierAudit.firstFrameFx === '',
+      JSON.stringify(tierAudit.hands.map((hand) => [hand.seat, hand.handCount, hand.visible, hand.overflowAttr, hand.badgeText, hand.isFull])),
+    );
+    check(
+      'M2 不泄露与读屏：精确牌数只由「N 张」文本/aria-label 提供、徽标 aria-hidden、卡背层无牌面元素',
+      tierAudit.hands.every(
+        (hand, index) =>
+          tierAudit.meta[index].startsWith(`${hand.handCount} 张`) &&
+          tierAudit.labels[index].endsWith(`，${hand.handCount} 张牌`) &&
+          hand.faceLeak === 0 &&
+          hand.foreignChildren === 0 &&
+          (hand.badgeCount === 0 || hand.badgeAria === 'true'),
+      ),
+      JSON.stringify({ meta: tierAudit.meta, labels: tierAudit.labels.slice(0, 2), leaks: tierAudit.hands.map((hand) => hand.faceLeak) }),
+    );
+    check(
+      'M2 @1440 十人局：卡背与 +N 徽标都在座位框内、不压姓名/张数、页面无横向溢出',
+      tierAudit.hands.every(
+        (hand) =>
+          hand.inside &&
+          !hand.nameOverlap &&
+          !hand.metaOverlap &&
+          (hand.badgeCount === 0 ||
+            (hand.badgeInsideSeat && !hand.badgeOverlapName && !hand.badgeOverlapMeta)),
+      ) && tierAudit.overflow.scroll <= tierAudit.overflow.client,
+      JSON.stringify(tierAudit.hands.map((hand) => [hand.seat, hand.inside, hand.badgeInsideSeat, hand.nameOverlap, hand.metaOverlap])),
+    );
+    check(
+      'M2 满堆：≥10 张 is-full 卡背间距收密（--oh-step 2px）、≤9 张保持 3px',
+      tierAudit.hands.every((hand) =>
+        hand.isFull ? hand.step === '2px' : hand.visible > 0 ? hand.step === '3px' : true,
+      ),
+      JSON.stringify(tierAudit.hands.map((hand) => [hand.handCount, hand.isFull, hand.step])),
+    );
+    // 契约 §7 截图基线：对手卡背分档 + 溢出徽标（0/3/5/6/10/12 张同屏）
+    await shot('v2/M2-opponent-hands-1440.png');
+    // 2 人局：单对手 ≤5 张时无溢出徽标（跨宽度 2/4/10 人分档都要成立）
+    await evaluate('window.__verify.selectMock("two-players")');
+    await sleep(320);
+    const twoPlayerHands = await evaluate('window.__verify.opponentHands()');
+    check(
+      'M2 2 人局：单一对手 ≤5 张无溢出徽标、卡背张数=data-overflow 0',
+      twoPlayerHands.length === 1 &&
+        twoPlayerHands.every(
+          (hand) => hand.overflow === 0 && hand.overflowAttr === '0' && hand.badgeCount === 0,
+        ),
+      JSON.stringify(twoPlayerHands),
+    );
+    // 动效：同座位换一份张数分布（0→1 推入 / 3→2 弹出 / 5→6 徽标 bump / 6→5 徽标淡出 /
+    // 10→9 满堆退出 / 9→3 收拢），断言 data-hand-fx 精确集合与动效节点数量
+    const handFxAudit = await evaluate(`(() => {
+      window.__verify.selectMock("lobby");
+      window.__verify.selectMock("opponent-hands");
+      const baselineFx = window.__verify.handFx();
+      window.__verify.selectMock("opponent-hands-shift");
+      return {
+        baselineFx,
+        fx: window.__verify.handFx(),
+        hands: window.__verify.opponentHands(),
+        enterCards: document.querySelectorAll('.opponent-hand-card.is-enter').length,
+        leaveCards: document.querySelectorAll('.opponent-hand-card.is-leave').length,
+        bumpBadges: document.querySelectorAll('.opponent-hand-overflow.is-bump').length,
+        leaveBadges: document.querySelectorAll('.opponent-hand-overflow.is-leave').length,
+      };
+    })()`);
+    check(
+      'M2 数量变化一次性动效：0→1 推入、3→2 弹出、5→6 徽标 +1、6→5 徽标移除、10→9 满堆退出、9→3 收拢',
+      handFxAudit.baselineFx === '' &&
+        handFxAudit.fx === '1:enter,2:leave,3:badge-up,4:badge-leave,5:badge-up,7:badge-up,9:leave' &&
+        handFxAudit.enterCards === 1 &&
+        handFxAudit.leaveCards === 2 &&
+        handFxAudit.bumpBadges === 3 &&
+        handFxAudit.leaveBadges === 1,
+      JSON.stringify({ baselineFx: handFxAudit.baselineFx, fx: handFxAudit.fx, enter: handFxAudit.enterCards, leave: handFxAudit.leaveCards, bump: handFxAudit.bumpBadges, badgeLeave: handFxAudit.leaveBadges }),
+    );
+    check(
+      'M2 动效后分档仍正确：同座位新分布 1/2/6/5/9/12/12/2/3 张',
+      handFxAudit.hands.length === 9 &&
+        handFxAudit.hands.every(
+          (hand, index) =>
+            hand.handCount === [1, 2, 6, 5, 9, 12, 12, 2, 3][index] &&
+            hand.visible === Math.min(5, hand.handCount) &&
+            hand.overflow === Math.max(0, hand.handCount - 5),
+        ),
+      JSON.stringify(handFxAudit.hands.map((hand) => [hand.seat, hand.handCount, hand.visible, hand.badgeText])),
+    );
+    const handFxRepeat = await evaluate(`(() => {
+      window.__verify.selectMock("opponent-hands-shift");
+      return {
+        fx: window.__verify.handFx(),
+        enterCards: document.querySelectorAll('.opponent-hand-card.is-enter').length,
+        leaveCards: document.querySelectorAll('.opponent-hand-card.is-leave').length,
+        bumpBadges: document.querySelectorAll('.opponent-hand-overflow.is-bump').length,
+        leaveBadges: document.querySelectorAll('.opponent-hand-overflow.is-leave').length,
+      };
+    })()`);
+    check(
+      'M2 重复 render 不重播：同张数再次渲染后 data-hand-fx 清空且无任何动效节点',
+      handFxRepeat.fx === '' &&
+        handFxRepeat.enterCards === 0 &&
+        handFxRepeat.leaveCards === 0 &&
+        handFxRepeat.bumpBadges === 0 &&
+        handFxRepeat.leaveBadges === 0,
+      JSON.stringify(handFxRepeat),
+    );
+    // 静态降级：动画关闭时张数直接切换（分档仍正确，但零动效节点、零 data-hand-fx）
+    const handFxOff = await evaluate(`(() => {
+      localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true }));
+      window.__verify.selectMock("lobby");
+      window.__verify.selectMock("opponent-hands");
+      window.__verify.selectMock("opponent-hands-shift");
+      const hands = window.__verify.opponentHands();
+      return {
+        animation: document.documentElement.dataset.animation,
+        fx: window.__verify.handFx(),
+        enterCards: document.querySelectorAll('.opponent-hand-card.is-enter').length,
+        leaveCards: document.querySelectorAll('.opponent-hand-card.is-leave').length,
+        bumpBadges: document.querySelectorAll('.opponent-hand-overflow.is-bump').length,
+        leaveBadges: document.querySelectorAll('.opponent-hand-overflow.is-leave').length,
+        badgesOk: hands.filter((hand) => hand.handCount > 5).every((hand) => hand.badgeCount === 1),
+      };
+    })()`);
+    check(
+      'M2 静态降级：动画关闭时正确切换张数/徽标但无数量动效节点与 data-hand-fx',
+      handFxOff.animation === 'false' &&
+        handFxOff.fx === '' &&
+        handFxOff.enterCards === 0 &&
+        handFxOff.leaveCards === 0 &&
+        handFxOff.bumpBadges === 0 &&
+        handFxOff.leaveBadges === 0 &&
+        handFxOff.badgesOk,
+      JSON.stringify(handFxOff),
+    );
+    // 恢复动画开启并回到普通局面（后续事件队列断言要求动画开启）
+    await evaluate(
+      `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
+    );
+    await evaluate('window.__verify.selectMock("normal-play")');
+
     const queueMeasure = await evaluate(`(async () => {
       const events = Array.from({ length: 5 }, () => ({ type: 'DRAW', seat: 1, count: 1, cards: [] }));
       const startedAt = performance.now();
@@ -2319,6 +2530,23 @@ async function main() {
         ),
       JSON.stringify(mockHands1024),
     );
+    check(
+      'M2 @1024：+N 溢出徽标可见、在座位框内且不压姓名/张数',
+      mockHands1024.length === 3 &&
+        mockHands1024.every(
+          (hand) =>
+            hand.overflow === Math.max(0, hand.handCount - 5) &&
+            (hand.badgeCount === 0 ||
+              (hand.badgeText === `+${hand.handCount - 5}` &&
+                hand.badgeDisplay !== 'none' &&
+                hand.badgeInsideSeat &&
+                !hand.badgeOverlapName &&
+                !hand.badgeOverlapMeta)),
+        ) &&
+        mockHands1024.some((hand) => hand.badgeCount === 1),
+      JSON.stringify(mockHands1024.map((hand) => [hand.seat, hand.handCount, hand.badgeText, hand.badgeInsideSeat])),
+    );
+    await shot('v2/M2-opponent-hands-1024.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -2380,6 +2608,22 @@ async function main() {
         ),
       JSON.stringify(mobileHands),
     );
+    check(
+      'M2 @760：+N 溢出徽标仍可见、在座位框内且不压姓名/张数',
+      mobileHands.length === 3 &&
+        mobileHands.every(
+          (hand) =>
+            hand.overflow === Math.max(0, hand.handCount - 5) &&
+            (hand.badgeCount === 0 ||
+              (hand.badgeText === `+${hand.handCount - 5}` &&
+                hand.badgeDisplay !== 'none' &&
+                hand.badgeInsideSeat &&
+                !hand.badgeOverlapName &&
+                !hand.badgeOverlapMeta)),
+        ) &&
+        mobileHands.some((hand) => hand.badgeCount === 1),
+      JSON.stringify(mobileHands.map((hand) => [hand.seat, hand.handCount, hand.badgeText, hand.badgeInsideSeat])),
+    );
     await shot('ui-m6-mobile-760.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 420,
@@ -2396,6 +2640,34 @@ async function main() {
         (await evaluate('window.__verify.overflow()')).scroll <=
           (await evaluate('window.__verify.overflow()')).client,
       JSON.stringify(compactHands),
+    );
+    // M2 @420：卡背层整体隐藏时 +N 徽标一并隐藏（不单独暴露装饰），精确牌数文字保留
+    const compactBadge = await evaluate(
+      `(() => {
+        const badges = [...document.querySelectorAll('.opponent-hand-overflow')];
+        const stacks = [...document.querySelectorAll('.opponent-hand')];
+        return {
+          badgeCount: badges.length,
+          badgesHidden: badges.every((node) => {
+            const rect = node.getBoundingClientRect();
+            return rect.width === 0 && rect.height === 0;
+          }),
+          stacksHidden: stacks.every((node) => getComputedStyle(node).display === 'none'),
+          dataOverflowPresent: stacks.every((node) => node.dataset.overflow !== undefined),
+          metaCount: [...document.querySelectorAll('#opponents .opponent-meta')].every((node) => /\\d+ 张/.test(node.textContent || '')),
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`,
+    );
+    check(
+      'M2 @420：+N 徽标随卡背层一起隐藏、data-overflow 仍在、精确牌数文字保留',
+      compactBadge.badgeCount >= 1 &&
+        compactBadge.badgesHidden &&
+        compactBadge.stacksHidden &&
+        compactBadge.dataOverflowPresent &&
+        compactBadge.metaCount &&
+        !compactBadge.overflow,
+      JSON.stringify(compactBadge),
     );
     // M3 @420：座位隐藏头像（卡背由 M13 断言覆盖），姓名与精确牌数保留
     const compact420 = await evaluate(

@@ -143,6 +143,35 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   transform-origin: 50% 100%;
 }
 .opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
+/* M2（契约 §2.1）：溢出徽标「+N」——纯装饰（aria-hidden），只表达规模，精确牌数仍由座位文本提供。
+   贴在卡背扇右上角：横向不进入姓名/张数列（列 2 起点约 52px），纵向在座位框内。 */
+.opponent-hand-overflow {
+  position: absolute;
+  right: -4px;
+  top: -9px;
+  z-index: 9;
+  display: inline-block;
+  padding: 1px 4px;
+  border: 1px solid var(--v2-gold-line);
+  border-radius: 5px;
+  color: var(--v2-gold);
+  background: #08120df2;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+/* M2：≥10 张满堆——卡背间距收密（宽度随 --oh-step 收窄）+ 徽标提亮 */
+.opponent-hand.is-full { --oh-step: 2px; }
+.opponent-hand.is-full .opponent-hand-overflow { color: #f2ffcf; border-color: var(--v2-gold); box-shadow: 0 0 8px rgba(217, 255, 75, .55); }
+/* M2（契约 §2.2）：数量变化一次性反馈；全局 reduced-motion / data-animation=false 规则会静态化 */
+.opponent-hand-card.is-enter { animation: oh-card-enter var(--v2-dur-base) var(--v2-ease-out) both; }
+.opponent-hand-card.is-leave { animation: oh-card-leave var(--v2-dur-base) var(--v2-ease-out) both; pointer-events: none; }
+.opponent-hand-overflow.is-bump { animation: oh-badge-bump var(--v2-dur-base) var(--v2-ease-out) both; }
+.opponent-hand-overflow.is-leave { animation: oh-badge-leave var(--v2-dur-base) var(--v2-ease-out) both; }
 
 #table-center { position: absolute; inset: 0; z-index: 2; display: flex; justify-content: center; align-items: center; gap: 36px; }
 /* 颜色指示环（radical）：细色环 + 同色边缘光，替代旧大面积色填充——近黑基底上

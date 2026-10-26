@@ -5,6 +5,7 @@ import { renderDevToolbar } from "./devToolbar.js";
 import { closeDialog, closeAutoDialog } from "./dialogs.js";
 import { cancelEvents } from "../animation/queue.js";
 import { captureTableCardRect } from "../animation/resultTransition.js";
+import { resetOpponentHandCounts } from "./players.js";
 
 let lastScreen = null;
 
@@ -12,6 +13,8 @@ export function render(view, context) {
   cancelEvents();
   // M6（契约 §8.3）：game → result 切屏前缓存弃牌堆顶牌 rect——切屏后 display:none 就取不到了
   if (lastScreen === "game" && view.screen === "result") captureTableCardRect();
+  // M2（契约 §2.2）：进入牌桌首帧不播对手手牌数量动效——清空 diff 基线（换局/回大厅再进同理）。
+  if (view.screen === "game" && lastScreen !== "game") resetOpponentHandCounts();
   // 屏幕切换时关闭所有弹窗；同一屏幕内的重绘只关闭"自动弹窗"（选色/挑战），
   // 不打断玩家主动打开的设置、战绩、退出确认等弹窗。
   if (lastScreen !== null && lastScreen !== view.screen) closeDialog();
