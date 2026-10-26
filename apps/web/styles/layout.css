@@ -52,6 +52,20 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 #game-brand .app-version { font-size: 12px; }
 .top-status, .top-actions { display: flex; align-items: center; gap: 14px; }
 .top-status { flex-wrap: wrap; min-width: 0; }
+/* N2（v2.2 契约 §2.3/§3.1）：牌桌顶栏重排——卡背字标品牌（UNO / Control Deck）+ 状态胶囊 + 动作区。
+   约定：固定高度只作用于 ≥761 宽（≤760 仍允许胶囊换行，避免 420 极窄屏把顶栏撑出视口）。 */
+#top-bar { height: 68px; padding: 0 clamp(16px, 3vw, 44px); gap: 18px; }
+#game-brand { align-items: center; gap: 10px; }
+#game-brand .brand-mark { flex: none; width: 23px; height: 34px; border: 2px solid #fff; border-radius: 4px; object-fit: cover; transform: rotate(-8deg); }
+#brand-name { font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+#game-brand .brand-tag { color: var(--ink-muted); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+#game-brand .app-version { font-size: 11px; letter-spacing: .08em; }
+/* demo .chip 胶囊：细边 + 999 圆角 + 27px 最小高；颜色/方向胶囊内部放大尺寸（BUG-03/M7 断言）保持不动 */
+.top-status .status-chip { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
+.top-status { gap: 7px; }
+.top-actions { gap: 7px; }
+.top-actions .btn { min-height: 44px; }
+#app { background: linear-gradient(135deg, var(--felt-800) 0%, var(--felt-700) 50%, var(--felt-900) 100%); }
 .status-chip { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-muted); font-size: 13px; }
 .status-chip strong { color: var(--ink); }
 /* BUG-03：左上角当前颜色放大（色点 22px + 白边/发光，文字 18px 加粗） */
@@ -144,11 +158,12 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 }
 .opponent.is-current .opponent-hand { transform: translateY(var(--oh-offset-y)); }
 /* M2（契约 §2.1）：溢出徽标「+N」——纯装饰（aria-hidden），只表达规模，精确牌数仍由座位文本提供。
-   贴在卡背扇右上角：横向不进入姓名/张数列（列 2 起点约 52px），纵向在座位框内。 */
+   位置（2026-10-26 用户反馈修正）：贴在卡背扇右下角、允许下探座位框 8px，避开左侧头像与右侧姓名/张数。 */
 .opponent-hand-overflow {
   position: absolute;
-  right: -4px;
-  top: -9px;
+  right: -2px;
+  bottom: -2px;
+  top: auto;
   z-index: 9;
   display: inline-block;
   padding: 1px 4px;
@@ -353,4 +368,13 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 /* 矮屏减少手牌顶部留白（配合 cards.css 中矮屏更小的上浮幅度，避免裁剪） */
 @media (max-height: 820px) {
   #hand { padding-top: 22px; }
+}
+
+/* N2（v2.2 契约 §5.2）：窄屏顶栏——高度回到内容自适应，避免胶囊换行被固定高度裁切；字标仍保 UNO Local */
+@media (max-width: 760px) {
+  #top-bar { height: auto; min-height: 58px; padding-inline: 12px; gap: 10px; }
+  #game-brand { gap: 7px; }
+  #game-brand .brand-mark { width: 19px; height: 28px; }
+  #brand-name { font-size: 11px; }
+  #game-brand .brand-tag { display: none; }
 }

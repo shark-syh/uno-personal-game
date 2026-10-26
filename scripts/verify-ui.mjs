@@ -199,9 +199,11 @@ window.__verify = {
           ? (() => {
               const b = rect(badge);
               const s = rect(node);
-              return b[0] >= s[0] - 1 && b[1] >= s[1] - 1 && b[2] <= s[2] + 1 && b[3] <= s[3] + 1;
+              // 2026-10-26 用户反馈：徽标改到卡背扇右下角，允许下探座位框 ≤12px（不得压头像/姓名/张数）
+              return b[0] >= s[0] - 2 && b[1] >= s[1] - 2 && b[2] <= s[2] + 2 && b[3] <= s[3] + 12;
             })()
           : null,
+        badgeOverlapAvatar: badge ? intersects(rect(badge), rect(node.querySelector('.avatar'))) : false,
         badgeOverlapName: badge ? intersects(rect(badge), rect(node.querySelector('.opponent-name'))) : false,
         badgeOverlapMeta: badge ? intersects(rect(badge), rect(node.querySelector('.opponent-meta'))) : false,
         faceLeak: node.querySelectorAll('.opponent-hand img, .opponent-hand .card, .opponent-hand [data-face-code]').length,
@@ -275,6 +277,38 @@ window.__verify = {
         ![...document.querySelectorAll('#top-bar button')].some((button) =>
           (button.textContent || '').includes('音效'),
         ),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
+  // N2（v2.2 契约 §2.3/§3.1）：牌桌顶栏审计——卡背字标品牌 / 状态胶囊 / 动作区（N4a 迁移到 #game-meta 后仍兼容）
+  topbarAudit: () => {
+    const bar = document.querySelector('#top-bar');
+    const brand = document.querySelector('#game-brand');
+    const mark = brand?.querySelector('img.brand-mark');
+    const tag = brand?.querySelector('.brand-tag');
+    const version = document.querySelector('#game-version');
+    const chips = [...document.querySelectorAll('#top-bar .status-chip, #game-meta .status-chip')];
+    const actions = [...document.querySelectorAll('#top-bar .top-actions button, #game-meta .meta-right button')].filter(
+      (button) => !button.hidden && button.getBoundingClientRect().height > 0,
+    );
+    const barRect = bar?.getBoundingClientRect();
+    const chipStyle = chips[0] ? getComputedStyle(chips[0]) : null;
+    return {
+      barH: barRect ? Math.round(barRect.height) : 0,
+      brandName: (document.querySelector('#brand-name')?.textContent || '').trim(),
+      markVisible: Boolean(mark && mark.offsetWidth > 0 && (mark.getAttribute('src') || '').includes('card-back.svg')),
+      markSize: mark ? [mark.offsetWidth, mark.offsetHeight] : null,
+      brandTag: (tag?.textContent || '').trim(),
+      brandTagAriaHidden: tag?.getAttribute('aria-hidden') === 'true',
+      versionVisible: Boolean(version && !version.hidden && (version.textContent || '').trim().startsWith('v')),
+      chipCount: chips.length,
+      chipShape: chipStyle
+        ? { border: parseFloat(chipStyle.borderTopWidth), radius: parseFloat(chipStyle.borderTopLeftRadius) }
+        : null,
+      actionCount: actions.length,
+      actionMinH: actions.length ? Math.min(...actions.map((button) => Math.round(button.getBoundingClientRect().height))) : 0,
+      colorLabelFont: parseFloat(getComputedStyle(document.querySelector('#color-label') || document.body).fontSize),
+      colorDotW: document.querySelector('#color-indicator')?.offsetWidth || 0,
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   },
@@ -743,6 +777,33 @@ async function main() {
           gameBrand.brandName === 'UNO Local' && gameBrand.gameVersionOk,
           JSON.stringify({ brandName: gameBrand.brandName, gameVersion: gameBrand.gameVersion }),
         );
+        // N2（v2.2 契约 §2.3/§3.1）：顶栏重排——卡背字标品牌 + demo 胶囊 + 动作区
+        const n2Topbar = await evaluate('window.__verify.topbarAudit()');
+        check(
+          'N2 顶栏：卡背字标 + UNO Local + / Control Deck + 版本号、状态胶囊与动作区就位',
+          n2Topbar.brandName === 'UNO Local' &&
+            n2Topbar.markVisible &&
+            Boolean(n2Topbar.markSize) &&
+            n2Topbar.markSize[0] === 23 &&
+            n2Topbar.markSize[1] === 34 &&
+            n2Topbar.brandTag === '/ Control Deck' &&
+            n2Topbar.brandTagAriaHidden &&
+            n2Topbar.versionVisible &&
+            n2Topbar.chipCount >= 3 &&
+            Boolean(n2Topbar.chipShape) &&
+            n2Topbar.chipShape.border >= 1 &&
+            n2Topbar.chipShape.radius >= 20 &&
+            n2Topbar.actionCount >= 2 &&
+            n2Topbar.colorLabelFont >= 17 &&
+            n2Topbar.colorDotW >= 20,
+          JSON.stringify(n2Topbar),
+        );
+        check(
+          'N2 顶栏：1440 宽高 68±2、动作按钮 ≥44px、无横向溢出',
+          Math.abs(n2Topbar.barH - 68) <= 2 && n2Topbar.actionMinH >= 44 && !n2Topbar.overflow,
+          JSON.stringify({ barH: n2Topbar.barH, actionMinH: n2Topbar.actionMinH, overflow: n2Topbar.overflow }),
+        );
+        await shot('v2/N2-topbar-1440.png');
       }
       await waitFor('window.__verify.handCount() >= 7', 5000, '人类手牌 ≥7 张');
       // 卡面图片异步解码：最多等 8s 再统计失败数，避免把"尚未解码完成"误判为加载失败
@@ -1522,7 +1583,10 @@ async function main() {
           !hand.nameOverlap &&
           !hand.metaOverlap &&
           (hand.badgeCount === 0 ||
-            (hand.badgeInsideSeat && !hand.badgeOverlapName && !hand.badgeOverlapMeta)),
+            (hand.badgeInsideSeat &&
+              !hand.badgeOverlapName &&
+              !hand.badgeOverlapMeta &&
+              !hand.badgeOverlapAvatar)),
       ) && tierAudit.overflow.scroll <= tierAudit.overflow.client,
       JSON.stringify(tierAudit.hands.map((hand) => [hand.seat, hand.inside, hand.badgeInsideSeat, hand.nameOverlap, hand.metaOverlap])),
     );
@@ -1532,6 +1596,11 @@ async function main() {
         hand.isFull ? hand.step === '2px' : hand.visible > 0 ? hand.step === '3px' : true,
       ),
       JSON.stringify(tierAudit.hands.map((hand) => [hand.handCount, hand.isFull, hand.step])),
+    );
+    check(
+      'M2 徽标不遮挡头像（2026-10-26 用户反馈）：所有 +N 徽标均不与 .avatar 相交',
+      tierAudit.hands.every((hand) => !hand.badgeOverlapAvatar),
+      JSON.stringify(tierAudit.hands.map((hand) => [hand.seat, hand.badgeText, hand.badgeOverlapAvatar])),
     );
     // 契约 §7 截图基线：对手卡背分档 + 溢出徽标（0/3/5/6/10/12 张同屏）
     await shot('v2/M2-opponent-hands-1440.png');
@@ -2541,7 +2610,8 @@ async function main() {
                 hand.badgeDisplay !== 'none' &&
                 hand.badgeInsideSeat &&
                 !hand.badgeOverlapName &&
-                !hand.badgeOverlapMeta)),
+                !hand.badgeOverlapMeta &&
+                !hand.badgeOverlapAvatar)),
         ) &&
         mockHands1024.some((hand) => hand.badgeCount === 1),
       JSON.stringify(mockHands1024.map((hand) => [hand.seat, hand.handCount, hand.badgeText, hand.badgeInsideSeat])),
@@ -2619,12 +2689,14 @@ async function main() {
                 hand.badgeDisplay !== 'none' &&
                 hand.badgeInsideSeat &&
                 !hand.badgeOverlapName &&
-                !hand.badgeOverlapMeta)),
+                !hand.badgeOverlapMeta &&
+                !hand.badgeOverlapAvatar)),
         ) &&
         mobileHands.some((hand) => hand.badgeCount === 1),
       JSON.stringify(mobileHands.map((hand) => [hand.seat, hand.handCount, hand.badgeText, hand.badgeInsideSeat])),
     );
     await shot('ui-m6-mobile-760.png');
+    await shot('v2/N2-topbar-760.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 420,
       height: 900,
@@ -2715,6 +2787,7 @@ async function main() {
         overflow: dock420.overflow,
       }),
     );
+    await shot('v2/N2-topbar-420.png');
     // M2：420 宽大厅品牌可见性、Tab 顺序与开局路径（契约 B01/B02 的 W6 断点）
     await navigate(`${BASE_URL}/?mock=1`);
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '420 大厅');
