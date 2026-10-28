@@ -20,6 +20,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BASE_URL = process.env.UNO_BASE_URL || 'http://localhost:3000';
+// N3（2026-10-28 用户指令）：大厅左栏文案 4 组轮换——[巨字三行(空格连接), 中文意译 lead]，与 lobby.js 的 HERO_SETS 同源
+const N3_HERO_SETS = [
+  ['PLAY WITH INTENT.', '把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。'],
+  ['READ THE TABLE.', '每一条信息都摆在桌面上：当前颜色、方向、牌堆余量，还有谁在思考——不用猜，一眼读完。'],
+  ['WATCH. PRESS. PLAY.', '先看清桌面，再掂量对手的压力，最后把该出的那张牌打出去——三步之外没有多余动作。'],
+  ['DEAL. THINK. WIN.', '发牌之后只剩三件事：看清局面、做出决断、赢下这一局——剩下的交给那 108 张牌。'],
+];
+const N3_HERO_DISPLAYS = N3_HERO_SETS.map(([display]) => display);
+const N3_HERO_LEADS = N3_HERO_SETS.map(([, lead]) => lead);
 const ASSETS = join(ROOT, 'review-assets');
 const DEBUG_PORT = Number(process.env.UNO_DEBUG_PORT || 9333);
 mkdirSync(ASSETS, { recursive: true });
@@ -752,7 +761,7 @@ async function main() {
       brand1440.docTitle === 'UNO Local' &&
         brand1440.lobbyTitle === 'UNO Local' &&
         brand1440.versionVisible &&
-        brand1440.lead === '把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。' &&
+        N3_HERO_LEADS.includes(brand1440.lead) &&
         brand1440.startText === '开启对局' &&
         brand1440.startAria === '开启对局' &&
         brand1440.roomStartText === '开启对局' &&
@@ -772,16 +781,16 @@ async function main() {
     // ---------------- 1c. N3：大厅两栏（巨字排版 + setup 卡 + 联机面板切换） ----------------
     const n3Lobby = await evaluate('window.__verify.lobbyAudit()');
     check(
-      'N3 大厅：两栏结构（.lobby-copy 巨字 PLAY WITH INTENT. + .setup 卡 + 01/02/03 index）',
+      'N3 大厅：两栏结构（.lobby-copy 巨字 4 组轮换之一 + .setup 卡 + 01/02/03 index）',
       n3Lobby.cols === 2 &&
         n3Lobby.hasCopy &&
         n3Lobby.hasDisplay &&
-        n3Lobby.displayText === 'PLAY WITH INTENT.' &&
+        N3_HERO_DISPLAYS.includes(n3Lobby.displayText) &&
         n3Lobby.hasIndex &&
         n3Lobby.indexItems === 3 &&
         n3Lobby.hasSetup &&
         n3Lobby.setupH2 === '建立一局对战',
-      JSON.stringify(n3Lobby),
+      JSON.stringify({ ...n3Lobby, heroSets: N3_HERO_DISPLAYS }),
     );
     check(
       'N3 setup 卡：#lobby-form 控件齐全（人数 9 / 难度 4 / AI 模式 3 / +4 挑战默认开）',
@@ -789,12 +798,17 @@ async function main() {
       JSON.stringify({ formInsideSetup: n3Lobby.formInsideSetup, counts: n3Lobby.counts, difficulties: n3Lobby.difficulties, modes: n3Lobby.modes, challenge: n3Lobby.challenge }),
     );
     check(
-      'N3 大厅：#lobby-start 文案与 aria 不变、#lobby-lead 为新 UI 描述（§7.5 计划内更新）、无横向溢出',
+      'N3 大厅：#lobby-start 文案与 aria 不变、#lobby-lead 为 4 组轮换文案之一（§7.5 计划内更新）、无横向溢出',
       n3Lobby.startText === '开启对局' &&
         n3Lobby.startAria === '开启对局' &&
-        n3Lobby.lead === '把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。' &&
+        N3_HERO_LEADS.includes(n3Lobby.lead) &&
         !n3Lobby.overflow,
       JSON.stringify({ startText: n3Lobby.startText, startAria: n3Lobby.startAria, lead: n3Lobby.lead, overflow: n3Lobby.overflow }),
+    );
+    check(
+      'N3 大厅：巨字与 lead 为同一组配对（轮换不串组）',
+      N3_HERO_SETS.some(([display, lead]) => display === n3Lobby.displayText && lead === n3Lobby.lead),
+      JSON.stringify({ displayText: n3Lobby.displayText, lead: n3Lobby.lead }),
     );
     await shot('v2/N3-lobby-1440.png');
     check(
