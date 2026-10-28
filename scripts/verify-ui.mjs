@@ -312,6 +312,32 @@ window.__verify = {
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   },
+  // N3（v2.2 契约 §2.3/§7.2）：大厅两栏审计——巨字排版 + setup 卡 + 联机面板与断点列数
+  lobbyAudit: () => {
+    const shell = document.querySelector('#lobby-screen .lobby-shell');
+    const setup = document.querySelector('#single-panel.setup');
+    const display = document.querySelector('.lobby-display');
+    const start = document.querySelector('#lobby-start');
+    return {
+      cols: shell ? getComputedStyle(shell).gridTemplateColumns.split(' ').filter(Boolean).length : 0,
+      hasCopy: Boolean(document.querySelector('.lobby-copy')),
+      hasDisplay: Boolean(display),
+      displayText: display ? [...display.querySelectorAll('span, em')].map((n) => n.textContent.trim()).join(' ') : '',
+      hasIndex: Boolean(document.querySelector('.lobby-index')),
+      indexItems: document.querySelectorAll('.lobby-index .index-item').length,
+      hasSetup: Boolean(setup),
+      setupH2: (document.querySelector('.setup-heading h2')?.textContent || '').trim(),
+      formInsideSetup: Boolean(setup?.querySelector('#lobby-form')),
+      counts: document.querySelectorAll('#player-count-options button').length,
+      difficulties: document.querySelectorAll('#difficulty-options button').length,
+      modes: document.querySelectorAll('#ai-mode-options button').length,
+      challenge: document.querySelector('#challenge-wild4')?.checked,
+      startText: start ? start.textContent.trim() : null,
+      startAria: start ? start.getAttribute('aria-label') : null,
+      lead: (document.querySelector('#lobby-lead')?.textContent || '').trim(),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  },
   // M3：圆桌座位审计（锚点 / relative-seat / 状态 data-* / 中心行动状态）
   arenaAudit: () => {
     const screen = document.querySelector('#game-screen');
@@ -725,7 +751,7 @@ async function main() {
       brand1440.docTitle === 'UNO Local' &&
         brand1440.lobbyTitle === 'UNO Local' &&
         brand1440.versionVisible &&
-        brand1440.lead === 'v2.0.0 UI 重构与交互升级' &&
+        brand1440.lead === '把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。' &&
         brand1440.startText === '开启对局' &&
         brand1440.startAria === '开启对局' &&
         brand1440.roomStartText === '开启对局' &&
@@ -741,6 +767,52 @@ async function main() {
     );
     await shot('v2/M2-lobby-1440.png');
     await shot('ui-m32-lobby-1440.png');
+
+    // ---------------- 1c. N3：大厅两栏（巨字排版 + setup 卡 + 联机面板切换） ----------------
+    const n3Lobby = await evaluate('window.__verify.lobbyAudit()');
+    check(
+      'N3 大厅：两栏结构（.lobby-copy 巨字 PLAY WITH INTENT. + .setup 卡 + 01/02/03 index）',
+      n3Lobby.cols === 2 &&
+        n3Lobby.hasCopy &&
+        n3Lobby.hasDisplay &&
+        n3Lobby.displayText === 'PLAY WITH INTENT.' &&
+        n3Lobby.hasIndex &&
+        n3Lobby.indexItems === 3 &&
+        n3Lobby.hasSetup &&
+        n3Lobby.setupH2 === '建立一局对战',
+      JSON.stringify(n3Lobby),
+    );
+    check(
+      'N3 setup 卡：#lobby-form 控件齐全（人数 9 / 难度 4 / AI 模式 3 / +4 挑战默认开）',
+      n3Lobby.formInsideSetup && n3Lobby.counts === 9 && n3Lobby.difficulties === 4 && n3Lobby.modes === 3 && n3Lobby.challenge === true,
+      JSON.stringify({ formInsideSetup: n3Lobby.formInsideSetup, counts: n3Lobby.counts, difficulties: n3Lobby.difficulties, modes: n3Lobby.modes, challenge: n3Lobby.challenge }),
+    );
+    check(
+      'N3 大厅：#lobby-start 文案与 aria 不变、#lobby-lead 为新 UI 描述（§7.5 计划内更新）、无横向溢出',
+      n3Lobby.startText === '开启对局' &&
+        n3Lobby.startAria === '开启对局' &&
+        n3Lobby.lead === '把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。' &&
+        !n3Lobby.overflow,
+      JSON.stringify({ startText: n3Lobby.startText, startAria: n3Lobby.startAria, lead: n3Lobby.lead, overflow: n3Lobby.overflow }),
+    );
+    await shot('v2/N3-lobby-1440.png');
+    // N3：联机面板与 setup 卡同级切换（创建房间 → #room-panel 显示 → 离开回大厅）
+    await evaluate('document.querySelector("#online-create").click()');
+    await waitFor(
+      'document.querySelector("#room-panel") && !document.querySelector("#room-panel").hidden',
+      8000,
+      'N3 联机房间面板出现',
+    );
+    const n3Room = await evaluate(
+      `({ roomVisible: !document.querySelector('#room-panel').hidden, roomIsSetup: document.querySelector('#room-panel').classList.contains('setup'), singleHidden: document.querySelector('#single-panel').hidden, copyVisible: Boolean(document.querySelector('.lobby-copy')) })`,
+    );
+    check(
+      'N3 大厅：创建房间后 #room-panel（.setup）切换显示、#single-panel 隐藏、左栏保留',
+      n3Room.roomVisible && n3Room.roomIsSetup && n3Room.singleHidden && n3Room.copyVisible,
+      JSON.stringify(n3Room),
+    );
+    await evaluate('document.querySelector("#room-leave").click()');
+    await waitFor('document.querySelector("#room-panel").hidden', 8000, '离开房间回到大厅');
 
     // ---------------- 2. 完整对局（快速模式，3 局） ----------------
     // BUG-01 新规则（摸到可出为止）让对局变长：这一段的目的是"完整打完对局"，
@@ -1142,6 +1214,14 @@ async function main() {
       JSON.stringify(brand1024),
     );
     await shot('v2/M2-lobby-1024.png');
+    // N3：1024 进入单列（≤1080），无横向溢出
+    const n3Lobby1024 = await evaluate('window.__verify.lobbyAudit()');
+    check(
+      'N3 @1024 大厅：单列布局（≤1080）、setup 卡在位、无横向溢出',
+      n3Lobby1024.cols === 1 && n3Lobby1024.hasSetup && !n3Lobby1024.overflow,
+      JSON.stringify({ cols: n3Lobby1024.cols, hasSetup: n3Lobby1024.hasSetup, overflow: n3Lobby1024.overflow }),
+    );
+    await shot('v2/N3-lobby-1024.png');
     await evaluate('window.__verify.selectPlayers(10)');
     await evaluate('window.__verify.clickStart()');
     await waitFor('window.__verify.visibleScreen() === "game"', 10000, '1024 十人牌桌');
@@ -2642,6 +2722,14 @@ async function main() {
       JSON.stringify(brand760),
     );
     await shot('v2/M2-lobby-760.png');
+    // N3：760 单列，无横向溢出
+    const n3Lobby760 = await evaluate('window.__verify.lobbyAudit()');
+    check(
+      'N3 @760 大厅：单列布局、setup 卡在位、无横向溢出',
+      n3Lobby760.cols === 1 && n3Lobby760.hasSetup && !n3Lobby760.overflow,
+      JSON.stringify({ cols: n3Lobby760.cols, hasSetup: n3Lobby760.hasSetup, overflow: n3Lobby760.overflow }),
+    );
+    await shot('v2/N3-lobby-760.png');
     const mobileLobby = await evaluate('window.__verify.overflow()');
     check(
       '760 宽大厅无横向溢出',
@@ -2799,6 +2887,14 @@ async function main() {
       JSON.stringify(brand420),
     );
     await shot('v2/M2-lobby-420.png');
+    // N3：420 极窄单列，无横向溢出
+    const n3Lobby420 = await evaluate('window.__verify.lobbyAudit()');
+    check(
+      'N3 @420 大厅：单列布局、setup 卡在位、无横向溢出',
+      n3Lobby420.cols === 1 && n3Lobby420.hasSetup && !n3Lobby420.overflow,
+      JSON.stringify({ cols: n3Lobby420.cols, hasSetup: n3Lobby420.hasSetup, overflow: n3Lobby420.overflow }),
+    );
+    await shot('v2/N3-lobby-420.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -2892,6 +2988,10 @@ async function main() {
       '- review-assets/v2/M2-lobby-1024.png',
       '- review-assets/v2/M2-lobby-760.png',
       '- review-assets/v2/M2-lobby-420.png',
+      '- review-assets/v2/N3-lobby-1440.png',
+      '- review-assets/v2/N3-lobby-1024.png',
+      '- review-assets/v2/N3-lobby-760.png',
+      '- review-assets/v2/N3-lobby-420.png',
       '- review-assets/v2/M3-table-4p-1440.png',
       '- review-assets/v2/M4-hand-dock-1440.png',
       '- review-assets/v2/M3-table-10p-1440.png',

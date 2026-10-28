@@ -85,7 +85,8 @@
 .setting-row input { width: 22px; height: 22px; }
 
 /* 大厅规则选项：+4 挑战勾选（2026-10-17 追加） */
-.rule-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #ffffff0d; cursor: pointer; }
+/* N3（v2.2 契约 §2.3）：规则开关套 demo .toggle 皮（细边 + 7px 圆角 + 12px 说明文本） */
+.rule-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink-muted); background: #ffffff06; font-size: 12px; line-height: 1.45; cursor: pointer; }
 .rule-toggle input[type="checkbox"] { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--v2-gold); }
 .rule-toggle-text { display: grid; gap: 3px; min-width: 0; }
 .rule-toggle-text strong { color: var(--ink); font-size: 14px; }

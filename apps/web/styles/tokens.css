@@ -65,6 +65,11 @@
   --v2-dur-fast: 120ms;
   --v2-dur-base: 180ms;
   --v2-dur-slow: 280ms;
+  /* v2.2.0（N1 契约 §2.2）：radical A 方向新增布局 token——只服务版式，不新增颜色 */
+  --v22-lobby-max-w: 1400px;
+  --v22-lobby-cols: 1.15fr .85fr;
+  --v22-lobby-gap: clamp(34px, 7vw, 128px);
+  --v22-display-size: clamp(60px, 10vw, 152px);
   --z-table: 1;
   --z-hud: 10;
   --z-dev: 20;

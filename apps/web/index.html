@@ -16,14 +16,29 @@
 <body>
   <main id="app" aria-live="polite">
     <section id="lobby-screen" class="screen" data-screen="lobby" aria-labelledby="lobby-title">
-      <div class="lobby-shell">
-        <header class="lobby-brand">
-          <img class="lobby-mark" src="assets/card-back.svg" width="120" height="180" alt="UNO 卡背">
-          <h1 id="lobby-title">UNO Local</h1>
-          <span id="lobby-version" class="app-version" hidden></span>
-        </header>
-        <div class="lobby-panel" id="single-panel">
-          <p id="lobby-lead">v2.0.0 UI 重构与交互升级</p>
+      <div class="lobby-shell lobby">
+        <div class="lobby-copy">
+          <header class="lobby-brand">
+            <img class="lobby-mark" src="assets/card-back.svg" width="120" height="180" alt="UNO 卡背">
+            <h1 id="lobby-title">UNO Local</h1>
+            <span id="lobby-version" class="app-version" hidden></span>
+          </header>
+          <div class="lobby-display"><span>PLAY</span><em>WITH</em><span>INTENT.</span></div>
+          <p id="lobby-lead">把牌桌变成一块可读的控制面：当前回合、对手压力、牌堆状态和你的可执行动作同时进入视野。</p>
+          <div class="lobby-index">
+            <div class="index-item"><strong>01</strong><small>See the table</small></div>
+            <div class="index-item"><strong>02</strong><small>Read the threat</small></div>
+            <div class="index-item"><strong>03</strong><small>Make the move</small></div>
+          </div>
+        </div>
+        <div class="lobby-panel setup" id="single-panel">
+          <div class="setup-heading">
+            <div>
+              <div class="kicker">Setup / 01</div>
+              <h2>建立一局对战</h2>
+            </div>
+            <span class="status-chip"><span class="dot" aria-hidden="true"></span>本地引擎</span>
+          </div>
           <form id="lobby-form" class="lobby-form">
             <div class="form-grid">
 
@@ -76,7 +91,7 @@
             </div>
           </div>
         </div>
-        <div class="lobby-panel" id="room-panel" hidden>
+        <div class="lobby-panel setup" id="room-panel" hidden>
           <div class="room-box">
             <h2 class="room-title">联机房间</h2>
             <p class="room-code-line">房间码 <strong id="room-code">------</strong></p>
