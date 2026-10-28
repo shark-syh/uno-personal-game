@@ -325,6 +325,7 @@ window.__verify = {
       displayText: display ? [...display.querySelectorAll('span, em')].map((n) => n.textContent.trim()).join(' ') : '',
       hasIndex: Boolean(document.querySelector('.lobby-index')),
       indexItems: document.querySelectorAll('.lobby-index .index-item').length,
+      indexTexts: [...document.querySelectorAll('.lobby-index .index-item small')].map((n) => n.textContent.trim()),
       hasSetup: Boolean(setup),
       setupH2: (document.querySelector('.setup-heading h2')?.textContent || '').trim(),
       formInsideSetup: Boolean(setup?.querySelector('#lobby-form')),
@@ -796,6 +797,13 @@ async function main() {
       JSON.stringify({ startText: n3Lobby.startText, startAria: n3Lobby.startAria, lead: n3Lobby.lead, overflow: n3Lobby.overflow }),
     );
     await shot('v2/N3-lobby-1440.png');
+    check(
+      'N3 大厅：index 三连为中文意译（3~6 字，每次进入轮换）',
+      n3Lobby.indexItems === 3 &&
+        n3Lobby.indexTexts.length === 3 &&
+        n3Lobby.indexTexts.every((text) => /^[\u4e00-\u9fff]{3,6}$/.test(text)),
+      JSON.stringify(n3Lobby.indexTexts),
+    );
     // N3：联机面板与 setup 卡同级切换（创建房间 → #room-panel 显示 → 离开回大厅）
     await evaluate('document.querySelector("#online-create").click()');
     await waitFor(
