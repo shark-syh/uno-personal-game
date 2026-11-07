@@ -430,6 +430,106 @@ window.__verify = {
       roomText: (document.querySelector('#game-room')?.textContent || '').trim(),
     };
   },
+  // U1：右栏信息回归审计（字段完整性 / 同源一致性 / 数据卡片直角 / 一屏不下沉）
+  rightRailAudit: () => {
+    const rail = document.querySelector('.right-rail');
+    const text = (selector) => (document.querySelector(selector)?.textContent || '').trim();
+    const lines = [...document.querySelectorAll('.right-rail .status-line')];
+    const cards = [...document.querySelectorAll('.right-rail .status-card')];
+    const card = cards[0];
+    const chip = document.querySelector('.rail-turn-chip');
+    const beforeMask = (node) => {
+      if (!node) return '';
+      const style = getComputedStyle(node, '::before');
+      return String(style.maskImage || style.webkitMaskImage || '');
+    };
+    const radius = (node) => (node ? parseFloat(getComputedStyle(node).borderTopLeftRadius) : -1);
+    const rectBottom = (node) => (node ? Math.round(node.getBoundingClientRect().bottom) : 0);
+    const fields = {
+      pressureCount: text('#rail-pressure-count'),
+      pressureName: text('#rail-pressure-name'),
+      myHand: text('#rail-my-hand'),
+      playable: text('#rail-playable'),
+      drawCount: text('#rail-draw-count'),
+      lastPlay: text('#rail-last-play'),
+      lastPlayer: text('#rail-last-player'),
+      status: text('#rail-status'),
+    };
+    // U1 折叠冲突审计：三块数据面板（TURN 胶囊 + 2 张 status-card）在任何断点下
+    // 都不能互相重叠、贴死成双线、越出父栏或压到牌桌/手牌/动作栏；卡内文字也不得溢出。
+    const rect = (node) => {
+      if (!node) return null;
+      const r = node.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    const panelRects = [chip, ...cards].map(rect).filter(Boolean);
+    const separations = [];
+    for (let i = 0; i < panelRects.length; i += 1) {
+      for (let j = i + 1; j < panelRects.length; j += 1) {
+        const a = panelRects[i];
+        const b = panelRects[j];
+        const dx = Math.max(a.left - b.right, b.left - a.right);
+        const dy = Math.max(a.top - b.bottom, b.top - a.bottom);
+        separations.push({ gap: Math.round(Math.max(dx, dy) * 10) / 10, overlap: dx < -0.5 && dy < -0.5 });
+      }
+    }
+    const railRect = rect(rail);
+    const outsideParent = railRect
+      ? panelRects.filter((r) => r.left < railRect.left - 1 || r.right > railRect.right + 1 ||
+          r.top < railRect.top - 1 || r.bottom > railRect.bottom + 1).length
+      : 1;
+    const overflowCards = cards.filter((c) =>
+      c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1).length;
+    const neighborRects = ['#table-area', '.hand-deck', '#action-bar.action-stack']
+      .map((s) => rect(document.querySelector(s))).filter(Boolean);
+    const neighborOverlap = railRect
+      ? neighborRects.filter((n) =>
+          Math.min(railRect.right, n.right) - Math.max(railRect.left, n.left) > 0.5 &&
+          Math.min(railRect.bottom, n.bottom) - Math.max(railRect.top, n.top) > 0.5).length
+      : 1;
+    const panelGeometry = {
+      panelCount: panelRects.length,
+      minGap: separations.length ? Math.min(...separations.map((s) => s.gap)) : -1,
+      overlaps: separations.filter((s) => s.overlap).length,
+      outsideParent,
+      overflowCards,
+      neighborOverlap,
+    };
+    return {
+      panelGeometry,
+      panelConflict: panelGeometry.panelCount !== 3 || panelGeometry.minGap < 8 ||
+        panelGeometry.overlaps > 0 || panelGeometry.outsideParent > 0 ||
+        panelGeometry.overflowCards > 0 || panelGeometry.neighborOverlap > 0,
+      exists: Boolean(rail),
+      railVisible: Boolean(rail) && getComputedStyle(rail).display !== 'none',
+      cardCount: document.querySelectorAll('.right-rail .status-card').length,
+      lineCount: lines.length,
+      allFieldsFilled: Object.values(fields).every((value) => value.length > 0),
+      fields,
+      handCount: document.querySelector('#hand')?.dataset.count || '',
+      handPlayable: document.querySelector('#hand')?.dataset.playable || '',
+      railPlayableAttr: document.querySelector('#rail-playable')?.dataset.playable || '',
+      hudDrawCount: text('#draw-count'),
+      turnNo: text('#rail-turn-no'),
+      chipNo: text('#rail-turn-chip-no'),
+      stepLabel: text('#rail-step-label'),
+      chipPhase: text('#rail-turn-chip-phase'),
+      stamp: text('#turn-stamp'),
+      // 2026-11-07 用户拍板：数据显示的卡片不做圆角 → 直角 + 1px 边框、且不得残留 squircle 遮罩
+      noSquircleMask: !beforeMask(card).includes('squircle.svg') && !beforeMask(chip).includes('squircle.svg'),
+      cardRadius: radius(card),
+      chipRadius: radius(chip),
+      cardBorder: card ? getComputedStyle(card).borderTopWidth : '',
+      chipBorder: chip ? getComputedStyle(chip).borderTopWidth : '',
+      lastLineBottom: Math.max(...lines.map(rectBottom), 0),
+      gridBottom: rectBottom(document.querySelector('#game-grid')),
+      handTop: Math.round(document.querySelector('#hand-zone')?.getBoundingClientRect().top || 0),
+      scrollW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+      scrollH: document.documentElement.scrollHeight,
+      clientH: document.documentElement.clientHeight,
+    };
+  },
   // N4b（v2.2 契约 §5.3/§7.2）：一屏硬约束 + 可出牌数一致性 + 台词层不压 banner/事件流
   oneScreenAudit: () => {
     const rectOf = (selector) => document.querySelector(selector)?.getBoundingClientRect() || null;
@@ -1087,6 +1187,54 @@ async function main() {
             n4a.phaseLabelHidden === (n4a.bannerLabelText === ''),
           JSON.stringify({ bannerHidden: n4a.bannerHidden, hasBannerTitle: n4a.hasBannerTitle, phaseLabelHidden: n4a.phaseLabelHidden, phaseLabelText: n4a.phaseLabelText }),
         );
+        // ---------------- U1：右栏信息回归 + 回合数保留 + 数据卡片直角 ----------------
+        const u1 = await evaluate('window.__verify.rightRailAudit()');
+        check(
+          'U1 右栏信息回归：回合标签 + CURRENT PRESSURE + RECENT EVENTS 全部 6 项字段可见且有值、三块面板折叠互不冲突',
+          u1.exists && u1.railVisible && u1.cardCount === 2 && u1.lineCount === 6 &&
+            u1.allFieldsFilled && u1.chipNo.length > 0 && !u1.panelConflict,
+          JSON.stringify({
+            exists: u1.exists, railVisible: u1.railVisible, cardCount: u1.cardCount,
+            lineCount: u1.lineCount, fields: u1.fields, chipNo: u1.chipNo,
+            panelGeometry: u1.panelGeometry,
+          }),
+        );
+        check(
+          'U1 同源接线：手牌/可出牌/牌堆剩余 = #hand / #draw-count，回合数与阶段 = phase-rail，状态与 #turn-stamp 同源',
+          u1.fields.myHand === Number(u1.handCount) + ' 张' &&
+            u1.railPlayableAttr === u1.handPlayable &&
+            u1.fields.drawCount === u1.hudDrawCount &&
+            u1.chipNo === u1.turnNo &&
+            u1.chipPhase === u1.stepLabel &&
+            u1.stamp.length > 0 && u1.fields.status.length > 0,
+          JSON.stringify({
+            myHand: u1.fields.myHand, handCount: u1.handCount,
+            playable: u1.railPlayableAttr, handPlayable: u1.handPlayable,
+            draw: u1.fields.drawCount, hudDraw: u1.hudDrawCount,
+            chipNo: u1.chipNo, turnNo: u1.turnNo,
+            chipPhase: u1.chipPhase, stepLabel: u1.stepLabel,
+            stamp: u1.stamp, status: u1.fields.status,
+          }),
+        );
+        check(
+          'U1 数据卡片直角：右栏卡片与回合标签无 squircle 遮罩、border-radius = 0、保留 1px 边框',
+          u1.noSquircleMask && u1.cardRadius === 0 && u1.chipRadius === 0 &&
+            u1.cardBorder === '1px' && u1.chipBorder === '1px',
+          JSON.stringify({
+            noSquircleMask: u1.noSquircleMask, cardRadius: u1.cardRadius, chipRadius: u1.chipRadius,
+            cardBorder: u1.cardBorder, chipBorder: u1.chipBorder,
+          }),
+        );
+        check(
+          'U1 一屏 1440×900：右栏末行不越出 game-grid、不压手牌区、无横向溢出',
+          u1.lastLineBottom <= u1.gridBottom + 2 && u1.lastLineBottom <= u1.handTop &&
+            u1.scrollW <= u1.clientW,
+          JSON.stringify({
+            lastLineBottom: u1.lastLineBottom, gridBottom: u1.gridBottom,
+            handTop: u1.handTop, scrollW: u1.scrollW, clientW: u1.clientW,
+          }),
+        );
+        await shot('v2/U1-right-rail-1440.png');
         await shot('v2/N4-table-4p-1440.png');
         // ---------------- N4b：一屏矩阵 + 可出牌数一致（v2.2 契约 §5.3/§7.2） ----------------
         for (const [screenW, screenH] of [[1366, 657], [1024, 600], [1024, 768]]) {
@@ -1114,8 +1262,26 @@ async function main() {
               legalCards: audit.legalCards,
             }),
           );
+          const u1Screen = await evaluate('window.__verify.rightRailAudit()');
+          check(
+            `U1 窄屏 ${screenW}×${screenH}：右栏折紧凑摘要后字段仍全部可见、末行不越出 game-grid、回合数同源、面板互不冲突、无横向溢出`,
+            u1Screen.railVisible && u1Screen.lineCount === 6 && u1Screen.allFieldsFilled &&
+              u1Screen.chipNo === u1Screen.turnNo && !u1Screen.panelConflict &&
+              u1Screen.lastLineBottom <= u1Screen.gridBottom + 2 &&
+              u1Screen.scrollW <= u1Screen.clientW,
+            JSON.stringify({
+              railVisible: u1Screen.railVisible, lineCount: u1Screen.lineCount,
+              allFieldsFilled: u1Screen.allFieldsFilled,
+              lastLineBottom: u1Screen.lastLineBottom, gridBottom: u1Screen.gridBottom,
+              chipNo: u1Screen.chipNo, turnNo: u1Screen.turnNo,
+              panelGeometry: u1Screen.panelGeometry,
+              scrollW: u1Screen.scrollW, clientW: u1Screen.clientW,
+            }),
+          );
           if (screenW === 1366) await shot('v2/N4-one-screen-1366x657.png');
+          if (screenW === 1366) await shot('v2/U1-right-rail-1366x657.png');
           if (screenH === 600) await shot('v2/N4-one-screen-1024x600.png');
+          if (screenH === 600) await shot('v2/U1-right-rail-1024x600.png');
         }
         await cdp.send('Emulation.setDeviceMetricsOverride', {
           width: 1440,
@@ -1473,6 +1639,20 @@ async function main() {
         handHeight: n4b420Hand,
       }),
     );
+    const u1Small = await evaluate('window.__verify.rightRailAudit()');
+    check(
+      'U1 10 人 @420 文档流：右栏紧凑摘要字段全部可见、回合数与 phase-rail 同源、面板折叠互不冲突、无横向溢出',
+      u1Small.railVisible && u1Small.lineCount === 6 && u1Small.allFieldsFilled &&
+        u1Small.chipNo === u1Small.turnNo && !u1Small.panelConflict &&
+        u1Small.scrollW <= u1Small.clientW,
+      JSON.stringify({
+        railVisible: u1Small.railVisible, lineCount: u1Small.lineCount,
+        allFieldsFilled: u1Small.allFieldsFilled, chipNo: u1Small.chipNo,
+        turnNo: u1Small.turnNo, panelGeometry: u1Small.panelGeometry,
+        scrollW: u1Small.scrollW, clientW: u1Small.clientW,
+      }),
+    );
+    await shot('v2/U1-right-rail-420.png');
     await shot('v2/N4-table-420.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,

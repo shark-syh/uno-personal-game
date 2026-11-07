@@ -552,9 +552,25 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 #phase-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
 #phase-label[hidden] { display: none; }
 
-/* right-rail（右状态栏） */
+/* right-rail（右状态栏）· U1：CURRENT PRESSURE / RECENT EVENTS 全字段 + 回合数标签 */
 .right-rail { display: grid; align-content: start; gap: 10px; min-width: 0; }
-.status-card { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(10, 21, 16, 0.91); }
+
+/* 数据卡片直角（2026-11-07 用户拍板）：「数据显示的卡片不用做圆角」。
+   右栏是纯信息面板，一律 0 圆角 + 1px 实线边框，不套 squircle 双层遮罩。
+   §6 只约束「有圆角的元素」必须是连续曲率；直角面板不属该范围，也不得引入普通圆弧。 */
+.status-card, .rail-turn-chip {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(10, 21, 16, 0.91);
+}
+
+.rail-turn-chip { display: flex; align-items: baseline; gap: 8px; padding: 10px 15px; }
+.rail-turn-chip__kicker { color: var(--ink-muted); font-size: 10px; font-weight: 900; letter-spacing: .15em; }
+.rail-turn-chip strong { color: var(--v2-gold); font-size: 22px; line-height: 1; letter-spacing: -.06em; }
+.rail-turn-chip__sep { color: var(--ink-muted); font-size: 11px; }
+.rail-turn-chip__phase { margin-left: auto; color: var(--ink-muted); font-size: 10px; white-space: nowrap; }
+
+.status-card { padding: 15px; }
 .status-card h2 { margin: 0 0 14px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
 .status-big { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .status-big strong { color: var(--v2-gold); font-size: 37px; letter-spacing: -.07em; }
@@ -605,10 +621,24 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 /* UNO 按钮保持醒目（BUG-02：显著放大），不随 action-stack 缩小；只让它占满列宽 */
 #action-bar.action-stack .uno-button { width: 100%; font-size: 22px; min-height: 64px; }
 
-/* 断点：≤1080 两栏（隐藏 right-rail），phase-rail 收窄 82px */
+/* U1：≤1080 右栏不再隐藏——收窄成第三列紧凑摘要，全部字段一个不丢。
+   phase-rail 的 TURN / 01 与「阶段 x / 4」原地保留（不删、不挪），
+   右栏另附同源回合标签，矮屏仍能一屏读完。 */
 @media (max-width: 1080px) {
-  #game-grid { grid-template-columns: 82px minmax(0, 1fr); }
-  .right-rail { display: none; }
+  #game-grid { grid-template-columns: 82px minmax(0, 1fr) 168px; }
+  /* U1：三块直角面板之间不再压到 6px——8px 是「不贴死成双线」的下限，
+     与 verify-ui 的 panelGeometry.minGap ≥ 8 断言同源。 */
+  .right-rail { gap: 8px; }
+  .rail-turn-chip { padding: 7px 10px; gap: 6px; }
+  .rail-turn-chip strong { font-size: 17px; }
+  .rail-turn-chip__phase { font-size: 9px; }
+  .status-card { padding: 8px 10px; }
+  .status-card h2 { margin-bottom: 6px; font-size: 9px; letter-spacing: .12em; }
+  .status-big strong { font-size: 21px; }
+  .status-big span { font-size: 9px; }
+  .status-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; margin-top: 6px; }
+  .status-line { flex-direction: column; align-items: flex-start; gap: 1px; font-size: 9px; }
+  .status-line b { font-size: 11px; }
 }
 
 /* 断点：≤760 文档流（允许纵向滚动，一屏约束不适用） */
@@ -641,6 +671,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .hand-deck { margin-top: 9px; padding: 11px 9px; }
   #action-bar.action-stack { grid-template-columns: 1fr 1fr 1.2fr; margin-top: 7px; padding: 8px; }
   #action-bar.action-stack .btn { padding: 9px 7px; font-size: 10px; }
+  /* U1：文档流下右栏折成横向紧凑摘要，字段一个不丢 */
+  .right-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+  .rail-turn-chip { grid-column: 1 / -1; }
 }
 
 /* 矮屏压缩（≤800 高）：中心牌 / 座位 / 装饰同步缩小，保证一屏 */
@@ -651,4 +684,26 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .arena-orbit { width: 250px; height: 160px; }
   #phase-banner { min-width: 0; padding: 5px 9px; font-size: 10px; }
   #hand { padding-top: 18px; }
+  /* U1：矮屏把右栏压成两列紧凑摘要，保证 1366×657 / 1024×600 的全部字段
+     落在 #game-grid 行内、不被 #game-screen 的 overflow:hidden 裁掉。
+     间距不再压到 5px（直角边框会贴死成双线），固定 8px；1024×600 实测仍有余量。 */
+  .right-rail { gap: 8px; }
+  .rail-turn-chip { padding: 5px 9px; gap: 6px; }
+  .rail-turn-chip strong { font-size: 15px; }
+  .rail-turn-chip__phase { font-size: 9px; }
+  .status-card { padding: 6px 9px; }
+  .status-card h2 { margin-bottom: 4px; font-size: 8px; }
+  .status-big strong { font-size: 18px; }
+  .status-big span { font-size: 9px; }
+  .status-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; margin-top: 4px; }
+  /* 标签与数值同行：两列 × 2 行即可容纳 3 个字段，矮屏 1024×600 也不被裁 */
+  .status-line { flex-direction: row; align-items: baseline; gap: 4px; font-size: 8px; }
+  .status-line b { font-size: 10px; }
+}
+
+/* U1：≤520 右栏单列、字段回到左右对齐，420 宽不横向溢出 */
+@media (max-width: 520px) {
+  .right-rail { grid-template-columns: minmax(0, 1fr); }
+  .rail-turn-chip { grid-column: auto; }
+  .status-line { flex-direction: row; align-items: baseline; }
 }

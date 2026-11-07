@@ -84,11 +84,11 @@ function renderTurnStatus(view) {
     }
   }
 
-  // phase-rail：大号回合数字 + 阶段文案 + 步进条。
+  // phase-rail：大号回合数字 + 阶段文案 + 步进条（U1 原地保留，不删不挪）。
+  const no = String(turnCounter).padStart(2, "0");
   const railNo = document.querySelector("#rail-turn-no");
   const railPhase = document.querySelector("#rail-turn-phase");
   if (railNo) {
-    const no = String(turnCounter).padStart(2, "0");
     railNo.textContent = no;
     railNo.setAttribute("aria-label", `第 ${turnCounter} 回合`);
   }
@@ -107,6 +107,16 @@ function renderTurnStatus(view) {
   // 说明文字：步进条不是分段控件，用「阶段 x / 4」直白解释进度
   const stepLabel = document.querySelector("#rail-step-label");
   if (stepLabel) stepLabel.textContent = `阶段 ${doneCount} / 4`;
+
+  // U1：右栏回合标签与左栏 TURN / 01、「阶段 x / 4」同源（同一个 turnCounter / doneCount）。
+  // 只在显示层补一个紧凑读数，左栏回合数原地保留；不新增引擎字段、不改 GameView。
+  const chipNo = document.querySelector("#rail-turn-chip-no");
+  if (chipNo) {
+    chipNo.textContent = no;
+    chipNo.setAttribute("aria-label", `第 ${turnCounter} 回合`);
+  }
+  const chipPhase = document.querySelector("#rail-turn-chip-phase");
+  if (chipPhase) chipPhase.textContent = `阶段 ${doneCount} / 4`;
 
   // phase-banner 只承担特殊阶段中文提示：常规回合整条隐藏（避免 AI THINKING 之类常驻提示条），
   // 与 game-meta 的 #turn-stamp、phase-rail 不再重复。

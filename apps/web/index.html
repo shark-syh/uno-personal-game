@@ -256,7 +256,14 @@
             </div>
           </div>
         </div>
-        <aside class="right-rail">
+        <aside class="right-rail" aria-label="对局信息">
+          <!-- U1：回合数紧凑标签，与左栏 phase-rail 的 TURN / 01 与「阶段 x / 4」同源；左栏原地保留 -->
+          <div class="rail-turn-chip" id="rail-turn-chip">
+            <span class="rail-turn-chip__kicker">TURN</span>
+            <strong id="rail-turn-chip-no" aria-label="第 0 回合">00</strong>
+            <span class="rail-turn-chip__sep" aria-hidden="true">/</span>
+            <span class="rail-turn-chip__phase" id="rail-turn-chip-phase">阶段 2 / 4</span>
+          </div>
           <section class="status-card">
             <h2>Current pressure</h2>
             <div class="status-big"><strong id="rail-pressure-count">0</strong><span id="rail-pressure-name">—</span></div>

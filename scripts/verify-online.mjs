@@ -475,6 +475,27 @@ try {
       m2FullOk,
       JSON.stringify(layout.hands.map(({ handCount, isFull }) => ({ handCount, isFull }))),
     );
+
+    // U1：联机视角下右栏信息仍完整，且只显示数量、不泄露任何牌面
+    const u1Rail = await page.evaluate(`(() => {
+      const rail = document.querySelector('.right-rail');
+      const lines = [...document.querySelectorAll('.right-rail .status-line')];
+      const text = (selector) => (document.querySelector(selector)?.textContent || '').trim();
+      return {
+        visible: Boolean(rail) && getComputedStyle(rail).display !== 'none',
+        lineCount: lines.length,
+        filled: lines.every((node) => node.textContent.trim().length > 0),
+        turn: text('#rail-turn-chip-no'),
+        turnRail: text('#rail-turn-no'),
+        faceNodes: document.querySelectorAll('.right-rail .card, .right-rail img').length,
+      };
+    })()`);
+    check(
+      `${ownName} U1 联机：右栏 6 项字段完整可见、回合数与 phase-rail 同源、只显示数量不泄露牌面`,
+      u1Rail.visible && u1Rail.lineCount === 6 && u1Rail.filled &&
+        u1Rail.turn === u1Rail.turnRail && u1Rail.faceNodes === 0,
+      JSON.stringify(u1Rail),
+    );
   }
 
   await b.evaluate(`document.querySelector('#game-emote-toggle').click(); true`);
