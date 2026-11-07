@@ -121,6 +121,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 /* 10 人局：座位盒收窄到 104px——中窄牌桌上「左列夹紧座位 ↔ 斜上座位 ↔ 顶部中央座位」
    三只 116px 盒在椭圆带内放不下（角部重叠 ~8px），收窄后 r3/r4/r5 中心距恰好≥盒宽。 */
 #opponents[data-seat-count="9"] { --v2-seat-w: 104px; }
+/* N4b（v2.2 N1 契约 §4.3）：10 人局座位盒中窄档 96px / 文档流档 88px（矮屏 88×50 见文件末尾压缩块） */
+@media (max-width: 999px) { #opponents[data-seat-count="9"] { --v2-seat-w: 96px; } }
+@media (max-width: 760px) { #opponents[data-seat-count="9"] { --v2-seat-w: 88px; } }
 .opponent {
   position: absolute;
   left: clamp(calc(var(--v2-seat-w) / 2 + 8px), var(--seat-x, 50%), calc(100% - var(--v2-seat-w) / 2 - 8px));
@@ -233,9 +236,12 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 #draw-pile, #discard-pile { position: absolute; inset: 0; }
 #draw-pile { transform: translate(-7px, 4px) rotate(-4deg); }
 #discard-pile { transform: translate(7px, -4px) rotate(4deg); }
-#event-feed { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 2; width: min(520px, 76%); min-height: 36px; padding: 0 10px; border-left: 1px solid var(--line); }
-.event-item { color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
-#speech-layer { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 2; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 14px; width: 84%; min-width: 0; pointer-events: none; }
+/* N4b（契约 §3.3/§7.5）：事件流改 arena 底部单行——仍渲染最近 3 条（文本不减少），横向省略 */
+#event-feed { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 10px; width: min(560px, 80%); min-height: 30px; padding: 0 10px; overflow: hidden; border-left: 1px solid var(--line); }
+.event-item { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
+.event-item:last-child { color: var(--ink); }
+/* Q5：arena 变矮后台词层下移到 36px，避免压 phase-banner / event-feed */
+#speech-layer { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); z-index: 2; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 14px; width: 84%; min-width: 0; pointer-events: none; }
 .opponent-line { color: #d9eee0; font-size: 12px; line-height: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .opponent-line:empty { display: none; }
 /* M3 断点 token（W2/W3；W4~W6 并入 760/420 块） */
@@ -413,4 +419,236 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .lobby-display span, .lobby-display em { display: inline; }
   #lobby-lead { font-size: 13px; line-height: 1.5; }
   .lobby-index { margin-top: 18px; }
+}
+
+/* ===== N4a（v2.2 契约 §3.3/§5.3）：牌桌三栏骨架 =====
+   game-screen = 顶栏 / game-meta / game-grid(三栏) / player-zone 的 flex 列；
+   >760 宽一屏无滚动，≤760 走文档流。只做结构，数据/座位泛化属 N4b。 */
+
+/* 一屏作用域：≥761 宽（≤760 文档流，见下） */
+@media (min-width: 761px) {
+  #game-screen.is-active {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    height: 100dvh;
+    overflow: hidden;
+    padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  #game-meta, #game-grid, #hand-zone.player-zone {
+    width: min(var(--v22-game-max-w), 100%);
+    justify-self: center;
+  }
+}
+
+/* game-meta 行：左 chips + 右 ROOM/退出 */
+#game-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 40px;
+}
+.meta-left, .meta-right { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.meta-left .status-chip { min-height: 27px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; }
+.meta-left .status-color { gap: 8px; padding: 2px 12px 2px 7px; background: #ffffff0d; }
+.meta-right .tiny { color: var(--ink-muted); font-size: 11px; letter-spacing: .1em; }
+#game-meta .meta-right .btn { min-height: 44px; }
+
+/* 三栏 game-grid */
+#game-grid {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: var(--v22-rail-w) minmax(0, 1fr) var(--v22-status-w);
+  gap: var(--v22-grid-gap);
+}
+
+/* phase-rail（左回合轨） */
+.phase-rail {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 10px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgba(10, 21, 16, 0.74);
+  overflow: hidden;
+}
+.rail-code {
+  color: var(--ink-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .15em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.rail-turn { display: grid; gap: 3px; }
+.rail-turn strong { color: var(--v2-gold); font-size: 43px; line-height: .8; letter-spacing: -.08em; }
+.rail-turn span { color: var(--ink-muted); font-size: 10px; line-height: 1.2; }
+.rail-steps-wrap { display: grid; gap: 6px; }
+.rail-steps { display: grid; gap: 8px; }
+.rail-step { width: 100%; height: 3px; background: #ffffff1b; border-radius: 2px; }
+.rail-step.done { background: var(--v2-gold); }
+/* 说明文字：让 4 格步进条可读（阶段 x / 4），避免被误认为分段控件 */
+.rail-step-label { color: var(--ink-muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; line-height: 1.2; white-space: nowrap; }
+
+/* arena：N4a 填满单元格，覆盖 M3 椭圆尺寸链 */
+#table-area.arena {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: var(--v22-arena-radius);
+  overflow: hidden;
+}
+.arena-orbit {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 350px;
+  height: 218px;
+  border: 1px solid rgba(217, 255, 75, 0.22);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  box-shadow: 0 0 70px rgba(217, 255, 75, 0.04);
+  pointer-events: none;
+}
+.arena-orbit::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--v2-gold);
+  box-shadow: 0 0 18px var(--v2-gold);
+}
+/* 视觉中心上移 4%（契约 §5.3：translateY(-4%) 相对自身，不用百分比 padding） */
+#table-center { transform: translateY(-4%); }
+
+/* phase-banner：桌下方横幅 */
+#phase-banner {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: calc(46% + var(--v2-center-card-w) * 0.75 + 12px);
+  transform: translateX(-50%);
+  min-width: 230px;
+  padding: 8px 14px;
+  border: 1px solid rgba(217, 255, 75, 0.37);
+  border-radius: 5px;
+  color: var(--v2-gold);
+  background: rgba(8, 18, 13, 0.91);
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+#phase-banner[hidden] { display: none; }
+/* 常规回合不出现；仅在选色/叠牌/挑战/UNO 窗口显示 #phase-label 这一行 */
+#phase-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+#phase-label[hidden] { display: none; }
+
+/* right-rail（右状态栏） */
+.right-rail { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.status-card { padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(10, 21, 16, 0.91); }
+.status-card h2 { margin: 0 0 14px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
+.status-big { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.status-big strong { color: var(--v2-gold); font-size: 37px; letter-spacing: -.07em; }
+.status-big span { color: var(--ink-muted); font-size: 11px; text-align: right; }
+.status-list { display: grid; gap: 8px; margin-top: 13px; }
+.status-line { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-muted); font-size: 11px; }
+.status-line b { color: var(--ink); }
+.status-line b[data-playable] { color: var(--v2-gold); }
+
+/* player-zone 双列（文档流） */
+#hand-zone.player-zone {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) var(--v22-action-stack-w);
+  gap: 10px;
+}
+/* 保留 M4 .hand-dock class（verify 断言 handDock() 读 class + 渐变底 + padding-bottom≥8）：
+   布局列数交给 .player-zone，.hand-dock 仍提供渐变底与触底安全区 padding。 */
+#hand-zone.player-zone.hand-dock {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.hand-deck {
+  min-width: 0;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  background: rgba(9, 21, 15, 0.91);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.hand-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 5px; color: var(--ink-muted); font-size: 11px; }
+.hand-head strong { color: var(--ink); font-size: 12px; letter-spacing: .06em; }
+/* #hand min-height:0 只作用于一屏作用域（≥761），≤760/≤420 沿用现有 token 的 min-height（154/168） */
+@media (min-width: 761px) {
+  #hand { min-height: 0; padding: 20px 12px 0; }
+  #hand .card { width: var(--v22-hand-card-w); height: var(--v22-hand-card-h); flex-basis: var(--v22-hand-card-w); }
+}
+#action-bar.action-stack {
+  display: grid;
+  align-content: end;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  background: rgba(11, 24, 17, 0.91);
+}
+#action-bar.action-stack .btn { width: 100%; font-size: 12px; }
+/* UNO 按钮保持醒目（BUG-02：显著放大），不随 action-stack 缩小；只让它占满列宽 */
+#action-bar.action-stack .uno-button { width: 100%; font-size: 22px; min-height: 64px; }
+
+/* 断点：≤1080 两栏（隐藏 right-rail），phase-rail 收窄 82px */
+@media (max-width: 1080px) {
+  #game-grid { grid-template-columns: 82px minmax(0, 1fr); }
+  .right-rail { display: none; }
+}
+
+/* 断点：≤760 文档流（允许纵向滚动，一屏约束不适用） */
+@media (max-width: 760px) {
+  #game-screen.is-active {
+    grid-template-rows: auto auto auto auto;
+    height: auto;
+    overflow: visible;
+    padding-inline: 10px;
+  }
+  #game-meta, #game-grid, #hand-zone.player-zone { width: 100%; }
+  #game-grid { display: block; }
+  .phase-rail {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 9px;
+    padding: 9px 11px;
+    overflow: hidden;
+  }
+  .rail-code { writing-mode: horizontal-tb; transform: none; }
+  .rail-turn { display: flex; align-items: baseline; gap: 7px; }
+  .rail-turn strong { font-size: 25px; }
+  .rail-steps-wrap { display: flex; align-items: center; gap: 6px; }
+  .rail-steps { display: flex; gap: 5px; width: 80px; }
+  .rail-step { height: 3px; }
+  .rail-step-label { font-size: 8px; }
+  #table-area.arena { height: var(--v22-arena-h-mobile); min-height: 0; }
+  .arena-orbit { width: 240px; height: 160px; }
+  #hand-zone.player-zone { display: block; }
+  .hand-deck { margin-top: 9px; padding: 11px 9px; }
+  #action-bar.action-stack { grid-template-columns: 1fr 1fr 1.2fr; margin-top: 7px; padding: 8px; }
+  #action-bar.action-stack .btn { padding: 9px 7px; font-size: 10px; }
+}
+
+/* 矮屏压缩（≤800 高）：中心牌 / 座位 / 装饰同步缩小，保证一屏 */
+@media (max-height: 800px) {
+  :root { --v2-center-card-w: clamp(56px, 10.5vh, 78px); --v2-seat-h: 54px; }
+  /* N4b（契约 §4.3）：10 人局矮屏座位盒必须写到 .opponent 自身，否则输给 #opponents 上的继承值 */
+  #opponents[data-seat-count="9"] .opponent { --v2-seat-w: 88px; --v2-seat-h: 50px; }
+  .arena-orbit { width: 250px; height: 160px; }
+  #phase-banner { min-width: 0; padding: 5px 9px; font-size: 10px; }
+  #hand { padding-top: 18px; }
 }

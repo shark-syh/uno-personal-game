@@ -12,10 +12,78 @@
   <link rel="stylesheet" href="styles/components.css">
   <link rel="stylesheet" href="styles/animations.css">
   <link rel="stylesheet" href="styles/effects.css">
+  <link rel="stylesheet" href="styles/boot.css">
+  <link rel="stylesheet" href="styles/lobby-deck.css">
+  <script>
+    // 兜底：启动层最长存在 9 秒，任何脚本异常都不允许把应用永久遮住
+    window.setTimeout(function () {
+      var boot = document.getElementById('boot-screen');
+      if (boot) boot.remove();
+      var app = document.getElementById('app');
+      if (app) app.inert = false;
+    }, 9000);
+  </script>
 </head>
 <body>
+  <!-- 启动动画（boot）：静态首帧由 HTML+CSS 直接绘制，逐笔书写与转场由 js/boot.js 驱动。
+       纯装饰层，aria-hidden；?test=1 / ?mock=1 / ?dev=1 / 动画关闭 / reduced-motion 时自动跳过。 -->
+  <div id="boot-screen" aria-hidden="true">
+    <div class="boot-stage">
+      <div class="boot-kicker">
+        <span class="boot-dot"></span>
+        <span>UNO LOCAL</span>
+        <span class="boot-rule"></span>
+        <span class="boot-count">BOOT / 01</span>
+      </div>
+
+      <svg class="boot-letters" viewBox="0 0 660 250" fill="none" aria-hidden="true">
+        <defs>
+          <radialGradient id="boot-pen-gradient">
+            <stop offset="0%" stop-color="#d9ff4b" stop-opacity=".55"></stop>
+            <stop offset="100%" stop-color="#d9ff4b" stop-opacity="0"></stop>
+          </radialGradient>
+        </defs>
+        <!-- 铅笔底稿：书写前先有一层极淡的骨架 -->
+        <g class="boot-guide">
+          <path d="M 54 36 C 51 82, 49 132, 57 164 C 64 192, 88 208, 116 206 C 146 204, 164 182, 170 150 C 176 116, 172 74, 176 34 C 177 27, 181 24, 187 22"></path>
+          <path d="M 230 202 C 226 148, 226 84, 230 32 C 240 70, 292 152, 344 198 C 348 148, 350 84, 354 30 C 354 24, 358 22, 363 26"></path>
+          <path d="M 500 34 C 452 24, 408 52, 402 108 C 396 164, 424 206, 474 206 C 526 206, 560 170, 560 116 C 560 66, 536 38, 498 34 C 478 32, 460 36, 448 46"></path>
+          <path d="M 60 232 C 190 226, 300 238, 420 230 C 480 226, 540 230, 592 226"></path>
+        </g>
+        <!-- 荧光绿墨迹：逐笔 stroke-dashoffset 写出 -->
+        <g class="boot-ink">
+          <path class="boot-stroke" d="M 54 36 C 51 82, 49 132, 57 164 C 64 192, 88 208, 116 206 C 146 204, 164 182, 170 150 C 176 116, 172 74, 176 34 C 177 27, 181 24, 187 22"></path>
+          <path class="boot-stroke" d="M 230 202 C 226 148, 226 84, 230 32 C 240 70, 292 152, 344 198 C 348 148, 350 84, 354 30 C 354 24, 358 22, 363 26"></path>
+          <path class="boot-stroke" d="M 500 34 C 452 24, 408 52, 402 108 C 396 164, 424 206, 474 206 C 526 206, 560 170, 560 116 C 560 66, 536 38, 498 34 C 478 32, 460 36, 448 46"></path>
+          <path class="boot-stroke boot-underline" d="M 60 232 C 190 226, 300 238, 420 230 C 480 226, 540 230, 592 226"></path>
+        </g>
+        <g class="boot-pen">
+          <circle class="boot-pen-halo" r="17"></circle>
+          <circle class="boot-pen-core" r="3.6"></circle>
+        </g>
+      </svg>
+
+      <div class="boot-foot">
+        <p class="boot-status"><span class="boot-spark"></span><span id="boot-status-text">正在铺开牌桌</span></p>
+        <span class="boot-skip">点击任意处跳过 · SKIP</span>
+      </div>
+      <div class="boot-meter"><i></i></div>
+      <div class="boot-legend">
+        <span class="boot-swatches"><i></i><i></i><i></i><i></i></span>
+        <span>108 CARDS · LOCAL TABLE</span>
+      </div>
+    </div>
+    <div class="boot-sweep"></div>
+  </div>
+
   <main id="app" aria-live="polite">
     <section id="lobby-screen" class="screen" data-screen="lobby" aria-labelledby="lobby-title">
+      <!-- 巨型 UNO 牌：一张随机卡面 + 一张卡背交叠，随机上下层/倾角（js/ui/lobbyDeck.js）；
+           纯装饰，aria-hidden，不参与文档流 -->
+      <div class="lobby-deck" data-top="face" aria-hidden="true">
+        <img class="lobby-deck__card lobby-deck__card--back" src="assets/card-back.svg" alt="">
+        <img class="lobby-deck__card lobby-deck__card--face" alt="">
+      </div>
       <div class="lobby-shell lobby">
         <div class="lobby-copy">
           <header class="lobby-brand">
@@ -129,47 +197,94 @@
           <span id="game-version" class="app-version" hidden></span>
         </div>
         <div class="top-status">
-          <span class="status-chip status-color"><span id="color-indicator" class="color-dot" data-color="red" aria-hidden="true"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
-          <span class="status-chip"><span id="direction-indicator" data-direction="1" aria-label="顺时针">↻</span><span id="direction-label">顺时针</span></span>
           <span class="status-chip"><strong>AI</strong><span id="ai-mode-indicator">自动</span></span>
         </div>
         <div class="top-actions">
           <button id="game-emote-toggle" class="btn btn-ghost" type="button" aria-label="发送表情" hidden>表情</button>
           <button class="btn btn-ghost" type="button" data-open-dialog="settings" aria-label="设置">设置</button>
-          <button id="quit-game" class="btn btn-danger" type="button" aria-label="退出对局">退出</button>
         </div>
       </header>
 
-      <div id="table-area">
-        <div id="opponents" aria-label="AI 玩家"></div>
-        <div id="table-center" aria-label="牌堆">
-          <div id="color-glow" data-color="red" aria-hidden="true"></div>
-          <span id="table-direction" aria-label="顺时针">↻</span>
-          <div class="pile-stack">
-            <div id="draw-pile" data-count="41" aria-label="抽牌堆"></div>
-            <span id="draw-count" class="pile-count">41</span>
-          </div>
-          <div class="pile-stack">
-            <div id="discard-pile" data-top-card="R3" aria-label="弃牌堆"></div>
-            <span id="stack-badge" data-total="" hidden></span>
-          </div>
+      <!-- N4a（v2.2 契约 §3.3）：game-meta 行——回合/颜色/方向 chips + ROOM 标签 + 退出按钮 -->
+      <div id="game-meta">
+        <div class="meta-left">
+          <span class="status-chip"><strong id="turn-stamp"></strong></span>
+          <span class="status-chip status-color"><span id="color-indicator" class="color-dot" data-color="red" aria-hidden="true"></span><strong>当前颜色</strong><span id="color-label">红</span></span>
+          <span class="status-chip"><span id="direction-indicator" data-direction="1" aria-label="顺时针">↻</span><span id="direction-label">顺时针</span></span>
         </div>
-        <div id="event-feed" aria-live="polite"></div>
-        <div id="speech-layer" aria-live="polite"></div>
-        <!-- M5-01：人类挑战 AI 成功时展示对方手牌 2~3 秒（由 js/ui/challengeReveal.js 控制显隐） -->
-        <div id="challenge-reveal" class="challenge-reveal" hidden aria-live="polite" aria-label="挑战查看手牌">
-          <div class="challenge-reveal-card">
-            <strong id="challenge-reveal-title"></strong>
-            <div id="challenge-reveal-hand" class="challenge-reveal-hand"></div>
-            <span id="challenge-reveal-count" class="challenge-reveal-count"></span>
-          </div>
+        <div class="meta-right">
+          <span class="tiny" id="game-room">ROOM 4P</span>
+          <button id="quit-game" class="btn btn-ghost" type="button" aria-label="退出对局">退出</button>
         </div>
       </div>
 
-      <div id="hand-zone">
-        <div id="hand" data-seat="0" aria-label="你的手牌"></div>
-        <div id="action-bar" aria-label="可用操作"></div>
-        <div id="hint-bar" role="status"></div>
+      <!-- N4a（v2.2 契约 §3.3）：三栏 game-grid = 回合轨 | 竞技场 | 状态栏 -->
+      <div id="game-grid">
+        <aside class="phase-rail">
+          <span class="rail-code" aria-hidden="true">TURN /</span>
+          <div class="rail-turn"><strong id="rail-turn-no" aria-label="第 1 回合">01</strong><span id="rail-turn-phase">你的回合</span></div>
+          <!-- 阶段步进条：4 格表示 await-play=2 / 特殊阶段=3 / round-end=4，下方文字说明其含义 -->
+          <div class="rail-steps-wrap">
+            <div class="rail-steps" aria-hidden="true"><i class="rail-step"></i><i class="rail-step"></i><i class="rail-step"></i><i class="rail-step"></i></div>
+            <span id="rail-step-label" class="rail-step-label">阶段 2 / 4</span>
+          </div>
+        </aside>
+        <div id="table-area" class="arena">
+          <div id="opponents" aria-label="AI 玩家"></div>
+          <div id="table-center" aria-label="牌堆">
+            <div id="color-glow" data-color="red" aria-hidden="true"></div>
+            <span id="table-direction" aria-label="顺时针">↻</span>
+            <div class="pile-stack">
+              <div id="draw-pile" data-count="41" aria-label="抽牌堆"></div>
+              <span id="draw-count" class="pile-count">41</span>
+            </div>
+            <div class="pile-stack">
+              <div id="discard-pile" data-top-card="R3" aria-label="弃牌堆"></div>
+              <span id="stack-badge" data-total="" hidden></span>
+            </div>
+          </div>
+          <!-- 仅承载特殊阶段中文提示（#phase-label）；常规回合整条隐藏，不再常驻提示条 -->
+          <div id="phase-banner" class="phase-banner" hidden><span id="phase-label" hidden></span></div>
+          <div id="event-feed" aria-live="polite"></div>
+          <div id="speech-layer" aria-live="polite"></div>
+          <!-- M5-01：人类挑战 AI 成功时展示对方手牌 2~3 秒（由 js/ui/challengeReveal.js 控制显隐） -->
+          <div id="challenge-reveal" class="challenge-reveal" hidden aria-live="polite" aria-label="挑战查看手牌">
+            <div class="challenge-reveal-card">
+              <strong id="challenge-reveal-title"></strong>
+              <div id="challenge-reveal-hand" class="challenge-reveal-hand"></div>
+              <span id="challenge-reveal-count" class="challenge-reveal-count"></span>
+            </div>
+          </div>
+        </div>
+        <aside class="right-rail">
+          <section class="status-card">
+            <h2>Current pressure</h2>
+            <div class="status-big"><strong id="rail-pressure-count">0</strong><span id="rail-pressure-name">—</span></div>
+            <div class="status-list">
+              <div class="status-line"><span>你的手牌</span><b id="rail-my-hand">0 张</b></div>
+              <div class="status-line"><span>可出牌</span><b id="rail-playable" data-playable="0">0 张</b></div>
+              <div class="status-line"><span>牌堆剩余</span><b id="rail-draw-count">0</b></div>
+            </div>
+          </section>
+          <section class="status-card">
+            <h2>Recent events</h2>
+            <div class="status-list">
+              <div class="status-line"><span>上一手</span><b id="rail-last-play">—</b></div>
+              <div class="status-line"><span>上一位</span><b id="rail-last-player">—</b></div>
+              <div class="status-line"><span>状态</span><b id="rail-status">—</b></div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <!-- N4a（v2.2 契约 §3.3）：player-zone 双列 = hand-deck + action-stack -->
+      <div id="hand-zone" class="player-zone">
+        <div class="hand-deck">
+          <div class="hand-head"><strong>YOUR HAND / <span id="hand-head-count">00</span></strong><span id="hand-head-playable">0 张可出</span></div>
+          <div id="hand" data-seat="0" aria-label="你的手牌"></div>
+          <div id="hint-bar" role="status"></div>
+        </div>
+        <div id="action-bar" class="action-stack" aria-label="可用操作"></div>
       </div>
     </section>
 
@@ -184,6 +299,8 @@
   <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
   <div id="effect-layer" aria-hidden="true"></div>
   <div id="dev-toolbar" class="dev-toolbar" hidden></div>
+  <!-- 启动层用经典脚本：DOM 解析到这里就同步初始化笔迹，避免首帧闪出完整字形 -->
+  <script src="js/boot.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

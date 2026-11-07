@@ -6,6 +6,7 @@ import { closeDialog, closeAutoDialog } from "./dialogs.js";
 import { cancelEvents } from "../animation/queue.js";
 import { captureTableCardRect } from "../animation/resultTransition.js";
 import { resetOpponentHandCounts } from "./players.js";
+import { resetTurnCounter } from "./table.js";
 
 let lastScreen = null;
 
@@ -15,6 +16,8 @@ export function render(view, context) {
   if (lastScreen === "game" && view.screen === "result") captureTableCardRect();
   // M2（契约 §2.2）：进入牌桌首帧不播对手手牌数量动效——清空 diff 基线（换局/回大厅再进同理）。
   if (view.screen === "game" && lastScreen !== "game") resetOpponentHandCounts();
+  // N4a（契约 Q3）：进入牌桌归零回合数计数（phase-rail 大数字）。
+  if (view.screen === "game" && lastScreen !== "game") resetTurnCounter();
   // 屏幕切换时关闭所有弹窗；同一屏幕内的重绘只关闭"自动弹窗"（选色/挑战），
   // 不打断玩家主动打开的设置、战绩、退出确认等弹窗。
   if (lastScreen !== null && lastScreen !== view.screen) closeDialog();

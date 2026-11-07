@@ -385,6 +385,78 @@ window.__verify = {
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     };
   },
+  // N4a（v2.2 契约 §3.3/§7.2）：牌桌三栏结构 + 数据接线审计
+  tableStructureAudit: () => {
+    const grid = document.querySelector('#game-grid');
+    const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).map((c) => parseFloat(c)) : [];
+    const railNo = document.querySelector('#rail-turn-no');
+    const stepDone = document.querySelectorAll('.phase-rail .rail-step.done').length;
+    const banner = document.querySelector('#phase-banner');
+    const bannerTitle = document.querySelector('#phase-banner-title');
+    const phaseLabel = document.querySelector('#phase-label');
+    const hand = document.querySelector('#hand');
+    const drawCount = document.querySelector('#draw-count');
+    const pressureCount = document.querySelector('#rail-pressure-count');
+    return {
+      hasGrid: Boolean(grid),
+      colCount: cols.length,
+      col0: cols[0] ?? 0,
+      colLast: cols[cols.length - 1] ?? 0,
+      hasPhaseRail: Boolean(document.querySelector('.phase-rail')),
+      hasRightRail: Boolean(document.querySelector('.right-rail')),
+      statusCards: document.querySelectorAll('.right-rail .status-card').length,
+      hasBanner: Boolean(banner),
+      bannerHidden: banner ? banner.hidden : null,
+      hasBannerTitle: Boolean(bannerTitle),
+      bannerLabelText: phaseLabel?.textContent?.trim() || '',
+      hasOrbit: Boolean(document.querySelector('.arena-orbit')),
+      hasPlayerZone: Boolean(document.querySelector('#hand-zone.player-zone')),
+      hasHandDeck: Boolean(document.querySelector('.hand-deck')),
+      hasActionStack: Boolean(document.querySelector('#action-bar.action-stack')),
+      arenaInGrid: Boolean(grid?.querySelector('#table-area.arena')),
+      arenaRail: Boolean(document.querySelector('#table-area.arena .arena-rail')),
+      opponents: Boolean(document.querySelector('#opponents')),
+      railNo: railNo?.textContent?.trim() || '',
+      railNoAria: railNo?.getAttribute('aria-label') || '',
+      stepDone,
+      phaseLabelText: phaseLabel?.textContent?.trim() || '',
+      phaseLabelHidden: phaseLabel ? phaseLabel.hidden : null,
+      stampText: (document.querySelector('#turn-stamp')?.textContent || '').trim(),
+      myHand: hand?.dataset.count || '',
+      playable: hand?.dataset.playable || '',
+      railPlayable: document.querySelector('#rail-playable')?.dataset.playable || '',
+      drawCount: drawCount?.textContent?.trim() || '',
+      pressureCount: pressureCount?.textContent?.trim() || '',
+      roomText: (document.querySelector('#game-room')?.textContent || '').trim(),
+    };
+  },
+  // N4b（v2.2 契约 §5.3/§7.2）：一屏硬约束 + 可出牌数一致性 + 台词层不压 banner/事件流
+  oneScreenAudit: () => {
+    const rectOf = (selector) => document.querySelector(selector)?.getBoundingClientRect() || null;
+    const hand = rectOf('#hand');
+    const action = rectOf('#action-bar');
+    const banner = rectOf('#phase-banner');
+    const feed = rectOf('#event-feed');
+    const speech = rectOf('#speech-layer');
+    const intersects = (a, b) =>
+      Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+    return {
+      scrollH: document.documentElement.scrollHeight,
+      clientH: document.documentElement.clientHeight,
+      scrollW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+      innerHeight: window.innerHeight,
+      handBottom: hand ? Math.round(hand.bottom) : null,
+      actionBottom: action ? Math.round(action.bottom) : null,
+      handHeight: hand ? Math.round(hand.height) : null,
+      playable: document.querySelector('#hand')?.dataset.playable || '',
+      railPlayable: document.querySelector('#rail-playable')?.dataset.playable || '',
+      legalCards: document.querySelectorAll('#hand .card.is-legal').length,
+      handCards: document.querySelectorAll('#hand .card').length,
+      speechOverBanner: intersects(speech, banner),
+      speechOverFeed: intersects(speech, feed),
+    };
+  },
   // M4：悬浮手牌与动作区审计（hand-dock / data-count / data-state / data-phase / 滚动边界 / 触控目标）
   handDock: () => {
     const zone = document.querySelector('#hand-zone');
@@ -731,7 +803,7 @@ async function main() {
     };
 
     // ---------------- 1. 默认入口 = 引擎模式 + 大厅 ----------------
-    await navigate(BASE_URL + '/');
+    await navigate(BASE_URL + '/?boot=0');
     await waitFor(
       'window.__verify && window.__verify.visibleScreen() === "lobby"',
       10000,
@@ -960,6 +1032,117 @@ async function main() {
           }),
         );
         await shot('v2/M3-table-4p-1440.png');
+        // ---------------- N4a：牌桌三栏结构 + 数据接线（v2.2 契约 §3.3/§7.2） ----------------
+        const n4a = await evaluate('window.__verify.tableStructureAudit()');
+        check(
+          'N4a 结构：game-grid 三栏 + phase-rail/right-rail/status-card×2/phase-banner/arena-orbit/player-zone/hand-deck/action-stack 就位',
+          n4a.hasGrid &&
+            n4a.hasPhaseRail &&
+            n4a.hasRightRail &&
+            n4a.statusCards === 2 &&
+            n4a.hasBanner &&
+            n4a.hasOrbit &&
+            n4a.hasPlayerZone &&
+            n4a.hasHandDeck &&
+            n4a.hasActionStack,
+          JSON.stringify({
+            hasGrid: n4a.hasGrid, hasPhaseRail: n4a.hasPhaseRail, hasRightRail: n4a.hasRightRail,
+            statusCards: n4a.statusCards, hasBanner: n4a.hasBanner, hasOrbit: n4a.hasOrbit,
+            hasPlayerZone: n4a.hasPlayerZone, hasHandDeck: n4a.hasHandDeck, hasActionStack: n4a.hasActionStack,
+          }),
+        );
+        check(
+          'N4a 三栏：1440 下首列 102±2、末列 238±2、#table-area 移入 #game-grid 且 arena/arena-rail/#opponents 保留',
+          n4a.colCount === 3 &&
+            Math.abs(n4a.col0 - 102) <= 2 &&
+            Math.abs(n4a.colLast - 238) <= 2 &&
+            n4a.arenaInGrid &&
+            n4a.arenaRail &&
+            n4a.opponents,
+          JSON.stringify({ colCount: n4a.colCount, col0: n4a.col0, colLast: n4a.colLast, arenaInGrid: n4a.arenaInGrid, arenaRail: n4a.arenaRail, opponents: n4a.opponents }),
+        );
+        check(
+          'N4a phase-rail：回合数字格式 /^\\d{1,3}$/ 且带可读 aria-label、.rail-step.done 数量符合映射（await-play=2）',
+          /^\d{1,3}$/.test(n4a.railNo) &&
+            n4a.railNoAria.startsWith('第 ') &&
+            (n4a.phaseLabelHidden || n4a.stepDone === 3 || n4a.stepDone === 4) &&
+            n4a.stepDone >= 2 && n4a.stepDone <= 4,
+          JSON.stringify({ railNo: n4a.railNo, railNoAria: n4a.railNoAria, stepDone: n4a.stepDone, phaseLabelHidden: n4a.phaseLabelHidden }),
+        );
+        check(
+          'N4a 数据接线：right-rail 牌堆剩余 = #draw-count、你的手牌 = #hand[data-count]、可出牌与手牌一致',
+          n4a.drawCount.length > 0 &&
+            n4a.myHand.length > 0 &&
+            Number(n4a.playable) >= 0 &&
+            n4a.railPlayable === n4a.playable &&
+            n4a.stampText.length > 0 &&
+            n4a.pressureCount.length > 0 &&
+            n4a.roomText.startsWith('ROOM '),
+          JSON.stringify({ drawCount: n4a.drawCount, myHand: n4a.myHand, playable: n4a.playable, railPlayable: n4a.railPlayable, pressureCount: n4a.pressureCount, roomText: n4a.roomText }),
+        );
+        check(
+          'N4a/N4b banner：仅特殊阶段显示（#phase-label 有文案才出条）、常规回合隐藏、无常驻提示条标题',
+          n4a.bannerHidden === (n4a.bannerLabelText === '') &&
+            n4a.hasBannerTitle === false &&
+            n4a.phaseLabelHidden === (n4a.bannerLabelText === ''),
+          JSON.stringify({ bannerHidden: n4a.bannerHidden, hasBannerTitle: n4a.hasBannerTitle, phaseLabelHidden: n4a.phaseLabelHidden, phaseLabelText: n4a.phaseLabelText }),
+        );
+        await shot('v2/N4-table-4p-1440.png');
+        // ---------------- N4b：一屏矩阵 + 可出牌数一致（v2.2 契约 §5.3/§7.2） ----------------
+        for (const [screenW, screenH] of [[1366, 657], [1024, 600], [1024, 768]]) {
+          await cdp.send('Emulation.setDeviceMetricsOverride', {
+            width: screenW,
+            height: screenH,
+            deviceScaleFactor: 1,
+            mobile: false,
+          });
+          await sleep(400);
+          const audit = await evaluate('window.__verify.oneScreenAudit()');
+          check(
+            `N4b 一屏 ${screenW}×${screenH}：无纵向滚动、手牌/动作区底边在视口内、可出牌数 = 合法手牌数`,
+            audit.scrollH <= audit.clientH + 2 &&
+              audit.handBottom <= audit.innerHeight &&
+              audit.actionBottom <= audit.innerHeight &&
+              Number(audit.playable) === audit.legalCards,
+            JSON.stringify({
+              scrollH: audit.scrollH,
+              clientH: audit.clientH,
+              handBottom: audit.handBottom,
+              actionBottom: audit.actionBottom,
+              innerHeight: audit.innerHeight,
+              playable: audit.playable,
+              legalCards: audit.legalCards,
+            }),
+          );
+          if (screenW === 1366) await shot('v2/N4-one-screen-1366x657.png');
+          if (screenH === 600) await shot('v2/N4-one-screen-1024x600.png');
+        }
+        await cdp.send('Emulation.setDeviceMetricsOverride', {
+          width: 1440,
+          height: 900,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        await sleep(300);
+        const oneScreen1440 = await evaluate('window.__verify.oneScreenAudit()');
+        check(
+          'N4b 一屏 1440×900：无纵向滚动、手牌/动作区在视口内、台词层不压事件流',
+          oneScreen1440.scrollH <= oneScreen1440.clientH + 2 &&
+            oneScreen1440.handBottom <= oneScreen1440.innerHeight &&
+            oneScreen1440.actionBottom <= oneScreen1440.innerHeight &&
+            !oneScreen1440.speechOverFeed,
+          JSON.stringify(oneScreen1440),
+        );
+        check(
+          'N4b 可出牌数三处一致：合法手牌数 = #hand[data-playable] = right-rail',
+          Number(oneScreen1440.playable) === oneScreen1440.legalCards &&
+            Number(oneScreen1440.railPlayable) === Number(oneScreen1440.playable),
+          JSON.stringify({
+            playable: oneScreen1440.playable,
+            legalCards: oneScreen1440.legalCards,
+            railPlayable: oneScreen1440.railPlayable,
+          }),
+        );
         // BUG-06 用户要求：删除「你的手牌 / N 张」；操作栏只留功能按钮（出牌改为点手牌）；无冗余提示文字
         await waitFor(
           '!window.__verify.busy() && window.__verify.humanReady()',
@@ -1265,6 +1448,32 @@ async function main() {
     );
     await shot('ui-m5-10p-1024.png');
     await shot('v2/M3-table-10p-1024.png');
+    // N4b（契约 §7.2-②）：10 人局 @420 文档流——座位互不遮挡、无横向溢出、手牌区仍 ≥168
+    await cdp.send('Emulation.setDeviceMetricsOverride', {
+      width: 420,
+      height: 800,
+      deviceScaleFactor: 1,
+      mobile: false,
+    });
+    await sleep(400);
+    const n4b420 = await evaluate(layoutProbe);
+    const n4b420Hand = await evaluate(
+      `Math.round(document.querySelector('#hand').getBoundingClientRect().height)`,
+    );
+    check(
+      'N4b 10 人 @420 文档流：座位互不遮挡、无横向溢出、手牌区高 ≥168（W6 既有口径）',
+      n4b420.seats === 9 &&
+        n4b420.overlaps.length === 0 &&
+        n4b420.overflow.scrollW <= n4b420.overflow.clientW &&
+        n4b420Hand >= 168,
+      JSON.stringify({
+        seats: n4b420.seats,
+        overlaps: n4b420.overlaps,
+        overflow: n4b420.overflow,
+        handHeight: n4b420Hand,
+      }),
+    );
+    await shot('v2/N4-table-420.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,
@@ -1377,7 +1586,7 @@ async function main() {
     await evaluate(
       `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'slow', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
     );
-    await navigate(BASE_URL + '/');
+    await navigate(BASE_URL + '/?boot=0');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅可见');
     await evaluate('window.__verify.clickStart()');
     await waitFor('window.__verify.visibleScreen() === "game"', 10000, '进入牌桌');
@@ -1511,7 +1720,7 @@ async function main() {
     await evaluate(
       `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: false, showHint: true, aiChatter: true })); true`,
     );
-    await navigate(BASE_URL + '/');
+    await navigate(BASE_URL + '/?boot=0');
     await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, '大厅');
     await evaluate(
       `(() => { const button = document.querySelector('#ai-mode-options button[data-value="zhipu"]'); if (button) button.click(); return true; })()`,

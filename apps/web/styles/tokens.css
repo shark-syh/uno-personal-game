@@ -70,10 +70,25 @@
   --v22-lobby-cols: 1.15fr .85fr;
   --v22-lobby-gap: clamp(34px, 7vw, 128px);
   --v22-display-size: clamp(60px, 10vw, 152px);
+  /* v2.2.0（N1 契约 §5.3）：N4 牌桌三栏/player-zone 布局 token——只服务版式，不新增颜色 */
+  --v22-game-max-w: 1480px;
+  --v22-rail-w: 102px;
+  --v22-status-w: 238px;
+  --v22-grid-gap: 12px;
+  --v22-action-stack-w: 164px;
+  --v22-arena-radius: 22px;
+  --v22-arena-h-mobile: clamp(440px, 58vh, 520px);
+  --v22-hand-card-w: clamp(64px, 5.8vw, 92px);
+  --v22-hand-card-h: calc(var(--v22-hand-card-w) * 1.5);
   --z-table: 1;
   --z-hud: 10;
   --z-dev: 20;
   --z-dialog: 50;
+  /* 硬性规定（2026-11-07）：所有 UI 圆角一律使用连续曲率 squircle，
+     禁止用 border-radius 的普通圆弧。统一资源 apps/web/assets/squircle.svg（超椭圆 n=5）。
+     用法：mask-image: url("../assets/squircle.svg"); mask-size: 100% 100%; mask-repeat: no-repeat;
+     规范全文见 docs/UI优化方案-待开发.md §0。 */
+  --ui-squircle: url("../assets/squircle.svg");
 }
 
 * { box-sizing: border-box; letter-spacing: 0; }
