@@ -1,0 +1,94 @@
+/* U2（2026-11-07）：右栏手牌数走势折线图。
+   数据展示面板：与右栏 .status-card / .rail-turn-chip 同源，一律直角（0 圆角 + 1px 实线边框），
+   不套 squircle 遮罩（用户拍板「数据显示的卡片不用做圆角」）。§6 只约束有圆角的元素；直角面板不属其范围。 */
+
+.hand-trend {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: rgba(10, 21, 16, 0.91);
+  padding: 12px 12px 10px;
+  min-width: 0;
+  overflow: hidden;
+  /* U2：置于右栏末尾，flex:1 吸收剩余高度；自身纵向 flex 让画布撑满、窄屏压缩 */
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.hand-trend h2 {
+  margin: 0 0 8px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.hand-trend__canvas {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.hand-trend__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.hand-trend__grid { stroke: var(--v2-line-soft); stroke-width: 1; }
+.hand-trend__axis {
+  fill: var(--v2-text-dim);
+  font-size: 8px;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+.hand-trend__line { opacity: .92; }
+.hand-trend__line.is-viewer { opacity: 1; }
+
+.hand-trend__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 8px;
+}
+.hand-trend__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.hand-trend__legend-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+.hand-trend__legend-item span[data-seat] { color: var(--ink); }
+
+.hand-trend__empty {
+  margin: 0;
+  padding: 18px 4px;
+  color: var(--v2-text-dim);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* U2：文档流（≤760）下右栏回归自然高度，图表按内容自适应，避免绝对定位 SVG 在无确定高度时塌陷 */
+@media (max-width: 760px) {
+  .hand-trend { flex: 0 0 auto; }
+  .hand-trend__canvas { position: static; flex: 0 0 auto; }
+  .hand-trend__svg { position: static; height: auto; max-height: 220px; }
+}
+@media (max-height: 800px) {
+  .hand-trend { padding: 8px 9px 7px; }
+  .hand-trend h2 { margin-bottom: 5px; font-size: 8px; }
+  .hand-trend__legend { margin-top: 5px; gap: 3px 8px; }
+  .hand-trend__legend-item { font-size: 9px; }
+}
+/* U2：极矮屏（≤640 高）把走势图自身装饰收起，使其可被压到 0 高，
+   绝不因内边距/标题/图例把右栏顶出 game-grid 或压到手牌区（DOM 与 dataset 仍在，断言不破） */
+@media (max-height: 640px) {
+  .hand-trend { padding: 0; border: none; }
+  .hand-trend h2, .hand-trend__legend { display: none; }
+}

@@ -122,6 +122,8 @@ function decorate(view, rt, thinkingSeat = null) {
   view.mock = false;
   view.settings = getSettings();
   if (!view.dev) view.dev = {};
+  /** U2：全量事件历史供手牌数走势重放（UI 层字段，不改引擎/GameView/协议） */
+  view.eventHistory = rt.eventHistory;
   view.runtimeAiMode = rt.aiRuntime;
   view.aiModel = rt.lastLlmModel;
   if (rt.lastLlmLatencyMs) view.aiLatencyMs = rt.lastLlmLatencyMs;
@@ -171,6 +173,8 @@ function applyAndRender(rt, engineAction) {
     return;
   }
   rt.state = applied.state;
+  /** U2：累积事件历史（引擎 applyAction 每次动作都重置 state.events，图表需要全量时间线） */
+  rt.eventHistory.push(...applied.events);
   rt.prefetch = null; // 局面已变化：旧预取作废
   // BUG-04：对局结束/进入结算页时清空 AI 台词（map + 定时器 + 气泡）
   if (isGameOver(rt.state)) {
@@ -203,6 +207,8 @@ function applyAiAction(rt, action) {
     current = pickLocalAction(rt, rt.state.currentSeat);
   }
   rt.state.events = allEvents;
+  /** U2：AI 摸牌批次同样累积（state.events 只留本批次供动画重播，历史单独累积） */
+  rt.eventHistory.push(...allEvents);
   if (isGameOver(rt.state)) {
     clearAiLines(rt);
     recordStatsIfNeeded(rt);
@@ -570,6 +576,8 @@ function startGame(lobbyConfig = {}) {
   const state = createInitialGame(config);
   const rt = {
     state,
+    /** U2：全量事件历史（含开局发牌），手牌数走势重放用；每局随 rt 重建自然归零 */
+    eventHistory: [...(state.events || [])],
     humanSeat: 0,
     aiRng: createRng(`web-ai-${seed}`),
     timers: new Set(),

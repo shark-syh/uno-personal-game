@@ -1,6 +1,7 @@
 import { renderPlayers } from "./players.js";
 import { renderHand } from "./hand.js";
 import { renderHud } from "./hud.js";
+import { renderHandTrend } from "./handTrend.js";
 
 // N4a（v2.2 契约 §3.3）：#turn-stamp/#phase-label 改由 index.html 静态提供。
 // ensureArena 只保留幂等装饰注入（内圈 arena-rail + 荧光轨道点 .arena-orbit），
@@ -207,6 +208,7 @@ export function renderTable(view, context) {
   renderPlayers(view);
   renderHand(view, context);
   renderTurnStatus(view);
+  renderHandTrend(view);
   const feed = document.querySelector("#event-feed");
   const names = Object.fromEntries(view.players.map((player) => [player.seat, player.name]));
   const nameOf = (seat) => names[seat] || "玩家";

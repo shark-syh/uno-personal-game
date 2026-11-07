@@ -552,8 +552,28 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 #phase-label { display: block; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
 #phase-label[hidden] { display: none; }
 
-/* right-rail（右状态栏）· U1：CURRENT PRESSURE / RECENT EVENTS 全字段 + 回合数标签 */
-.right-rail { display: grid; align-content: start; gap: 10px; min-width: 0; }
+/* right-rail（右状态栏）· U1：CURRENT PRESSURE / RECENT EVENTS 全字段 + 回合数标签。
+   U2：纵向 flex 列。U1 三块面板 flex:0 0 auto 固定自身高度、不收缩，末行底边保持原位；
+   走势图置于末尾 flex:1 吸收剩余高度，空间不足时自动压缩。面板间用 margin 留白，
+   走势图前的 spacer 用 flex:0 1 可收缩，确保图被压扁到 0 高时不会因留白被顶出右栏。
+   固定高度三栏模式（≥761）下右栏吃满 game-grid 单元格并裁切溢出；文档流（≤760）回归自然高度。 */
+.right-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+}
+/* U1 三块直角面板：固定自身高度，不随右栏剩余空间收缩 */
+.status-card, .rail-turn-chip { flex: 0 0 auto; }
+/* 仅 U1 面板之间留白；末块（RECENT EVENTS）不留，留白交给可收缩 spacer */
+.rail-turn-chip, .status-card:first-of-type { margin-bottom: 10px; }
+/* 走势图前的弹性留白：有剩余空间时撑开 10px，空间不足时缩为 0，避免把折叠图顶出右栏 */
+.rail-spacer { flex: 0 1 10px; min-height: 0; }
+.hand-trend { margin: 0; }
+@media (min-width: 761px) {
+  .right-rail { height: 100%; overflow: hidden; }
+}
 
 /* 数据卡片直角（2026-11-07 用户拍板）：「数据显示的卡片不用做圆角」。
    右栏是纯信息面板，一律 0 圆角 + 1px 实线边框，不套 squircle 双层遮罩。
@@ -570,12 +590,12 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .rail-turn-chip__sep { color: var(--ink-muted); font-size: 11px; }
 .rail-turn-chip__phase { margin-left: auto; color: var(--ink-muted); font-size: 10px; white-space: nowrap; }
 
-.status-card { padding: 15px; }
-.status-card h2 { margin: 0 0 14px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
+.status-card { padding: 12px 14px; }
+.status-card h2 { margin: 0 0 10px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
 .status-big { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.status-big strong { color: var(--v2-gold); font-size: 37px; letter-spacing: -.07em; }
+.status-big strong { color: var(--v2-gold); font-size: 30px; letter-spacing: -.07em; }
 .status-big span { color: var(--ink-muted); font-size: 11px; text-align: right; }
-.status-list { display: grid; gap: 8px; margin-top: 13px; }
+.status-list { display: grid; gap: 7px; margin-top: 10px; }
 .status-line { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-muted); font-size: 11px; }
 .status-line b { color: var(--ink); }
 .status-line b[data-playable] { color: var(--v2-gold); }
@@ -627,8 +647,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 @media (max-width: 1080px) {
   #game-grid { grid-template-columns: 82px minmax(0, 1fr) 168px; }
   /* U1：三块直角面板之间不再压到 6px——8px 是「不贴死成双线」的下限，
-     与 verify-ui 的 panelGeometry.minGap ≥ 8 断言同源。 */
-  .right-rail { gap: 8px; }
+     与 verify-ui 的 panelGeometry.minGap ≥ 8 断言同源。留白改用 margin + 可收缩 spacer。 */
+  .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
+  .rail-spacer { flex: 0 1 8px; }
   .rail-turn-chip { padding: 7px 10px; gap: 6px; }
   .rail-turn-chip strong { font-size: 17px; }
   .rail-turn-chip__phase { font-size: 9px; }
@@ -671,8 +692,8 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .hand-deck { margin-top: 9px; padding: 11px 9px; }
   #action-bar.action-stack { grid-template-columns: 1fr 1fr 1.2fr; margin-top: 7px; padding: 8px; }
   #action-bar.action-stack .btn { padding: 9px 7px; font-size: 10px; }
-  /* U1：文档流下右栏折成横向紧凑摘要，字段一个不丢 */
-  .right-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+  /* U1：文档流下右栏纵向紧凑摘要，字段一个不丢（grid 相关属性在 flex 下列无意义，已去除） */
+  .right-rail { margin-top: 9px; }
   .rail-turn-chip { grid-column: 1 / -1; }
 }
 
@@ -687,7 +708,8 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   /* U1：矮屏把右栏压成两列紧凑摘要，保证 1366×657 / 1024×600 的全部字段
      落在 #game-grid 行内、不被 #game-screen 的 overflow:hidden 裁掉。
      间距不再压到 5px（直角边框会贴死成双线），固定 8px；1024×600 实测仍有余量。 */
-  .right-rail { gap: 8px; }
+  .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
+  .rail-spacer { flex: 0 1 8px; }
   .rail-turn-chip { padding: 5px 9px; gap: 6px; }
   .rail-turn-chip strong { font-size: 15px; }
   .rail-turn-chip__phase { font-size: 9px; }
@@ -699,6 +721,22 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   /* 标签与数值同行：两列 × 2 行即可容纳 3 个字段，矮屏 1024×600 也不被裁 */
   .status-line { flex-direction: row; align-items: baseline; gap: 4px; font-size: 8px; }
   .status-line b { font-size: 10px; }
+}
+
+/* 极矮屏（≤640 高，如 1024×600）：#game-grid 行高会随手牌区高度在 177~207px 间波动，
+   U1 三块面板必须再压一档才能在任何波动下都落进网格内（走势图已在此断点收起自身装饰）。
+   间距仍保持 8px 下限（「不贴死成双线」红线），只压字号与内边距——实测余量充足。 */
+@media (max-height: 640px) {
+  .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
+  .rail-spacer { flex: 0 1 8px; }
+  .rail-turn-chip { padding: 3px 8px; }
+  .rail-turn-chip strong { font-size: 13px; }
+  .status-card { padding: 4px 8px; }
+  .status-card h2 { margin-bottom: 2px; font-size: 7px; }
+  .status-big strong { font-size: 15px; }
+  .status-list { gap: 2px 8px; margin-top: 2px; }
+  .status-line { gap: 3px; font-size: 7px; }
+  .status-line b { font-size: 9px; }
 }
 
 /* U1：≤520 右栏单列、字段回到左右对齐，420 宽不横向溢出 */

@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="styles/effects.css">
   <link rel="stylesheet" href="styles/boot.css">
   <link rel="stylesheet" href="styles/lobby-deck.css">
+  <link rel="stylesheet" href="styles/hand-trend.css">
   <script>
     // 兜底：启动层最长存在 9 秒，任何脚本异常都不允许把应用永久遮住
     window.setTimeout(function () {
@@ -280,6 +281,16 @@
               <div class="status-line"><span>上一位</span><b id="rail-last-player">—</b></div>
               <div class="status-line"><span>状态</span><b id="rail-status">—</b></div>
             </div>
+          </section>
+          <!-- U2：走势图前的弹性留白（flex:0 1 可收缩）；空间不足时缩为 0，避免把折叠图顶出右栏 -->
+          <div class="rail-spacer" aria-hidden="true"></div>
+          <!-- U2：右栏主视觉——各玩家手牌数走势折线图（纯 SVG，不引图表库）。
+               置于右栏末尾、flex:1 吸收剩余高度；窄屏空间不足时自动压缩，不挤占 U1 三块面板。
+               U1 的 CURRENT PRESSURE / RECENT EVENTS 全部字段与回合标签原位保留，一个不丢。 -->
+          <section class="hand-trend" id="hand-trend-section" aria-label="各玩家手牌数走势">
+            <h2>手牌数走势</h2>
+            <div id="hand-trend" class="hand-trend__canvas"></div>
+            <div id="hand-trend-legend" class="hand-trend__legend" aria-hidden="true"></div>
           </section>
         </aside>
       </div>

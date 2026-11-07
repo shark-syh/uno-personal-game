@@ -24,7 +24,22 @@ function common({ name = "normal-play", count = 4, phase = "await-play", drawPil
 function normal(name = "normal-play", count = 4) {
   const hand = humanHand();
   const legal = [action("play:R7#0", "PLAY_CARD", "出 红7", { cardId: "R7#0", hint: "红色数字牌可以出" }), ...colorActions("PLAY_CARD", "WC#0"), action("draw", "DRAW", "摸牌", { hint: "摸到能打出的牌为止" })];
-  return common({ name, count, hand, legalActions: legal, events: [{ type: "PLAY", seat: 1, card: card("B3") }, { type: "DRAW", seat: 0, count: 2 }, { type: "COLOR_SET", seat: 1, color: "red" }] });
+  // 给「手牌数走势」一段可信的历史，让预览折线连续（末 3 条保留为近期事件，保证「上一位」= 老王不变）
+  const deals = Array.from({ length: count }, (_, seat) => ({ type: "DEAL", seat, count: 7 }));
+  const extra = count > 2 ? 2 : 1;
+  const history = [
+    ...deals,
+    { type: "PLAY", seat: 0, card: card("R3") },
+    { type: "PLAY", seat: 1, card: card("G5") },
+    { type: "DRAW", seat: extra, count: 2 },
+    { type: "PLAY", seat: extra, card: card("Y2") },
+  ];
+  const tail = [
+    { type: "PLAY", seat: 1, card: card("B3") },
+    { type: "DRAW", seat: 0, count: 2 },
+    { type: "COLOR_SET", seat: 1, color: "red" },
+  ];
+  return common({ name, count, hand, legalActions: legal, events: [...history, ...tail] });
 }
 
 export const mockNames = ["lobby", "normal-play", "ai-thinking", "stack-response", "wild-color-picker", "challenge-decide", "uno-window", "uno-window-two-cards", "uno-window-empty", "catch-uno", "result", "result-draw", "ten-players", "two-players", "deck-edge-zero", "deck-edge-one", "challenge-success", "opponent-hands", "opponent-hands-shift"];

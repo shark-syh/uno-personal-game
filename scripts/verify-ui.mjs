@@ -530,6 +530,58 @@ window.__verify = {
       clientH: document.documentElement.clientHeight,
     };
   },
+  // U2：右栏手牌数走势折线图审计（图存在 / 折线数 = 座位数 / 图例与座位名对应 /
+  // 末值与 #hand / 对手「N 张」一致 / 无横向溢出 / 折线不越出右栏）
+  handTrendAudit: () => {
+    const mount = document.querySelector('#hand-trend');
+    if (!mount) return { exists: false };
+    const seatCount = Number(mount.dataset.seatCount || '0');
+    const sampleCount = Number(mount.dataset.sampleCount || '0');
+    const lastValues = JSON.parse(mount.dataset.lastValues || '{}');
+    const seatNames = JSON.parse(mount.dataset.seatNames || '{}');
+    const polylines = [...mount.querySelectorAll('.hand-trend__line')];
+    // 图例在画布外的 #hand-trend-legend 容器（U2 修正：避免被绝对定位 SVG 盖住）
+    const legendHost = document.querySelector('#hand-trend-legend') || mount;
+    const legendItems = [...legendHost.querySelectorAll('.hand-trend__legend-item')];
+    const legendOk = legendItems.length === seatCount && legendItems.every((item) => {
+      const span = item.querySelector('span[data-seat]');
+      const seat = span?.dataset.seat;
+      return seat && seatNames[seat] != null && (span.textContent || '').includes(seatNames[seat]);
+    });
+    const human = document.querySelector('#hand');
+    const humanSeat = human?.dataset.seat;
+    let valuesMatch = true;
+    for (const [seatStr, value] of Object.entries(lastValues)) {
+      const seat = Number(seatStr);
+      const opp = document.querySelector('.opponent[data-seat="' + seat + '"]');
+      const actual = String(seat) === String(humanSeat)
+        ? Number(human?.dataset.count || '0')
+        : Number(opp?.dataset.handCount || '0');
+      if (actual !== value) valuesMatch = false;
+    }
+    const rail = document.querySelector('.right-rail');
+    const railRect = rail?.getBoundingClientRect();
+    const mountRect = mount.getBoundingClientRect();
+    const insideRail = railRect
+      ? mountRect.left >= railRect.left - 1 && mountRect.right <= railRect.right + 1 &&
+        mountRect.top >= railRect.top - 1 && mountRect.bottom <= railRect.bottom + 1
+      : false;
+    const conflict = !(seatCount > 0 && sampleCount > 0 && polylines.length === seatCount &&
+      legendItems.length === seatCount && legendOk && valuesMatch &&
+      mount.scrollWidth <= mount.clientWidth + 1 && insideRail);
+    return {
+      exists: true,
+      seatCount,
+      sampleCount,
+      polylineCount: polylines.length,
+      legendCount: legendItems.length,
+      legendMatchesNames: legendOk,
+      valuesMatch,
+      noHorizontalOverflow: mount.scrollWidth <= mount.clientWidth + 1,
+      insideRail,
+      conflict,
+    };
+  },
   // N4b（v2.2 契约 §5.3/§7.2）：一屏硬约束 + 可出牌数一致性 + 台词层不压 banner/事件流
   oneScreenAudit: () => {
     const rectOf = (selector) => document.querySelector(selector)?.getBoundingClientRect() || null;
@@ -1236,6 +1288,24 @@ async function main() {
         );
         await shot('v2/U1-right-rail-1440.png');
         await shot('v2/N4-table-4p-1440.png');
+        // ---------------- U2：右栏手牌数走势折线图（主视觉） ----------------
+        const u2 = await evaluate('window.__verify.handTrendAudit()');
+        check(
+          'U2 右栏手牌数走势：折线图渲染、折线数 = 座位数、无横向溢出、不越出右栏',
+          u2.exists && u2.seatCount > 0 && u2.sampleCount > 0 &&
+            u2.polylineCount === u2.seatCount && u2.legendCount === u2.seatCount &&
+            u2.noHorizontalOverflow && u2.insideRail,
+          JSON.stringify({
+            seatCount: u2.seatCount, sampleCount: u2.sampleCount,
+            polylineCount: u2.polylineCount, legendCount: u2.legendCount,
+            noHorizontalOverflow: u2.noHorizontalOverflow, insideRail: u2.insideRail,
+          }),
+        );
+        check(
+          'U2 走势末值与实时手牌一致：人类 = #hand、对手 = 卡背「N 张」、图例与座位名对应',
+          u2.valuesMatch && u2.legendMatchesNames,
+          JSON.stringify({ valuesMatch: u2.valuesMatch, legendMatchesNames: u2.legendMatchesNames }),
+        );
         // ---------------- N4b：一屏矩阵 + 可出牌数一致（v2.2 契约 §5.3/§7.2） ----------------
         for (const [screenW, screenH] of [[1366, 657], [1024, 600], [1024, 768]]) {
           await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -1276,6 +1346,19 @@ async function main() {
               chipNo: u1Screen.chipNo, turnNo: u1Screen.turnNo,
               panelGeometry: u1Screen.panelGeometry,
               scrollW: u1Screen.scrollW, clientW: u1Screen.clientW,
+            }),
+          );
+          const u2Screen = await evaluate('window.__verify.handTrendAudit()');
+          check(
+            `U2 窄屏 ${screenW}×${screenH}：折线图仍在右栏内、无横向溢出、末值与实时手牌一致`,
+            u2Screen.exists && u2Screen.seatCount > 0 && u2Screen.polylineCount === u2Screen.seatCount &&
+              u2Screen.legendCount === u2Screen.seatCount && u2Screen.noHorizontalOverflow &&
+              u2Screen.insideRail && u2Screen.valuesMatch && u2Screen.legendMatchesNames,
+            JSON.stringify({
+              seatCount: u2Screen.seatCount, polylineCount: u2Screen.polylineCount,
+              legendCount: u2Screen.legendCount, noHorizontalOverflow: u2Screen.noHorizontalOverflow,
+              insideRail: u2Screen.insideRail, valuesMatch: u2Screen.valuesMatch,
+              legendMatchesNames: u2Screen.legendMatchesNames,
             }),
           );
           if (screenW === 1366) await shot('v2/N4-one-screen-1366x657.png');
@@ -1650,6 +1733,19 @@ async function main() {
         allFieldsFilled: u1Small.allFieldsFilled, chipNo: u1Small.chipNo,
         turnNo: u1Small.turnNo, panelGeometry: u1Small.panelGeometry,
         scrollW: u1Small.scrollW, clientW: u1Small.clientW,
+      }),
+    );
+    const u2Small = await evaluate('window.__verify.handTrendAudit()');
+    check(
+      'U2 10 人 @420 文档流：折线图渲染、10 条折线 = 10 座位、图例对应、无横向溢出、末值一致',
+      u2Small.exists && u2Small.seatCount === 10 && u2Small.polylineCount === 10 &&
+        u2Small.legendCount === 10 && u2Small.legendMatchesNames &&
+        u2Small.noHorizontalOverflow && u2Small.insideRail && u2Small.valuesMatch,
+      JSON.stringify({
+        seatCount: u2Small.seatCount, polylineCount: u2Small.polylineCount,
+        legendCount: u2Small.legendCount, legendMatchesNames: u2Small.legendMatchesNames,
+        noHorizontalOverflow: u2Small.noHorizontalOverflow, insideRail: u2Small.insideRail,
+        valuesMatch: u2Small.valuesMatch,
       }),
     );
     await shot('v2/U1-right-rail-420.png');

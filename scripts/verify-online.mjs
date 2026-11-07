@@ -496,6 +496,32 @@ try {
         u1Rail.turn === u1Rail.turnRail && u1Rail.faceNodes === 0,
       JSON.stringify(u1Rail),
     );
+    // U2：联机视角下右栏手牌数走势折线图仍渲染，且仅用公开数量、不泄露任何牌面
+    const u2Rail = await page.evaluate(`(() => {
+      const mount = document.querySelector('#hand-trend');
+      if (!mount) return { exists: false };
+      const seatCount = Number(mount.dataset.seatCount || '0');
+      const polylines = [...mount.querySelectorAll('.hand-trend__line')].length;
+      // 图例在画布外的 #hand-trend-legend 容器（U2 修正：避免被绝对定位 SVG 盖住）
+      const legendHost = document.querySelector('#hand-trend-legend') || mount;
+      const legend = [...legendHost.querySelectorAll('.hand-trend__legend-item')].length;
+      return {
+        exists: true,
+        seatCount,
+        polylineCount: polylines,
+        legendCount: legend,
+        noOverflow: mount.scrollWidth <= mount.clientWidth + 1,
+        faceNodes: mount.querySelectorAll('.card, img').length,
+        rightRailFaces: document.querySelectorAll('.right-rail .card, .right-rail img').length,
+      };
+    })()`);
+    check(
+      `${ownName} U2 联机：右栏走势图渲染、折线数 = 座位数、只显示数量不泄露牌面、无横向溢出`,
+      u2Rail.exists && u2Rail.seatCount > 0 && u2Rail.polylineCount === u2Rail.seatCount &&
+        u2Rail.legendCount === u2Rail.seatCount && u2Rail.noOverflow &&
+        u2Rail.faceNodes === 0 && u2Rail.rightRailFaces === 0,
+      JSON.stringify(u2Rail),
+    );
   }
 
   await b.evaluate(`document.querySelector('#game-emote-toggle').click(); true`);

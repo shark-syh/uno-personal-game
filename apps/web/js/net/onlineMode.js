@@ -255,8 +255,13 @@ function decorate(view) {
   view.mock = false;
   view.settings = getSettings();
   if (!view.dev) view.dev = {};
+  /** U2：全量事件历史供手牌数走势重放（UI 层字段，不改协议） */
+  view.eventHistory = eventHistory;
   return view;
 }
+
+/** U2：累积事件历史；引擎/服务端每次动作都重置 events，这里在客户端补全量时间线（新发牌即重开） */
+let eventHistory = [];
 
 /** 服务端下发视图：排队，逐条渲染 + 播事件动画（事件已按本座位脱敏） */
 function onView(view) {
@@ -266,6 +271,9 @@ function onView(view) {
     document.documentElement.style.setProperty("--uno-window-ms", "4000ms");
     window.UnoApp.setActionHandler(handleOnlineAction);
   }
+  const batch = view.events || [];
+  if (batch.some((event) => event.type === "DEAL")) eventHistory = [];
+  eventHistory.push(...batch);
   viewQueue.push(decorate(view));
   processViewQueue();
 }
