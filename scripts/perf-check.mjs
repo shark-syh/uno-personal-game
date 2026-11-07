@@ -176,7 +176,7 @@ async function main() {
 
     // ---- 1. 首屏：大厅加载 ----
     console.log('[perf] 测量首屏加载...');
-    await cdp.send('Page.navigate', { url: `${BASE_URL}/` });
+    await cdp.send('Page.navigate', { url: `${BASE_URL}/?boot=0` });
     await new Promise((resolve) => {
       cdp.on('Page.loadEventFired', () => resolve());
       setTimeout(resolve, 10000);

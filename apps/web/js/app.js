@@ -1,4 +1,5 @@
 import { createMockView, mockNames } from "./mock/mockView.js";
+import "./ui/lobbyDeck.js";
 import { render } from "./ui/render.js";
 import { openDialog, installDialogKeyboard } from "./ui/dialogs.js";
 import { playEvents } from "./animation/queue.js";

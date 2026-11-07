@@ -287,7 +287,8 @@ function createMainWindow(localUrl: string): BrowserWindow {
     minHeight: 720,
     show: false,
     autoHideMenuBar: true,
-    backgroundColor: '#0b1f14',
+    // 启动动画（boot）为近黑基底；窗口创建到首帧之间的底色对齐，避免出现一帧偏绿的闪色
+    backgroundColor: '#090d0b',
     title: 'UNO',
     webPreferences: {
       preload: DESKTOP_PATHS.preloadFile,

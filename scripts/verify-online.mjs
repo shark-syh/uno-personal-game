@@ -97,7 +97,7 @@ class Cdp {
 }
 
 async function makePage(browser, label) {
-  const { targetId } = await browser.send('Target.createTarget', { url: `${BASE_URL}/` });
+  const { targetId } = await browser.send('Target.createTarget', { url: `${BASE_URL}/?boot=0` });
   const targets = await getJson(`http://127.0.0.1:${DEBUG_PORT}/json/list`);
   const target = targets.find((item) => item.id === targetId);
   const cdp = new Cdp(target.webSocketDebuggerUrl);

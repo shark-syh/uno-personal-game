@@ -1,0 +1,116 @@
+/* 大厅巨型 UNO 牌（2026-11-07）：左栏上方一组交叠大牌。
+   一张随机卡面 + 一张卡背，每次打开随机牌面 / 上下层 / 倾角；
+   纯绝对定位装饰层（在 .lobby-shell 之下），不参与文档流、不改巨字排版与一屏断言。
+   配色沿用 radical：近黑基底 + 荧光绿点缀，牌面本身保持 UNO 原始四色。 */
+
+#lobby-screen { position: relative; }
+.lobby-shell { position: relative; z-index: 1; }
+
+.lobby-deck {
+  position: absolute;
+  z-index: 0;
+  /* 与左栏巨字并置：落在「巨字尾部 → 设置卡」之间的留白，不压品牌条与说明文字 */
+  left: 43%;
+  top: clamp(38px, 7.5vh, 88px);
+  width: clamp(158px, 14.5vw, 208px);
+  aspect-ratio: 2 / 3;
+  pointer-events: none;
+  user-select: none;
+  /* 整组牌一个投影：遮罩会裁掉子元素自身的 filter 输出，所以阴影上移到容器 */
+  filter: drop-shadow(0 24px 34px rgba(0, 0, 0, .55));
+  /* 交叠参数由 js/ui/lobbyDeck.js 每次打开随机写入 */
+  --deck-face-x: -22px;
+  --deck-face-y: -14px;
+  --deck-face-rot: -9deg;
+  --deck-back-x: 34px;
+  --deck-back-y: 22px;
+  --deck-back-rot: 11deg;
+}
+
+/* 环绕牌组的细荧光绿椭圆：呼应 UNO 卡面椭圆与手写启动动画的签名线 */
+.lobby-deck::before {
+  content: "";
+  position: absolute;
+  inset: -15% -26%;
+  border: 1px solid rgba(217, 255, 75, .22);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+  opacity: 0;
+  animation: deck-orbit-in 1100ms var(--v2-ease-out) 260ms both;
+}
+
+.lobby-deck__card {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* 硬性规定：连续曲率圆角（超椭圆 squircle）。同时裁掉卡面 PNG 个别角
+     残留的白色不透明像素（"背板没去干净"），四角外一律不显示。 */
+  -webkit-mask-image: url("../assets/squircle.svg");
+          mask-image: url("../assets/squircle.svg");
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+}
+
+.lobby-deck__card--back {
+  transform: translate(var(--deck-back-x), var(--deck-back-y)) rotate(var(--deck-back-rot));
+  animation: deck-deal-back 820ms var(--v2-ease-out) 80ms both;
+}
+.lobby-deck__card--face {
+  transform: translate(var(--deck-face-x), var(--deck-face-y)) rotate(var(--deck-face-rot));
+  animation: deck-deal-face 820ms var(--v2-ease-out) 200ms both;
+}
+
+/* 随机决定哪张压在上面；下层牌略压暗，让「在上」的那张成为视觉主角 */
+.lobby-deck[data-top="face"] .lobby-deck__card--face { z-index: 2; }
+.lobby-deck[data-top="face"] .lobby-deck__card--back { z-index: 1; filter: brightness(.68) saturate(.78); }
+.lobby-deck[data-top="back"] .lobby-deck__card--back { z-index: 2; }
+.lobby-deck[data-top="back"] .lobby-deck__card--face { z-index: 1; filter: brightness(.72) saturate(.82); }
+
+/* 右下角一枚荧光绿小点：与 boot / setup 的状态点同一视觉语汇 */
+.lobby-deck::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  bottom: -18px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--v2-gold);
+  box-shadow: 0 0 14px var(--v2-gold);
+  opacity: 0;
+  animation: deck-dot-in 620ms ease 760ms both;
+}
+
+@keyframes deck-deal-face {
+  from { opacity: 0; transform: translate(calc(var(--deck-face-x) - 16px), calc(var(--deck-face-y) - 46px)) rotate(calc(var(--deck-face-rot) - 7deg)) scale(.94); }
+  to   { opacity: 1; transform: translate(var(--deck-face-x), var(--deck-face-y)) rotate(var(--deck-face-rot)) scale(1); }
+}
+@keyframes deck-deal-back {
+  from { opacity: 0; transform: translate(calc(var(--deck-back-x) + 16px), calc(var(--deck-back-y) - 46px)) rotate(calc(var(--deck-back-rot) + 7deg)) scale(.94); }
+  to   { opacity: 1; transform: translate(var(--deck-back-x), var(--deck-back-y)) rotate(var(--deck-back-rot)) scale(1); }
+}
+@keyframes deck-orbit-in { from { opacity: 0; transform: rotate(-18deg) scale(.92); } to { opacity: 1; transform: rotate(-18deg) scale(1); } }
+@keyframes deck-dot-in { from { opacity: 0; transform: scale(.4); } to { opacity: .9; transform: scale(1); } }
+
+/* ≤1080 单列：牌组退为极淡的水印，绝不挤压首屏内容或改变滚动宽度 */
+@media (max-width: 1080px) {
+  .lobby-deck {
+    left: 2vw;
+    right: auto;
+    top: 2vh;
+    width: clamp(120px, 13vw, 168px);
+    opacity: .14;
+  }
+  /* 收掉交叠位移与旋角：水印绝不越出视口，避免 documentElement.scrollWidth 撑宽 */
+  .lobby-deck__card { transform: none !important; }
+  .lobby-deck::before, .lobby-deck::after { display: none; }
+}
+@media (max-width: 520px) {
+  .lobby-deck { display: none; }
+}
