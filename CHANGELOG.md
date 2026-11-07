@@ -2,6 +2,53 @@
 
 > v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。当前开发阶段为 v2.0.0 UI 升级。
 
+## 未发版 · 启动动画 / 大厅巨型牌 / 新图标（2026-11-07）
+
+### 启动动画与转场
+
+- 新增启动动画：SVG 手写笔迹逐笔写出 `UNO`（铅笔底稿 → 荧光绿墨迹 + 笔尖光点 → 签名下划线），进度条与状态文案同步；配色沿用 radical 近黑 `#090d0b` + 荧光绿 `#d9ff4b` + 36px 网格。
+- 转场：墨迹定格 → 沿签名线光带扫过 → 遮罩虚化溶解，大厅两栏错峰升起，一次连续运动进入应用；点击/按键可跳过。
+- 降级：`?test=1` / `?mock=1` / `?dev=1` / `?boot=0` / 动画关闭 / `prefers-reduced-motion` 均跳过；每次浏览器会话只播一次，`?boot=1` 可强制预览；9 秒兜底防止遮罩卡死。
+- 桌面壳仅把窗口底色对齐启动层（`#0b1f14` → `#090d0b`），避免首帧闪色；引擎、协议、`window.UnoApp` 契约零改动。
+
+### 大厅巨型 UNO 牌（随机卡面 + 卡背）
+
+- 左栏巨字右侧留白新增 `.lobby-deck`：两张 2:3 大牌交叠，一张随机卡面（54 张唯一牌面之一）、一张 `card-back.svg` 卡背；每次打开随机牌面、上下层与倾角，一次性发牌落桌动效、荧光绿椭圆细线与状态点呼应主题。
+- 纯绝对定位装饰层（在 `.lobby-shell` 之下），不改巨字排版与文档流；≤1080 退为极淡水印并收掉位移/旋角（不撑宽 `scrollWidth`），≤520 隐藏。
+- 卡面预解码后再挂载，`boot.js` 的 `waitForApp()` 一并等待，遮罩退场时牌面必已就位。
+
+### 首次启动加载修复 + exe 外观
+
+- **首帧闪烁修复**：`.boot-ink path` 在 CSS 里预设 `stroke-dasharray/dashoffset`，且 `boot.js` 从 ESM 改为 `</body>` 前同步执行的经典脚本（自读 `uno:settings`，不再依赖模块图）；首帧即「尚未书写」，消除冷启动时先闪完整字形再被清空的跳变。
+- 干净首次启动实测：80ms 墨迹未显 / 1.5s 正在书写 / 4.7s 遮罩移除且 `inert` 解除，控制台 0 error。
+- **图标重做**：`apps/desktop/build/icon.ico` / `icon.png` 改为近黑圆角底 + 荧光绿紧字距 `UNO` 字标 + 一笔倾斜签名线 + 右上状态点，7 档尺寸（16~256）；旧官方红椭圆绿底图标退役。已验证新图标 PNG 数据写入 `UNO.exe` 与安装包。
+- 质量：`verify:ui` 172/172、`verify:online` 38/38、`typecheck` / `lint` 0、`npm test` 334/335（唯一失败为已知 esbuild 环境问题）；1440/1024/420 无横向溢出、随机牌面与上下层生效、无失败请求。
+### 白角修复 · 连续曲率圆角 · 新需求入计划（同日第三轮）
+
+- **图标白角根因**：Chrome `omitBackground` 未生效，`icon-*.png` 为 RGB（无 alpha），四角是纯白不透明像素 `(255,255,255,255)` → Windows 显示白角。改用 `Emulation.setDefaultBackgroundColorOverride({a:0})` 输出 RGBA，7 档尺寸四角 alpha 全 0。
+- **连续曲率圆角**：图标背景与内框换成超椭圆 `n=5` 的 squircle（曲率连续，无直线↔圆弧突变），新增统一资源 `apps/web/assets/squircle.svg` 与全局 token `--ui-squircle`；ICO 小尺寸（16/24/32/48）改带 AND mask 的 32bpp DIB，大尺寸用带 alpha 的 PNG，彻底消除白角。
+- **大厅牌白角**：卡面 PNG 个别角残留白色不透明像素（实测 `G2.png` 右上、`R7.png` 左下）；`.lobby-deck__card` 套 squircle 遮罩裁掉，投影上移到容器避免被遮罩裁掉；素材批量去背列为 U4 后续项。
+- **硬性规定**：「一切 UI 圆角必须连续曲率、禁止普通 `border-radius` 圆弧」写入 [`docs/开发进度.md`](docs/开发进度.md) §4 红线第 11 条、[`docs/开发约定.md`](docs/开发约定.md) §6、`styles/tokens.css`。
+- **新 UI 需求入计划（⬜ 未开发）**：[`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md) 记录 U1 右栏信息回归 + 保留回合数、U2 右栏改玩家手牌数折线图、U3 下方手牌区融合 + 长条按钮/空格执行、U4 素材去背根治 + squircle 全量推广，含 4 个待用户拍板的歧义点。
+- 验证：`verify:ui` 172/172、新图标 DIB/PNG 资源写入三个 exe、1440 截图确认大厅牌无白角。
+- **安装包再次重建**：`apps/desktop/release/UNO-Setup-2.0.0.exe` + 桌面两个副本（同名与 `UNO Setup.exe`），112,333,612 字节，SHA256 `9FCC704CBAC9F461F273A285F87A515C0D21DDCFFF4A7F5B9ECCBD9C2E0F7EB8`（`SHA256SUMS.txt` 已同步）。版本号仍为 2.0.0，未做 v2.2 发布口径变更；README 中的旧哈希对应已上传 GitHub Release 的历史包。
+
+### 文档压缩与 U 系列定调（同日第四轮，纯文档）
+
+- **压缩总档**：新增 [`docs/开发总档.md`](docs/开发总档.md)，把此前 21 份方案/契约/归档压成一份，含版本时间线、各阶段「做出什么效果」、按布局/启动/图标打包/验收环境/联机分类的 **Bug 与坑位档案**、红线、质量基线、命令速查、被压缩文档去向；`docs/README.md` 索引与 `docs/开发进度.md` 台账全面更新到当前 v2.2 + U 系列状态。
+- **U 系列三点拍板并写入方案**：① U2 折线图可替换右栏位置，但原有信息必须保留显示、回合数保留；② U3 空格与鼠标点击相同，只是多一层选择；③ **「牌面素材不可修改」红线依旧存在**，白角只在显示层用遮罩处理，U4 取消批量重处理卡面。仅剩「U 系列排期」待定。
+- **应用快捷方式图标诊断**：已安装 `UNO.exe` 与最新构建大小一致且都含新 DIB32/PNG256 图标；ICO 32×32 条目四角 `alpha=0` 且 AND mask=1（透明）。桌面 `UNO.lnk` 指向该 exe 且无自定义 IconLocation，显示白底属 Windows 图标缓存（按目标路径索引），非文件问题。已发 `SHChangeNotify`/`ie4uinit` 刷新信号；彻底清理方案见桌面 `refresh-uno-icon.cmd`（需用户确认后执行）。
+- **清理（用户确认后执行）**：删除 `apps/desktop/release-boot` / `release-icon` / `release-next` 三个旧构建目录的绝大部分文件，磁盘占用 958 MB → 4.8 MB（仅剩被系统锁定的 `app.asar` / `default_app.asar`）；清掉 `boot-preview` 28 张中间帧与历史临时脚本 `.tmp-shot.mjs`，保留 4 张被文档/展示引用的图片；**docs 全部保留**（按用户选择的推荐清单）。`npx eslint .` 现在无需忽略参数即 0 错误。
+- **图标缓存彻底刷新（用户确认后执行）**：停止 explorer → 删除 14 个 `iconcache_*.db` / `IconCache.db` → `ie4uinit -show` → 重启 explorer（已确认进程恢复）。桌面 `UNO.lnk` 应显示无白底的新图标。
+- 本轮**未写任何实现代码**，U1~U4 仍为待开发；`npm run lint` / `typecheck` 0 错误。
+
+### 第五轮 · 三段式汇报 / 自检 / 批准即提交规定（同日，纯文档）
+
+- 新增硬性规定（用户指令）：① 每次开发完输出**只包含三段**「开发了什么 / 能实现什么样的效果 / 还剩什么」，不得有第四段；② 每次修改文件后**自行验证无 bug** 才汇报，验证结果不单独成段；③ 用户批准下一步开发后**先自动 `git commit` + 打 tag，再开工**，不做 push；首次批准先分组提交历史存量改动并打 `u0-baseline`。
+- 落地：[`docs/开发约定.md`](docs/开发约定.md) §7（并标注 §2 四段式已被覆盖）、[`docs/开发进度.md`](docs/开发进度.md) §4 红线第 12 条、[`docs/开发总档.md`](docs/开发总档.md) §5 第 8 条、`docs/README.md` 索引。
+- [`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md) 补 U1~U4 总览表 + 每个 U 的「开发步骤」与「开发完能实现的效果」，按已拍板三点细化（折线图可替换但信息保留、空格等价点击、牌面素材红线不变）。
+- 本轮未写实现代码、**未 commit、未打 tag**（按新规定等用户批准下一步开发时执行）。
+
 ## v2.0.0（2026-10-25，[GitHub Release](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)）
 
 v2.0.0 UI 重构整体发布：执行编号 M1~M8（视觉契约 → 大厅品牌 → 圆桌座位 → 悬浮手牌 → UNO 金环 → 结算转场 → 无障碍收口 → 发布），外加一次用户确认的 radical 风格重塑。规则引擎、`GameView`/`UiAction`、WebSocket 协议、服务端权威与脱敏边界零改动；`window.UnoApp` 五个 API 与 DOM 锚点只增不改。
