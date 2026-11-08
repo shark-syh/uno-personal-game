@@ -53,9 +53,13 @@
 
 <p align="center"><em>大厅：左栏品牌与巨字标语，右栏建立对局面板——人齐了，一屏就能开局。</em></p>
 
-<p align="right"><img width="300" src="docs/images/v22-right-rail.webp" alt="右栏战况"></p>
-
 对局屏是一屏三栏：顶部 `UNO LOCAL / Control Deck` 状态条，左侧回合轨写着第几回合、轮到谁；中间是椭圆牌桌与圆周座位；右侧战况栏常驻三块数据——TURN 回合数、CURRENT PRESSURE（你的手牌数、可出牌数、牌堆剩余）、RECENT EVENTS（上一位、上一位的动作、当前状态），下面还压着一条所有人手牌数的走势折线：谁在偷偷减牌、谁被摸牌链拖住，一眼能看出来。
+
+<p align="center">
+  <img src="docs/images/v22-game-turn.webp" width="900" alt="你的回合">
+</p>
+
+<p align="center"><em>你的回合：可出的牌自动亮起，右栏战况与手牌走势同步更新。</em></p>
 
 轮到你的时候，可出的牌会亮起来。点一下手牌就是出牌；没有能出的牌，就点「摸牌」。手牌坞占满整行，动作条就嵌在手牌旁边：主行动按钮是一根长条，按 <kbd>Space</kbd> 等同于点它——鼠标和键盘都能出这一手（输入框、弹窗打开时空格不会误触）。
 
