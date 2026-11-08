@@ -522,6 +522,31 @@ try {
         u2Rail.faceNodes === 0 && u2Rail.rightRailFaces === 0,
       JSON.stringify(u2Rail),
     );
+    // U3：联机视角下手牌区同样单列融合、动作条内嵌手牌坞、主按钮长条且支持空格
+    const u3Rail = await page.evaluate(`(() => {
+      const zone = document.querySelector('#hand-zone.player-zone');
+      const deck = document.querySelector('.hand-deck');
+      const hand = document.querySelector('#hand');
+      const bar = document.querySelector('#action-bar.action-stack');
+      const primary = bar?.querySelector('button[data-primary]');
+      const buttons = [...(bar?.querySelectorAll('button') || [])];
+      return {
+        cols: zone ? getComputedStyle(zone).gridTemplateColumns.trim().split(/\\s+/).length : -1,
+        barInDeck: Boolean(bar && deck?.contains(bar)),
+        handFull: Boolean(hand && deck && hand.getBoundingClientRect().width >= deck.getBoundingClientRect().width - 24),
+        buttonCount: buttons.length,
+        primaryWidth: primary ? Math.round(primary.getBoundingClientRect().width) : 0,
+        primaryHeight: primary ? Math.round(primary.getBoundingClientRect().height) : 0,
+        shortcut: primary?.getAttribute('aria-keyshortcuts') || '',
+      };
+    })()`);
+    check(
+      `${ownName} U3 联机：手牌占满下方、动作条内嵌、主按钮长条且支持空格`,
+      u3Rail.cols === 1 && u3Rail.barInDeck && u3Rail.handFull &&
+        (u3Rail.buttonCount === 0 ||
+          (u3Rail.primaryWidth >= 160 && u3Rail.primaryHeight >= 44 && u3Rail.shortcut === 'Space')),
+      JSON.stringify(u3Rail),
+    );
   }
 
   await b.evaluate(`document.querySelector('#game-emote-toggle').click(); true`);

@@ -7,6 +7,30 @@ const HAND_GAP = 10;
 const HAND_MIN_REVEAL = 36;
 let handLayoutObserver = null;
 
+// U3：空格 = 点击「当前主操作按钮」。不新增动作语义、不自己调 onAction，
+// 而是复用按钮自身的 click 监听，因此 UiAction、事件队列、aria-busy 输入锁与鼠标点击逐项一致；
+// 出牌仍只点手牌（空格落不到手牌上），Tab → Enter 路径不变。
+let spaceShortcutInstalled = false;
+function installSpaceShortcut() {
+  if (spaceShortcutInstalled) return;
+  spaceShortcutInstalled = true;
+  document.addEventListener("keydown", (event) => {
+    const isSpace = event.code === "Space" || event.key === " " || event.key === "Spacebar";
+    if (!isSpace || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+    const active = document.activeElement;
+    // 输入框 / 房间码 / 弹窗内不接管：保留原生输入与弹窗键盘操作
+    if (active?.matches?.("input, textarea, select, [contenteditable]") || active?.closest?.("#dialog-root")) return;
+    if (document.querySelector("#dialog-root.is-open")) return;
+    if (!document.querySelector("#game-screen.is-active")) return;
+    // 手牌坞以外的按钮（顶栏等）保留浏览器原生空格激活，不破坏键盘可达性
+    if (active?.matches?.("button, a, [role='button']") && !active.closest("#hand-zone")) return;
+    // 阻止页面滚动，同时阻止焦点所在按钮的原生空格点击（避免空格代劳出牌）
+    event.preventDefault();
+    const primary = document.querySelector("#action-bar button[data-primary]:not(:disabled)");
+    if (primary) primary.click();
+  }, true);
+}
+
 // M5：UNO 窗口状态——同一次窗口内重复 render 不重置金色环进度（契约 §7.4）。
 // key 由 座位+牌堆规模+弃牌顶 组成：窗口内无人出牌/摸牌，这些值不变；跨窗口必然变化。
 let unoWindow = null; // { key, startedAt, windowMs, expired, ticker }
@@ -138,6 +162,7 @@ function attachUnoCountdown(button, view) {
 }
 
 export function renderHand(view, { onAction, openDialog }) {
+  installSpaceShortcut();
   const root = document.querySelector("#hand");
   const legal = view.human.legalActions || [];
   // M4：悬浮手牌 dock（id 不变，class 供布局/断言使用；不新增可见标题或张数文字）
@@ -169,13 +194,22 @@ export function renderHand(view, { onAction, openDialog }) {
   // 操作栏只保留功能动作：摸牌 / 结束回合 / 叠牌弃权 / UNO / 抓 UNO / 选色兜底 / +4 挑战。
   const actionRoot = document.querySelector("#action-bar");
   actionRoot.dataset.phase = view.phase || "";
-  actionRoot.replaceChildren(...legal.filter((item) => !isCardAction(item)).filter((item) => {
+  const functional = legal.filter((item) => !isCardAction(item)).filter((item) => {
     if (item.type === "CALL_UNO") return unoVisible;
     if (item.type === "CATCH_UNO") return catchVisible;
     return true;
-  }).map((item) => {
+  });
+  // U3：当前主操作 = 动作条里第一个可用功能按钮（常规回合即「摸牌」，摸牌后即「结束回合」）。
+  // 空格只点它，长条主色 + aria-keyshortcuts 只是可发现性提示，不改变点击路径。
+  const primaryIndex = functional.findIndex((item) => !item.disabled);
+  actionRoot.replaceChildren(...functional.map((item, index) => {
     const isUno = item.type === "CALL_UNO";
     const button = document.createElement("button"); button.type = "button"; button.className = `btn${isUno ? " uno-button" : ""}`; button.dataset.actionId = item.id; button.textContent = item.label; button.disabled = Boolean(item.disabled); button.setAttribute("aria-label", isUno ? "喊 UNO" : item.label);
+    if (index === primaryIndex) {
+      button.dataset.primary = "true";
+      button.setAttribute("aria-keyshortcuts", "Space");
+      if (!isUno) button.classList.add("btn-primary");
+    }
     // M5：金色倒计时环（动画关闭 / reduced-motion 时为静态金环 + 文本秒数）
     if (isUno) attachUnoCountdown(button, view);
     button.addEventListener("click", () => {

@@ -295,14 +295,18 @@
         </aside>
       </div>
 
-      <!-- N4a（v2.2 契约 §3.3）：player-zone 双列 = hand-deck + action-stack -->
+      <!-- U3：取消 N4a 的右侧 164px 独立动作列——手牌占满下方宽度，
+           动作条内嵌手牌坞顶部细轨（与标题同一行）。DOM 锚点 #hand-zone.player-zone /
+           .hand-deck / #action-bar.action-stack 全部保留，只调整层级与版式。 -->
       <div id="hand-zone" class="player-zone">
         <div class="hand-deck">
-          <div class="hand-head"><strong>YOUR HAND / <span id="hand-head-count">00</span></strong><span id="hand-head-playable">0 张可出</span></div>
+          <div class="hand-rail">
+            <div class="hand-head"><strong>YOUR HAND / <span id="hand-head-count">00</span></strong><span id="hand-head-playable">0 张可出</span></div>
+            <div id="action-bar" class="action-stack" aria-label="可用操作"></div>
+          </div>
           <div id="hand" data-seat="0" aria-label="你的手牌"></div>
           <div id="hint-bar" role="status"></div>
         </div>
-        <div id="action-bar" class="action-stack" aria-label="可用操作"></div>
       </div>
     </section>
 

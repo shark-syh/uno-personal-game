@@ -372,7 +372,8 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .opponent .avatar { width: 28px; height: 28px; font-size: 18px; }
   .opponent-hand { --oh-card-w: 18px; --oh-card-h: 27px; left: 3px; bottom: -4px; }
   #hand { min-height: 154px; justify-content: safe center; }
-  /* M4：W3 以下动作栏改两行网格（主操作在前），按钮不再随文案换行跳动 */
+  /* U3：W3 以下动作条改可换行网格（主操作占整行），按钮不随文案换行跳动；
+     #action-bar.action-stack 的细轨规则优先级更高，见 N4a 区块。 */
   #action-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #result-charts { grid-template-columns: minmax(0, 1fr); }
   #result-charts .result-chart[data-chart="hand-colors"] { grid-column: auto; }
@@ -600,28 +601,30 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .status-line b { color: var(--ink); }
 .status-line b[data-playable] { color: var(--v2-gold); }
 
-/* player-zone 双列（文档流） */
+/* U3：取消右侧 164px 独立动作列——player-zone 改单列，手牌坞占满下方宽度；
+   动作条内嵌 .hand-deck 第一行的 .hand-rail，与标题共用 44px 细轨（不另起一行、不撑高手牌区）。
+   M4 .hand-dock class（verify 断言读 class + 渐变底 + padding-bottom≥8）继续保留。 */
 #hand-zone.player-zone {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(0, 1fr) var(--v22-action-stack-w);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
 }
-/* 保留 M4 .hand-dock class（verify 断言 handDock() 读 class + 渐变底 + padding-bottom≥8）：
-   布局列数交给 .player-zone，.hand-dock 仍提供渐变底与触底安全区 padding。 */
 #hand-zone.player-zone.hand-dock {
   padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 .hand-deck {
   min-width: 0;
-  padding: 10px 14px 12px;
+  padding: 4px 10px 6px;
   border: 1px solid var(--line-strong);
   border-radius: 13px;
   background: rgba(9, 21, 15, 0.91);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
-.hand-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 5px; color: var(--ink-muted); font-size: 11px; }
+/* 细轨：标题固定宽度，动作条吃掉剩余宽度，主按钮横向拉成长条 */
+.hand-rail { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; }
+.hand-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: 0 0 auto; color: var(--ink-muted); font-size: 11px; }
 .hand-head strong { color: var(--ink); font-size: 12px; letter-spacing: .06em; }
 /* #hand min-height:0 只作用于一屏作用域（≥761），≤760/≤420 沿用现有 token 的 min-height（154/168） */
 @media (min-width: 761px) {
@@ -629,17 +632,34 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   #hand .card { width: var(--v22-hand-card-w); height: var(--v22-hand-card-h); flex-basis: var(--v22-hand-card-w); }
 }
 #action-bar.action-stack {
-  display: grid;
-  align-content: end;
-  gap: 7px;
-  padding: 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 13px;
-  background: rgba(11, 24, 17, 0.91);
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
-#action-bar.action-stack .btn { width: 100%; font-size: 12px; }
-/* UNO 按钮保持醒目（BUG-02：显著放大），不随 action-stack 缩小；只让它占满列宽 */
-#action-bar.action-stack .uno-button { width: 100%; font-size: 22px; min-height: 64px; }
+#action-bar.action-stack .btn { flex: 0 1 auto; min-height: 44px; padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+/* 主操作按钮：横向长条 + 荧光绿主色；空格等价点击它（U3），右下角给 SPACE 提示 */
+#action-bar.action-stack .btn[data-primary] { position: relative; flex: 1 1 220px; min-width: 160px; max-width: 420px; }
+#action-bar.action-stack .btn[data-primary]:not(.uno-button)::after {
+  content: "SPACE";
+  position: absolute;
+  right: 8px;
+  bottom: 3px;
+  color: currentColor;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  opacity: .55;
+  pointer-events: none;
+}
+/* UNO 按钮保持醒目（BUG-02：显著放大，高度 ≥56px / 字号 ≥20px），只收窄宽度不再占满整列 */
+#action-bar.action-stack .uno-button { width: auto; min-height: 56px; padding: 8px 22px; font-size: 20px; }
 
 /* U1：≤1080 右栏不再隐藏——收窄成第三列紧凑摘要，全部字段一个不丢。
    phase-rail 的 TURN / 01 与「阶段 x / 4」原地保留（不删、不挪），
@@ -689,9 +709,13 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   #table-area.arena { height: var(--v22-arena-h-mobile); min-height: 0; }
   .arena-orbit { width: 240px; height: 160px; }
   #hand-zone.player-zone { display: block; }
-  .hand-deck { margin-top: 9px; padding: 11px 9px; }
-  #action-bar.action-stack { grid-template-columns: 1fr 1fr 1.2fr; margin-top: 7px; padding: 8px; }
-  #action-bar.action-stack .btn { padding: 9px 7px; font-size: 10px; }
+  .hand-deck { margin-top: 9px; padding: 8px 9px 6px; }
+  /* U3：窄屏细轨折成两行（标题 / 动作条），主按钮占满整行仍是长条 */
+  .hand-rail { flex-wrap: wrap; gap: 6px; }
+  .hand-head { width: 100%; }
+  #action-bar.action-stack { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 6px; }
+  #action-bar.action-stack .btn { flex: 1 1 120px; padding: 9px 7px; font-size: 10px; }
+  #action-bar.action-stack .btn[data-primary] { flex: 1 1 100%; min-width: 0; max-width: none; }
   /* U1：文档流下右栏纵向紧凑摘要，字段一个不丢（grid 相关属性在 flex 下列无意义，已去除） */
   .right-rail { margin-top: 9px; }
   .rail-turn-chip { grid-column: 1 / -1; }
@@ -727,6 +751,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
    U1 三块面板必须再压一档才能在任何波动下都落进网格内（走势图已在此断点收起自身装饰）。
    间距仍保持 8px 下限（「不贴死成双线」红线），只压字号与内边距——实测余量充足。 */
 @media (max-height: 640px) {
+  /* U3：极矮屏（1024×600）把内嵌细轨带来的高度从内边距里省回来，牌桌仍保持一屏 */
+  .hand-deck { padding-top: 2px; padding-bottom: 4px; }
+  #hand { padding-top: 16px; }
   .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
   .rail-spacer { flex: 0 1 8px; }
   .rail-turn-chip { padding: 3px 8px; }

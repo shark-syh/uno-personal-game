@@ -2,6 +2,21 @@
 
 > v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。当前开发阶段为 v2.0.0 UI 升级。
 
+## 未发版 · U3 手牌区融合与空格执行（2026-11-08）
+
+### 下方手牌区融合（U3）
+
+- 取消 N4a 的 `minmax(0,1fr) 164px` 双列：`#hand-zone.player-zone` 改**单列**，`#hand` 占满下方宽度，手牌横向不再被右侧独立动作列挤窄。
+- 动作区**内嵌手牌坞**：`#action-bar.action-stack` 移入 `.hand-deck` 顶部新增的 `.hand-rail` 细轨，与 `YOUR HAND` 标题共用一行（44px），不再另起一列；≤760 折成标题 / 动作两行，仍走文档流。
+- 主操作按钮**长条化**：动作条吃掉细轨剩余宽度，首个可用功能按钮（常规回合即「摸牌」，摸牌后即「结束回合」）标 `data-primary` + `aria-keyshortcuts="Space"`，荧光绿主色 + 右下角 `SPACE` 角标；UNO 按钮仍保持 ≥56px / ≥20px 的醒目规格。
+- 极矮屏（≤640 高）从 `.hand-deck` / `#hand` 内边距里省回细轨高度，牌桌仍一屏；`#hand[data-playable]`、`overflow-x:auto`、`.hand-dock` 渐变底与安全区、`#action-bar[data-phase]`、≥44px 触控与全部 DOM 锚点只增不改。
+
+### 空格 = 点击主操作按钮（U3）
+
+- `js/ui/hand.js` 全局只挂一次 `keydown`（capture）：命中空格且在对局页时，直接 `primary.click()` 复用按钮自身的 click 监听——**同一 `UiAction`、同一事件队列、同一 `aria-busy` 输入锁**，与鼠标点击没有第二条规则。
+- 焦点在输入框 / 房间码 / 弹窗内、或手牌坞以外的按钮（顶栏等）时不接管，保留原生输入与键盘可达性；同时阻止默认行为，避免空格滚动页面或代劳出牌。**出牌仍只点手牌**，Tab → Enter 出牌路径不变。
+- 验收新增：`verify:ui` U3 结构 2 条（单列 / 内嵌 / 占满 / 长条 / Space 提示）+ 键盘 4 条（空格等价同一 actionId、与鼠标点击逐项一致、输入框不触发、弹窗不触发），`verify:online` 每客户端 1 条；实跑 `verify:ui` 192/192、`verify:online` 44/44、lint / typecheck 0。`npm test` 复跑时 vitest 5.0.5 在收集阶段全量失败（32/32 文件 0 用例，`Vitest failed to find the current suite`），`npm ci --ignore-scripts` 重装依赖后仍复现，属本机既有环境故障、与本次改动无关，详见 [`docs/开发进度.md`](docs/开发进度.md) §1。
+
 ## 未发版 · U2 右栏手牌数走势折线图（2026-11-07）
 
 ### 手牌数走势（U2）

@@ -582,6 +582,34 @@ window.__verify = {
       conflict,
     };
   },
+  // U3：手牌区融合 + 主操作长条按钮（单列 / 内嵌 / 几何 / 空格可发现性）
+  u3LayoutAudit: () => {
+    const zone = document.querySelector('#hand-zone.player-zone');
+    const deck = document.querySelector('.hand-deck');
+    const hand = document.querySelector('#hand');
+    const bar = document.querySelector('#action-bar.action-stack');
+    const primary = bar?.querySelector('button[data-primary]');
+    const buttons = [...(bar?.querySelectorAll('button') || [])];
+    const rect = (node) => node?.getBoundingClientRect() || null;
+    const hr = rect(hand), br = rect(bar), dr = rect(deck), pr = rect(primary);
+    const overlaps = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+    return {
+      zoneCols: zone ? getComputedStyle(zone).gridTemplateColumns.trim().split(/\\s+/).length : -1,
+      barInDeck: Boolean(bar && deck?.contains(bar)),
+      deckWidth: Math.round(dr?.width || 0),
+      handWidth: Math.round(hr?.width || 0),
+      barWidth: Math.round(br?.width || 0),
+      primaryWidth: Math.round(pr?.width || 0),
+      primaryHeight: Math.round(pr?.height || 0),
+      minButtonWidth: buttons.length ? Math.min(...buttons.map((b) => Math.round(b.getBoundingClientRect().width))) : 0,
+      shortcut: primary?.getAttribute('aria-keyshortcuts') || '',
+      label: primary?.textContent.trim() || '',
+      actionCount: buttons.length,
+      handOverBar: overlaps(hr, br),
+      barBottom: Math.round(br?.bottom || 0),
+      viewportH: window.innerHeight,
+    };
+  },
   // N4b（v2.2 契约 §5.3/§7.2）：一屏硬约束 + 可出牌数一致性 + 台词层不压 banner/事件流
   oneScreenAudit: () => {
     const rectOf = (selector) => document.querySelector(selector)?.getBoundingClientRect() || null;
@@ -1305,6 +1333,27 @@ async function main() {
           'U2 走势末值与实时手牌一致：人类 = #hand、对手 = 卡背「N 张」、图例与座位名对应',
           u2.valuesMatch && u2.legendMatchesNames,
           JSON.stringify({ valuesMatch: u2.valuesMatch, legendMatchesNames: u2.legendMatchesNames }),
+        );
+        // ---------------- U3：手牌区融合 + 长条主按钮 ----------------
+        const u3 = await evaluate('window.__verify.u3LayoutAudit()');
+        check(
+          'U3 手牌区融合：player-zone 单列、动作条内嵌手牌坞、#hand 占满宽度不压动作条且仍在视口内',
+          u3.zoneCols === 1 && u3.barInDeck && u3.handWidth >= u3.deckWidth - 24 &&
+            u3.barWidth > 0 && !u3.handOverBar && u3.barBottom <= u3.viewportH,
+          JSON.stringify({
+            zoneCols: u3.zoneCols, barInDeck: u3.barInDeck, handWidth: u3.handWidth,
+            deckWidth: u3.deckWidth, barWidth: u3.barWidth, handOverBar: u3.handOverBar,
+            barBottom: u3.barBottom, viewportH: u3.viewportH,
+          }),
+        );
+        check(
+          'U3 主操作长条按钮：宽度 ≥160px 且不小于其它按钮、触控 ≥44px、带 Space 快捷键提示',
+          u3.actionCount > 0 && u3.primaryWidth >= 160 && u3.primaryWidth >= u3.minButtonWidth &&
+            u3.primaryHeight >= 44 && u3.shortcut === 'Space',
+          JSON.stringify({
+            label: u3.label, actionCount: u3.actionCount, primaryWidth: u3.primaryWidth,
+            minButtonWidth: u3.minButtonWidth, primaryHeight: u3.primaryHeight, shortcut: u3.shortcut,
+          }),
         );
         // ---------------- N4b：一屏矩阵 + 可出牌数一致（v2.2 契约 §5.3/§7.2） ----------------
         for (const [screenW, screenH] of [[1366, 657], [1024, 600], [1024, 768]]) {
@@ -3076,6 +3125,93 @@ async function main() {
       'M7 键盘出牌：聚焦合法牌按 Enter 成功提交（「出 红7」）',
       m7Enter.toast.includes('出 红7'),
       JSON.stringify(m7Enter),
+    );
+
+    // ---------------- U3：空格 = 点击主操作按钮（与鼠标走同一 click 路径） ----------------
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'U3 键盘局面');
+    await waitFor('document.querySelector("#game-screen").getAttribute("aria-busy") !== "true"', 8000, 'U3 输入锁释放');
+    await evaluate(`(() => {
+      window.__u3 = { actionClicks: [], handClicks: [], spacePrevented: [] };
+      document.querySelector('#action-bar').addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (button) window.__u3.actionClicks.push({ id: button.dataset.actionId || '', primary: button.dataset.primary === 'true' });
+      }, true);
+      document.querySelector('#hand').addEventListener('click', (event) => {
+        const card = event.target.closest('.card');
+        if (card) window.__u3.handClicks.push(card.dataset.cardId || '');
+      }, true);
+      document.addEventListener('keydown', (event) => {
+        if (event.code === 'Space') window.__u3.spacePrevented.push(event.defaultPrevented);
+      });
+      return true;
+    })()`);
+    const u3Primary = await evaluate(`(() => {
+      const button = document.querySelector('#action-bar button[data-primary]');
+      return button ? { id: button.dataset.actionId || '', label: button.textContent.trim() } : null;
+    })()`);
+    // 焦点故意落在合法手牌上：空格仍应走主按钮，且不得代劳出牌
+    await evaluate(`document.querySelector('#hand .card.is-legal')?.focus(); true`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, text: ' ', unmodifiedText: ' ' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    await sleep(200);
+    const u3Space = await evaluate(`({
+      actionClicks: window.__u3.actionClicks,
+      handClicks: window.__u3.handClicks,
+      prevented: window.__u3.spacePrevented,
+      toast: document.querySelector('#toast-region')?.textContent || '',
+    })`);
+    check(
+      'U3 空格：等价于点击主操作按钮（同一 actionId、默认行为被阻止、不代劳出牌）',
+      Boolean(u3Primary) && u3Space.actionClicks.length === 1 &&
+        u3Space.actionClicks[0].id === u3Primary.id && u3Space.actionClicks[0].primary === true &&
+        u3Space.handClicks.length === 0 && u3Space.prevented.length === 1 && u3Space.prevented.every(Boolean),
+      JSON.stringify({ primary: u3Primary, ...u3Space }),
+    );
+
+    // 鼠标点击主按钮：与空格逐项一致（同一按钮、同一提交反馈）
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('document.querySelector("#game-screen").getAttribute("aria-busy") !== "true"', 8000, 'U3 点击前输入锁释放');
+    await evaluate(`window.__u3.actionClicks.length = 0; window.__u3.handClicks.length = 0; document.querySelector('#action-bar button[data-primary]').click(); true`);
+    await sleep(150);
+    const u3Click = await evaluate(`({ actionClicks: window.__u3.actionClicks, toast: document.querySelector('#toast-region')?.textContent || '' })`);
+    check(
+      'U3 空格与鼠标点击逐项一致：同一 actionId、同一提交反馈',
+      u3Click.actionClicks.length === 1 && u3Click.actionClicks[0].id === u3Primary?.id &&
+        u3Click.actionClicks[0].primary === true && u3Space.toast.includes(u3Primary.label) &&
+        u3Click.toast.includes(u3Primary.label),
+      JSON.stringify({ spaceToast: u3Space.toast, clickToast: u3Click.toast, clicks: u3Click.actionClicks }),
+    );
+
+    // 焦点在输入框（含房间码输入）时不接管：保留原生空格输入
+    await evaluate(`(() => {
+      const input = document.createElement('input');
+      input.id = 'u3-input-probe';
+      document.body.append(input);
+      input.focus();
+      window.__u3.actionClicks.length = 0;
+      return document.activeElement === input;
+    })()`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, text: ' ', unmodifiedText: ' ' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    const u3Typing = await evaluate(`({ clicks: window.__u3.actionClicks.length, value: document.querySelector('#u3-input-probe')?.value || '' })`);
+    await evaluate(`document.querySelector('#u3-input-probe')?.remove(); true`);
+    check(
+      'U3 焦点在输入框：空格不触发主操作且仍能输入空格',
+      u3Typing.clicks === 0 && u3Typing.value.includes(' '),
+      JSON.stringify(u3Typing),
+    );
+
+    // 弹窗打开时不接管
+    await evaluate(`(() => { document.querySelector('#quit-game').click(); document.activeElement?.blur?.(); window.__u3.actionClicks.length = 0; return Boolean(document.querySelector('#dialog-root.is-open')); })()`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32, text: ' ', unmodifiedText: ' ' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32, nativeVirtualKeyCode: 32 });
+    const u3Dialog = await evaluate(`({ clicks: window.__u3.actionClicks.length, open: Boolean(document.querySelector('#dialog-root.is-open')) })`);
+    await evaluate(`document.querySelector('#dialog-root.is-open .dialog-close')?.click(); true`);
+    check(
+      'U3 弹窗打开：空格不触发主操作',
+      u3Dialog.clicks === 0 && u3Dialog.open,
+      JSON.stringify(u3Dialog),
     );
 
     // M7-c 触控目标：操作栏/顶栏全部可见按钮高度 ≥44px
