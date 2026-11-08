@@ -9,11 +9,13 @@
   padding: 12px 12px 10px;
   min-width: 0;
   overflow: hidden;
-  /* U2：置于右栏末尾，flex:1 吸收剩余高度；自身纵向 flex 让画布撑满、窄屏压缩 */
+  /* U2：置于右栏末尾，flex:1 吸收剩余高度；自身纵向 flex 让画布撑满、窄屏压缩。
+     N5 验收期修复：basis 改 0 + max-height，避免内容高度把折线层顶出右栏（insideRail 偶发越界）。 */
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
+  max-height: 100%;
 }
 .hand-trend h2 {
   margin: 0 0 8px;
@@ -27,6 +29,8 @@
   min-width: 0;
   flex: 1 1 auto;
   min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
 }
 .hand-trend__svg {
   position: absolute;

@@ -2967,6 +2967,7 @@ async function main() {
         return {
           kicker: document.querySelector('.result-kicker')?.textContent || '',
           title: title?.textContent || '',
+          winnerName: document.querySelector('.result-row.is-winner strong')?.textContent || '',
           meta: document.querySelector('#result-meta')?.textContent || '',
           hasEmoji: /[\\u{1F300}-\\u{1FAFF}]/u.test(title?.textContent || ''),
           gradient: titleStyle ? titleStyle.backgroundImage.includes('linear-gradient') : false,
@@ -2978,11 +2979,49 @@ async function main() {
     check(
       'M6 结算头部：kicker「本局结算」+ 胜者名标题（无 emoji）+ 四色渐变填充',
       m6Header.kicker === '本局结算' &&
-        m6Header.title.includes('获胜') &&
+        // N5（契约 §7.5 唯一许可）：标题判据由「含获胜」改为「含胜者名且含 WINS.」
+        m6Header.title.includes('WINS.') &&
+        m6Header.title.includes(m6Header.winnerName) &&
         !m6Header.hasEmoji &&
         m6Header.gradient &&
         m6Header.clip,
       JSON.stringify(m6Header),
+    );
+    // ---------------- N5：结算 demo 版式（契约 §2.3 / §7.5） ----------------
+    const n5 = await evaluate(
+      `(() => {
+        const title = document.querySelector('#result-title');
+        const titleStyle = title ? getComputedStyle(title) : null;
+        const wins = document.querySelector('.result-title-wins');
+        const charts = document.querySelector('#result-charts');
+        return {
+          title: title?.textContent || '',
+          winnerName: document.querySelector('.result-row.is-winner strong')?.textContent || '',
+          titleFontSize: titleStyle ? parseFloat(titleStyle.fontSize) : 0,
+          winsFill: wins ? getComputedStyle(wins).webkitTextFillColor : '',
+          kickerEn: document.querySelector('.result-kicker-en')?.textContent || '',
+          metaNote: document.querySelector('.result-meta-note')?.textContent || '',
+          hasTop: Boolean(document.querySelector('.result-top')),
+          hasBody: Boolean(document.querySelector('.result-body')),
+          statCount: document.querySelectorAll('.result-top [data-summary]').length,
+          chartCount: document.querySelectorAll('.result-body #result-charts .result-chart').length,
+          chartCols: charts ? getComputedStyle(charts).gridTemplateColumns.trim().split(/\\s+/).length : -1,
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`,
+    );
+    check(
+      'N5 胜者标题含 WINS. 且含胜者名（契约 §7.5 计划内新增独立断言）',
+      n5.title.includes('WINS.') && n5.winnerName.length > 0 && n5.title.includes(n5.winnerName),
+      JSON.stringify({ title: n5.title, winnerName: n5.winnerName }),
+    );
+    check(
+      'N5 结算版式：巨字 WINS. + result-top 六格 + result-body 双图 + ROUND COMPLETE / 胜负方式补充',
+      n5.titleFontSize >= 54 && n5.winsFill !== 'rgba(0, 0, 0, 0)' && n5.winsFill !== '' &&
+        n5.hasTop && n5.hasBody && n5.statCount === 6 && n5.chartCount === 3 && n5.chartCols === 2 &&
+        n5.kickerEn.includes('ROUND COMPLETE') && n5.kickerEn.includes('TURNS') &&
+        n5.metaNote.includes('用时') && !n5.overflow,
+      JSON.stringify(n5),
     );
     check(
       'M6 结算 meta：人数/手数/用时/行动齐全（mock：人数 4 · 手数 23 · 用时 184 秒 · 行动 42）',
@@ -3059,6 +3098,8 @@ async function main() {
       `localStorage.setItem('uno:settings', JSON.stringify({ autoCallUno: false, aiSpeed: 'fast', sound: false, animation: true, showHint: true, aiChatter: true })); true`,
     );
     await shot('v2/M6-result-fly-settled.png');
+    // N5：胜者结算版式截图放在飞牌断言之后，避免截图耗时干扰 §8.3 转场时序断言
+    await shot('v2/N5-result-1440.png');
 
     // 平局 §8.5：标题「平局」、获胜牌槽隐藏、meta 含「牌堆耗尽」
     await evaluate('window.__verify.selectMock("result-draw")');
@@ -3538,6 +3579,28 @@ async function main() {
       JSON.stringify({ cols: n3Lobby420.cols, hasSetup: n3Lobby420.hasSetup, overflow: n3Lobby420.overflow }),
     );
     await shot('v2/N3-lobby-420.png');
+    // N5：420 宽结算版式（契约 §7.4 截图基线）
+    await evaluate('window.__verify.selectMock("result")');
+    await waitFor('window.__verify.visibleScreen() === "result"', 5000, 'N5 420 结算');
+    const n5420 = await evaluate(
+      `(() => {
+        const cols = (node) => node ? getComputedStyle(node).gridTemplateColumns.trim().split(/\\s+/).length : -1;
+        return {
+          statCols: cols(document.querySelector('.result-summary')),
+          chartCols: cols(document.querySelector('#result-charts')),
+          title: document.querySelector('#result-title')?.textContent || '',
+          statCount: document.querySelectorAll('.result-top [data-summary]').length,
+          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        };
+      })()`,
+    );
+    check(
+      'N5 @420：结算六格两列、双图单列、巨字 WINS. 仍在、无横向溢出',
+      n5420.statCols === 2 && n5420.chartCols === 1 && n5420.statCount === 6 &&
+        n5420.title.includes('WINS.') && !n5420.overflow,
+      JSON.stringify(n5420),
+    );
+    await shot('v2/N5-result-420.png');
     await cdp.send('Emulation.setDeviceMetricsOverride', {
       width: 1440,
       height: 900,

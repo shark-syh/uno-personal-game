@@ -83,10 +83,26 @@ export function renderResult(view, { onAction }) {
   const kicker = document.createElement("p");
   kicker.className = "result-kicker";
   kicker.textContent = "本局结算";
+  // N5：demo 的 ROUND COMPLETE kicker 只作装饰（aria-hidden），既有 .result-kicker 文案与断言不动
+  const kickerEn = document.createElement("p");
+  kickerEn.className = "result-kicker-en";
+  kickerEn.setAttribute("aria-hidden", "true");
+  kickerEn.textContent = `ROUND COMPLETE / ${String(totals.turns).padStart(3, "0")} TURNS`;
   const title = document.createElement("h2");
   title.id = "result-title";
-  if (isDraw) title.classList.add("is-draw");
-  title.textContent = isDraw ? "平局" : `${winner?.name || "赢家"} 获胜`;
+  if (isDraw) {
+    title.classList.add("is-draw");
+    title.textContent = "平局";
+  } else {
+    // N5（契约 §7.5 唯一许可）：胜者名 + WINS.；h2 本身的四色渐变填充保持不变
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "result-title-name";
+    nameSpan.textContent = winner?.name || "赢家";
+    const winsSpan = document.createElement("span");
+    winsSpan.className = "result-title-wins";
+    winsSpan.textContent = "WINS.";
+    title.append(nameSpan, document.createTextNode(" "), winsSpan);
+  }
   const meta = document.createElement("p");
   meta.id = "result-meta";
   meta.className = "result-stats";
@@ -99,7 +115,19 @@ export function renderResult(view, { onAction }) {
   const winCard = !isDraw && result.reason !== "deck-empty" ? view.table?.discardTop || null : null;
   if (winCard) winCardWrap.append(renderCard(winCard));
   else winCardWrap.hidden = true;
-  header.append(kicker, title, meta, winCardWrap);
+  header.append(kicker, kickerEn, title, meta, winCardWrap);
+
+  // ---- N5：右侧补充 meta（胜负方式 / 用时）；#result-meta 原文案保持不动 ----
+  const metaNote = document.createElement("p");
+  metaNote.className = "result-meta-note";
+  const durationSec = Math.round((num(result.durationMs) || 0) / 1000);
+  const durationText = durationSec >= 60
+    ? `用时 ${Math.floor(durationSec / 60)} 分 ${durationSec % 60} 秒`
+    : `用时 ${durationSec} 秒`;
+  const reasonLabel = result.reason === "deck-empty"
+    ? "牌堆耗尽 · 手牌最少获胜"
+    : isDraw ? "平局" : "出完手牌获胜";
+  metaNote.textContent = `${reasonLabel} · ${durationText}`;
 
   // ---- 总览数字卡（数据图表辅助数据） ----
   const summary = document.createElement("div");
@@ -299,7 +327,14 @@ export function renderResult(view, { onAction }) {
   lobby.addEventListener("click", guard("BACK_TO_LOBBY"));
   actions.append(restart, lobby);
 
-  root.replaceChildren(header, summary, charts, list, actions);
+  // ---- N5：demo 版式包裹层，只加 .result-top / .result-body，既有锚点与数据属性不动 ----
+  const top = document.createElement("div");
+  top.className = "result-top";
+  top.append(summary);
+  const body = document.createElement("div");
+  body.className = "result-body";
+  body.append(charts);
+  root.replaceChildren(header, metaNote, top, body, list, actions);
   // 结算 DOM 就绪后启动飞牌转场（源 rect 由 render() 切屏前缓存；无效则静态降级）
   playResultTransition(winCard);
 }

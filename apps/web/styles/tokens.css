@@ -76,6 +76,9 @@
   --v22-status-w: 238px;
   --v22-grid-gap: 12px;
   --v22-action-stack-w: 164px;
+  /* N5（契约 §2.2）：结算 demo 版式 token——只服务版式，不新增颜色 */
+  --v22-result-max-w: 1180px;
+  --v22-result-title-size: clamp(54px, 9vw, 126px);
   --v22-arena-radius: 22px;
   --v22-arena-h-mobile: clamp(440px, 58vh, 520px);
   --v22-hand-card-w: clamp(64px, 5.8vw, 92px);

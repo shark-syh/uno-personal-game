@@ -14,6 +14,8 @@ const FLY_MS = 520;
 
 let lastTableCardRect = null;
 let transitionRunning = false;
+// N5：连续 render（如 mock 快速切屏）会启动两代飞牌；旧动画的 finish 不得清掉新转场状态
+let transitionToken = 0;
 
 function motionOff() {
   return (
@@ -46,6 +48,8 @@ export function isResultTransitionRunning() {
  * winCard 为 view.table.discardTop（empty-hand 语义下的最后一张打出牌）；无牌/无槽不飞。
  */
 export function playResultTransition(winCard) {
+  // 先清掉上一代飞行克隆：连续 render 不允许同时存在两张飞牌
+  document.querySelectorAll(".result-fly-card").forEach((node) => node.remove());
   const screen = document.querySelector("#result-screen");
   const slot = document.querySelector("#result-win-card");
   if (!screen || !slot || slot.hidden) return;
@@ -54,6 +58,7 @@ export function playResultTransition(winCard) {
   if (!winCard || !from || !to) return;
   if (motionOff()) return; // 静态降级：槽内静态显示获胜牌，无飞行
 
+  const token = ++transitionToken;
   const clone = renderCard(winCard);
   clone.classList.add("result-fly-card");
   clone.style.left = `${from.left}px`;
@@ -79,6 +84,8 @@ export function playResultTransition(winCard) {
     { duration: FLY_MS, easing: "cubic-bezier(.2,.72,.25,1)", fill: "both" },
   );
   const finish = () => {
+    // 已被新转场取代：旧动画结束时不得清理新 clone / 占位 / running 标记
+    if (token !== transitionToken) return;
     clone.remove();
     slot.classList.remove("is-occupied");
     delete screen.dataset.transition;
@@ -88,6 +95,6 @@ export function playResultTransition(winCard) {
   animation.oncancel = finish;
   // 兜底：极端情况下动画事件不触发也不永久锁死
   window.setTimeout(() => {
-    if (transitionRunning) finish();
+    if (transitionRunning && token === transitionToken) finish();
   }, FLY_MS + 400);
 }
