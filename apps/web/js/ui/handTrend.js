@@ -112,12 +112,16 @@ export function renderHandTrend(view) {
   const xFor = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yFor = (v) => padT + plotH - (v / maxHand) * plotH;
 
+  // N6：图形摘要给读屏（色点与折线本身不可读），图例文本同屏可读，不再 aria-hidden
+  const trendSummary = seats
+    .map((s, si) => `${s.name}${s.isViewer ? "（你）" : ""} ${samples[n - 1][si]} 张`)
+    .join("、");
   const svg = svgEl("svg", {
     viewBox: `0 0 ${W} ${H}`,
     class: "hand-trend__svg",
     preserveAspectRatio: "none",
     role: "img",
-    "aria-label": `各玩家手牌数走势，共 ${n} 个回合样本`,
+    "aria-label": `各玩家手牌数走势，共 ${n} 个回合样本；当前手牌：${trendSummary}`,
   });
 
   // y 轴网格 + 刻度（0 / 中点 / 峰值）

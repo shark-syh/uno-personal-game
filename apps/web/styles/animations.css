@@ -58,3 +58,25 @@
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 html[data-animation="false"] *, html[data-animation="false"] *::before, html[data-animation="false"] *::after { animation: none !important; transition: none !important; }
+/* N6（v2.2 契约 §6/§7.2）：新增装饰动效的降级链。
+   上面的全局 reduce 规则只把时长压到 .01ms，animation-name 仍留在计算样式里；
+   这里对 N3/N4a/N4b 新增装饰层显式归零，保证 reduced-motion 下「无动画名 / 无过渡」可断言。
+   html[data-animation="false"] 已由全局规则覆盖，无需重复声明。 */
+@media (prefers-reduced-motion: reduce) {
+  .arena-orbit,
+  .arena-orbit::before,
+  .arena-rail,
+  #phase-banner,
+  .rail-turn strong,
+  .rail-step,
+  .rail-step-label,
+  .rail-turn-chip,
+  .lobby-deck,
+  .lobby-deck::before,
+  .lobby-deck::after,
+  .lobby-deck__card,
+  .hand-trend__line {
+    animation: none !important;
+    transition: none !important;
+  }
+}

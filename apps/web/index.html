@@ -192,7 +192,7 @@
     <section id="game-screen" class="screen" data-screen="game" aria-label="牌桌">
       <header id="top-bar">
         <div id="game-brand">
-          <img class="brand-mark" src="assets/card-back.svg" alt="">
+          <img class="brand-mark" src="assets/card-back.svg" alt="" aria-hidden="true">
           <span id="brand-name">UNO Local</span>
           <span class="brand-tag" aria-hidden="true">/ Control Deck</span>
           <span id="game-version" class="app-version" hidden></span>
@@ -266,7 +266,7 @@
             <span class="rail-turn-chip__phase" id="rail-turn-chip-phase">阶段 2 / 4</span>
           </div>
           <section class="status-card">
-            <h2>Current pressure</h2>
+            <h2 aria-label="当前压力">Current pressure</h2>
             <div class="status-big"><strong id="rail-pressure-count">0</strong><span id="rail-pressure-name">—</span></div>
             <div class="status-list">
               <div class="status-line"><span>你的手牌</span><b id="rail-my-hand">0 张</b></div>
@@ -275,7 +275,7 @@
             </div>
           </section>
           <section class="status-card">
-            <h2>Recent events</h2>
+            <h2 aria-label="最近事件">Recent events</h2>
             <div class="status-list">
               <div class="status-line"><span>上一手</span><b id="rail-last-play">—</b></div>
               <div class="status-line"><span>上一位</span><b id="rail-last-player">—</b></div>
@@ -290,7 +290,7 @@
           <section class="hand-trend" id="hand-trend-section" aria-label="各玩家手牌数走势">
             <h2>手牌数走势</h2>
             <div id="hand-trend" class="hand-trend__canvas"></div>
-            <div id="hand-trend-legend" class="hand-trend__legend" aria-hidden="true"></div>
+            <div id="hand-trend-legend" class="hand-trend__legend" aria-label="折线图图例：各玩家对应颜色"></div>
           </section>
         </aside>
       </div>

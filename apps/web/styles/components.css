@@ -164,9 +164,9 @@
 /* M9-03：联机预置表情（入口按钮 + 选择面板 + 座位气泡） */
 .room-emote-row { display: flex; justify-content: center; width: 100%; }
 .room-player { position: relative; }
-#emote-picker { position: fixed; z-index: 95; display: grid; grid-template-columns: repeat(6, 40px); gap: 4px; padding: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: #082a1b; box-shadow: var(--shadow-panel); }
+#emote-picker { position: fixed; z-index: 95; display: grid; grid-template-columns: repeat(6, 44px); gap: 4px; padding: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: #082a1b; box-shadow: var(--shadow-panel); }
 #emote-picker[hidden] { display: none; }
-.emote-option { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; }
+.emote-option { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; font-size: 24px; line-height: 1; cursor: pointer; }
 .emote-option:hover { border-color: var(--line); background: #ffffff1a; }
 .emote-option:disabled { opacity: .45; cursor: not-allowed; }
 .emote-bubble { position: absolute; z-index: 12; top: calc(100% + 10px); right: 0; min-width: 56px; padding: 8px 13px; border-radius: 16px; color: #111; background: #fff; font-size: 36px; line-height: 1; text-align: center; box-shadow: 0 7px 20px #0009; pointer-events: none; animation: emote-pop 200ms var(--ease-out) both; }
@@ -174,4 +174,5 @@
 .opponent:has(.emote-bubble) { z-index: 12; }
 .room-player:has(.emote-bubble) { z-index: 2; }
 @keyframes emote-pop { from { opacity: 0; transform: translateY(-10px) scale(.72); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@media (max-width: 560px) { #emote-picker { grid-template-columns: repeat(6, 36px); } .emote-option { width: 36px; height: 36px; font-size: 21px; } .emote-bubble { min-width: 48px; padding: 7px 10px; font-size: 30px; } }
+/* N6：≤560 极窄屏触控目标仍守 44px 下限，只缩字号与气泡，不再把按钮压到 36px */
+@media (max-width: 560px) { #emote-picker { grid-template-columns: repeat(6, 44px); } .emote-option { width: 44px; height: 44px; font-size: 23px; } .emote-bubble { min-width: 48px; padding: 7px 10px; font-size: 30px; } }

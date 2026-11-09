@@ -2,12 +2,12 @@
 
 ![Node](https://img.shields.io/badge/Node-%E2%89%A5%2022-3c873a)
 ![Tests](https://img.shields.io/badge/tests-335%20passed-brightgreen)
-![E2E](https://img.shields.io/badge/E2E-195%20%2B%2044%20passed-blue)
+![E2E](https://img.shields.io/badge/E2E-206%20%2B%2044%20passed-blue)
 ![Desktop](https://img.shields.io/badge/desktop-Electron%20%2B%20NSIS-47848f)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/badge/release-v2.0.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)
-![Status](https://img.shields.io/badge/v2.2.0%20%E4%B8%89%E5%B1%8F%E6%94%B9%E7%89%88%20N1%7EN5-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+![Status](https://img.shields.io/badge/v2.2.0%20%E4%B8%89%E5%B1%8F%E6%94%B9%E7%89%88%20N1%7EN6-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
@@ -19,7 +19,7 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**发布版本：v2.0.0**（2026-10-25，radical 黑绿主题 UI 重构；Windows 安装包已随 Release 发布）· **main 分支：v2.2.0「三屏改版」开发中**（N1~N5 已完成，N6/N7 待开发，本文截图与界面描述均为 v2.2 最新 UI）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**发布版本：v2.0.0**（2026-10-25，radical 黑绿主题 UI 重构；Windows 安装包已随 Release 发布）· **main 分支：v2.2.0「三屏改版」开发中**（N1~N6 已完成，N7 待开发，本文截图与界面描述均为 v2.2 最新 UI）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <a href="https://github.com/shark-syh/uno-personal-game/releases"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
@@ -220,7 +220,7 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | `npm run typecheck` | TypeScript 类型检查 |
 | `npm run lint` | ESLint 检查 |
 | `npm run build:web-engine` | 把 TS 引擎 + AI 打包成浏览器 ESM（`apps/web/js/vendor/uno-engine.js`） |
-| `npm run verify:ui` | 单机浏览器自动验收（195 项：v2.2 三屏改版全量断言 + M2~M7 既有断言，无头 Chrome + CDP，需服务已启动） |
+| `npm run verify:ui` | 单机浏览器自动验收（206 项：v2.2 三屏改版全量断言 + N6 收口 + M2~M7 既有断言，无头 Chrome + CDP，需服务已启动） |
 | `npm run verify:online` | 联机多客户端验收（44 项：双客户端圆桌/表情/UNO 分流/金环/房主移交/v2.2 布局，需服务已启动） |
 | `npm run desktop:dev` | 构建并启动 Electron 桌面版（开发模式） |
 | `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-2.0.0.exe` |
@@ -239,7 +239,7 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | --- | --- |
 | `npm test` | 32 文件 / 335 用例全部通过（引擎规则、公开视图隐藏信息、结算统计、联机限频、房主迁移、AI 自对弈等） |
 | `npm run typecheck` / `npm run lint` | 0 错误 |
-| `npm run verify:ui` | 195 / 195 通过（3 局完整真实对局 + 6/10 人布局轮转 + v2.2 顶栏/大厅/三栏牌桌/右栏战况/手牌坞与空格执行/结算页 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
+| `npm run verify:ui` | 206 / 206 通过（3 局完整真实对局 + 6/10 人布局轮转 + v2.2 顶栏/大厅/三栏牌桌/右栏战况/手牌坞与空格执行/结算页 + 挑战手牌 + 抓 UNO + UNO 窗口倒计时 + 规则设置 + 动效/音效/响应式 + 控制台/网络/隐藏信息） |
 | `npm run verify:online` | 44 / 44 通过（双客户端建房/加入、座位框视角、表情广播与冷却、UNO 窗口喊/抓分流、对局中房主移交、v2.2 三栏布局、控制台 0 error） |
 | `npm run verify:desktop` | 双 Electron 实例（独立 userData / 9351+9352）：建房、UDP 发现或手动地址加入、开局、主机退出回大厅；本机沙箱 GUI 不可用时输出 SKIP，需真机执行 |
 | `npm run selfplay` | 700 局通过（非法动作 0、异常 0；难度胜率单调、混战排名单调） |
@@ -302,9 +302,9 @@ uno/
 
 **发布版本 v2.0.0**（2026-10-25，已标记 `v2.0.0`）：M1~M8 UI 重构完成——radical 黑绿主题（近黑基底 + 荧光绿点缀）、椭圆牌桌与圆周座位、悬浮手牌坞、UNO 金色倒计时环（按难度 10/8/6/4s）、结算飞牌转场与数据总结、无障碍与触控收口。方案与契约见 [`docs/v2.0.0-UI重构开发方案.md`](docs/v2.0.0-UI重构开发方案.md) 与 [`docs/v2.0.0-M1-视觉契约.md`](docs/v2.0.0-M1-视觉契约.md)。
 
-**main 分支 v2.2.0「三屏改版」开发中**（未发布，本文截图即此版本）：大厅两栏（品牌巨字 + SETUP 面板）、对局一屏三栏（回合轨 / 椭圆牌桌 / 右栏战况与手牌走势）、手牌坞占满宽度且动作条内嵌、主行动支持 <kbd>Space</kbd>、结算页巨字 `XX WINS.` + 六格统计 + 双图表；N1~N5 已完成，N6 收口与 N7 回归发布待开发。`verify:ui` 195 项 / `verify:online` 44 项全过，lint / typecheck 0。
+**main 分支 v2.2.0「三屏改版」开发中**（未发布，本文截图即此版本）：大厅两栏（品牌巨字 + SETUP 面板）、对局一屏三栏（回合轨 / 椭圆牌桌 / 右栏战况与手牌走势）、手牌坞占满宽度且动作条内嵌、主行动支持 <kbd>Space</kbd>、结算页巨字 `XX WINS.` + 六格统计 + 双图表；N1~N6 已完成，N7 回归发布待开发。`verify:ui` 206 项 / `verify:online` 44 项全过，lint / typecheck 0。
 
-- v2.2.0（开发中）：N1 设计契约与座位泛化 → N2 全局基底与顶栏 → N3 大厅两栏 → N4a/N4b 一屏牌桌与数据区 → N5 结算页；并行 U 系列微调（右栏压力与走势、手牌区融合、空格执行主行动）。方案见 [`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md)。
+- v2.2.0（开发中）：N1 设计契约与座位泛化 → N2 全局基底与顶栏 → N3 大厅两栏 → N4a/N4b 一屏牌桌与数据区 → N5 结算页 → N6 响应式/无障碍/性能收口；并行 U 系列微调（右栏压力与走势、手牌区融合、空格执行主行动）。方案见 [`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md)。
 - v1.3：Electron 桌面壳与 NSIS 安装包、内嵌随机端口服务；桌面自填智谱 Key（DPAPI 加密）；UDP 局域网房间发现与房间码加入；远程主机断线重连、房主自动移交、主机关闭通知；新增 `verify:desktop` 双实例验收。
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。

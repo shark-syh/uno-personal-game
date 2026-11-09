@@ -820,6 +820,110 @@ window.__verify = {
     button.click();
     return true;
   },
+  // N6（v2.2 契约 §6/§7.2）：五档响应式 + 无障碍 + 触控 + 动效降级收口审计
+  n6LayoutAudit: () => {
+    const q = (selector) => document.querySelector(selector);
+    const qa = (selector) => [...document.querySelectorAll(selector)];
+    const style = (node) => (node ? getComputedStyle(node) : null);
+    const ariaHidden = (node) => Boolean(node) && node.getAttribute('aria-hidden') === 'true';
+    const grid = q('#game-grid');
+    const rail = q('.right-rail');
+    const hand = q('#hand');
+    const card = q('#hand .card');
+    const gridStyle = style(grid);
+    const columns = gridStyle && gridStyle.display === 'grid'
+      ? gridStyle.gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length
+      : 0;
+    const lines = qa('.right-rail .status-line');
+    const seats = qa('#opponents .opponent');
+    const seatRects = seats.map((node) => node.getBoundingClientRect());
+    let seatOverlaps = 0;
+    for (let i = 0; i < seatRects.length; i += 1) {
+      for (let j = i + 1; j < seatRects.length; j += 1) {
+        const a = seatRects[i]; const b = seatRects[j];
+        const overlapW = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const overlapH = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (overlapW > 2 && overlapH > 2) seatOverlaps += 1;
+      }
+    }
+    const seatOutside = seatRects.some((r) =>
+      r.left < -1 || r.top < -1 || r.right > window.innerWidth + 1 || r.bottom > window.innerHeight + 1);
+    const targets = qa('button, [role="button"], #hand .card').filter((node) => {
+      if (node.hidden) return false;
+      const r = node.getBoundingClientRect();
+      const s = style(node);
+      return r.width > 0 && r.height > 0 && s && s.visibility !== 'hidden' && s.display !== 'none';
+    });
+    const targetViolations = targets.filter((node) => {
+      const r = node.getBoundingClientRect();
+      return r.width < 43.5 || r.height < 43.5;
+    }).map((node) => {
+      const r = node.getBoundingClientRect();
+      return { tag: node.tagName, cls: String(node.className).slice(0, 28), w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    // 表情选择器默认 hidden，用计算样式读尺寸（不依赖可见矩形），保证 ≤560 断点也受审计
+    const emoteSizes = qa('.emote-option').map((node) => {
+      const s = style(node);
+      return { w: parseFloat(s.width) || 0, h: parseFloat(s.height) || 0 };
+    });
+    const animationName = (node) => (node ? style(node).animationName : 'none');
+    const transitionSeconds = (node) => (node ? parseFloat(style(node).transitionDuration) || 0 : 0);
+    const motionNodes = [q('.arena-orbit'), q('#phase-banner'), q('.rail-step'), q('.rail-turn strong'), q('.lobby-deck__card')];
+    return {
+      w: window.innerWidth,
+      h: window.innerHeight,
+      gridDisplay: gridStyle ? gridStyle.display : '',
+      gridColumns: columns,
+      phaseDirection: q('.phase-rail') ? style(q('.phase-rail')).flexDirection : '',
+      railDisplay: rail ? style(rail).display : '',
+      railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : 0,
+      fieldCount: lines.length,
+      fieldsFilled: lines.length > 0 && lines.every((node) => node.textContent.trim().length >= 3),
+      turnNo: (q('#rail-turn-no')?.textContent || '').trim(),
+      turnNoAria: q('#rail-turn-no')?.getAttribute('aria-label') || '',
+      chipNo: (q('#rail-turn-chip-no')?.textContent || '').trim(),
+      chipNoAria: q('#rail-turn-chip-no')?.getAttribute('aria-label') || '',
+      handCardW: card ? Math.round(card.getBoundingClientRect().width) : 0,
+      handMinH: hand ? parseFloat(style(hand).minHeight) || 0 : 0,
+      handBottom: hand ? Math.round(hand.getBoundingClientRect().bottom) : 0,
+      actionBottom: Math.round(q('#action-bar')?.getBoundingClientRect().bottom || 0),
+      seatCount: seats.length,
+      seatOverlaps,
+      seatOutside,
+      scrollW: document.documentElement.scrollWidth,
+      clientW: document.documentElement.clientWidth,
+      scrollH: document.documentElement.scrollHeight,
+      clientH: document.documentElement.clientHeight,
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      decor: {
+        railCode: ariaHidden(q('.rail-code')),
+        railSteps: ariaHidden(q('.rail-steps')),
+        orbit: ariaHidden(q('.arena-orbit')),
+        arenaRail: ariaHidden(q('.arena-rail')),
+        brandTag: ariaHidden(q('.brand-tag')),
+        brandMark: ariaHidden(q('#game-brand .brand-mark')),
+        lobbyDeck: ariaHidden(q('.lobby-deck')),
+        effectLayer: ariaHidden(q('#effect-layer')),
+        railSpacer: ariaHidden(q('.rail-spacer')),
+        legendReadable: !ariaHidden(q('#hand-trend-legend')),
+        trendSummary: q('#hand-trend .hand-trend__svg')?.getAttribute('aria-label') || '',
+      },
+      touch: {
+        count: targets.length,
+        violations: targetViolations,
+        emoteCount: emoteSizes.length,
+        emoteMin: emoteSizes.length ? Math.min(...emoteSizes.map((s) => Math.min(s.w, s.h))) : 0,
+      },
+      motion: {
+        orbit: animationName(q('.arena-orbit')),
+        banner: animationName(q('#phase-banner')),
+        railStep: animationName(q('.rail-step')),
+        railTurn: animationName(q('.rail-turn strong')),
+        lobbyCard: animationName(q('.lobby-deck__card')),
+        maxTransition: Math.max(...motionNodes.map(transitionSeconds)),
+      },
+    };
+  },
 };
 true;
 `;
@@ -3608,6 +3712,167 @@ async function main() {
       mobile: false,
     });
 
+    // ---------------- 5c. N6：五档响应式 / 无障碍 / 触控 / 动效降级 / 多人收口 ----------------
+    // 契约 §5.3：一屏硬约束验收需隐藏 mock 的 64px 工具条；只切视口不重载时保持隐藏
+    const n6HideToolbar = () =>
+      evaluate('(() => { const bar = document.querySelector("#dev-toolbar"); if (bar) bar.hidden = true; return true; })()');
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'N6 大厅');
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'N6 牌桌');
+    await n6HideToolbar();
+
+    const n6Viewport = async (w, h) => {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {
+        width: w, height: h, deviceScaleFactor: 1, mobile: false,
+      });
+      await sleep(220);
+      return evaluate('window.__verify.n6LayoutAudit()');
+    };
+    // 断点矩阵：方案 §N6 的 1480/1200/1000/760/420 + 契约 §7.2 的 1440/1080/420，
+    // 再叠 1366×657 / 1024×600 两档矮屏，共九档逐档审计
+    const n6Cases = [
+      ['w1480', 1480, 900], ['w1440', 1440, 900], ['w1200', 1200, 900],
+      ['w1080', 1080, 768], ['w1000', 1000, 768],
+      ['w760', 760, 900], ['w420', 420, 900],
+      ['short657', 1366, 657], ['short600', 1024, 600],
+    ];
+    const n6 = {};
+    for (const [label, w, h] of n6Cases) n6[label] = await n6Viewport(w, h);
+    const n6All = Object.values(n6);
+    const n6Wide = [n6.w1480, n6.w1440, n6.w1200];
+    const n6Compact = [n6.w1080, n6.w1000];
+    const n6NoOverflow = (a) => !a.overflow;
+    check(
+      'N6 @1480/1440/1200：三栏骨架（grid 3 列）+ 右栏六项字段齐全、无横向溢出',
+      n6Wide.every((a) => a.gridDisplay === 'grid' && a.gridColumns === 3 && a.railDisplay !== 'none' &&
+        a.fieldCount === 6 && a.fieldsFilled && n6NoOverflow(a)),
+      JSON.stringify(n6Wide.map((a) => ({ w: a.w, cols: a.gridColumns, rail: a.railDisplay, fields: a.fieldCount, overflow: a.overflow }))),
+    );
+    // 契约 §7.2 原写「≤1080 隐藏 right-rail」，但 U1 用户拍板「右栏六项字段一个不丢」优先级更高：
+    // 按 U1 口径收口为 168px 紧凑摘要（不隐藏），此处只新增断言、不改任何既有断言。
+    check(
+      'N6 @1080/1000：≤1080 断点按 U1 口径收为 168px 紧凑摘要（右栏不隐藏）、六项字段一个不丢',
+      n6Compact.every((a) => a.gridColumns === 3 && a.railDisplay !== 'none' && a.railWidth <= 180 &&
+        a.fieldCount === 6 && a.fieldsFilled && n6NoOverflow(a)),
+      JSON.stringify(n6Compact.map((a) => ({ w: a.w, grid: a.gridDisplay, cols: a.gridColumns, railW: a.railWidth, fields: a.fieldCount, overflow: a.overflow }))),
+    );
+    check(
+      'N6 @760：文档流（#game-grid display:block、phase-rail 横排）、右栏信息仍可读、无横向溢出',
+      n6.w760.gridDisplay === 'block' && n6.w760.phaseDirection === 'row' && n6.w760.railDisplay !== 'none' &&
+        n6.w760.fieldCount === 6 && n6NoOverflow(n6.w760),
+      JSON.stringify({ grid: n6.w760.gridDisplay, phase: n6.w760.phaseDirection, rail: n6.w760.railDisplay, overflow: n6.w760.overflow }),
+    );
+    check(
+      'N6 @420：极窄降级（手牌 76px、区高 ≥168px）、六项字段保留、无横向溢出',
+      n6.w420.handCardW === 76 && n6.w420.handMinH >= 168 && n6.w420.fieldCount === 6 && n6NoOverflow(n6.w420),
+      JSON.stringify({ cardW: n6.w420.handCardW, minH: n6.w420.handMinH, fields: n6.w420.fieldCount, overflow: n6.w420.overflow }),
+    );
+    // ≤760 契约允许文档流滚动，一屏约束只对 ≥761 宽生效
+    check(
+      'N6 九档无横向溢出；≥761 宽七档（含 1366×657 / 1024×600 矮屏）一屏且手牌/动作区不下沉',
+      n6All.every(n6NoOverflow) &&
+        n6All.filter((a) => a.w >= 761).every((a) => a.scrollH <= a.clientH + 2 && a.handBottom <= a.h + 2 && a.actionBottom <= a.h + 2),
+      JSON.stringify(n6All.map((a) => ({ w: a.w, h: a.h, scrollH: a.scrollH, clientH: a.clientH, handBottom: a.handBottom, actionBottom: a.actionBottom, overflow: a.overflow }))),
+    );
+    const n6Aria = n6.w1440;
+    const n6AriaTurnOk =
+      Number(n6Aria.turnNo) === Number((n6Aria.turnNoAria.match(/\d+/) || [-1])[0]) &&
+      n6Aria.chipNo === n6Aria.turnNo &&
+      Number(n6Aria.chipNo) === Number((n6Aria.chipNoAria.match(/\d+/) || [-1])[0]);
+    check(
+      'N6 无障碍：装饰层 aria-hidden 全齐、折线图图例可读且图形带手牌摘要、回合数 aria-label 与文本同源',
+      Object.values(n6Aria.decor).every((v) => v !== false) && n6Aria.decor.legendReadable &&
+        n6Aria.decor.trendSummary.includes('当前手牌') && n6AriaTurnOk && n6Aria.fieldsFilled &&
+        n6Aria.turnNo.length > 0,
+      JSON.stringify({ decor: n6Aria.decor, turnNo: n6Aria.turnNo, turnNoAria: n6Aria.turnNoAria, chipNo: n6Aria.chipNo, chipNoAria: n6Aria.chipNoAria, ariaTurnOk: n6AriaTurnOk }),
+    );
+    check(
+      'N6 触控目标：九档可见按钮与手牌卡 ≥44px、表情选项在 ≤560 断点不缩水',
+      n6All.every((a) => a.touch.count > 0 && a.touch.violations.length === 0 && a.touch.emoteCount > 0 && a.touch.emoteMin >= 44),
+      JSON.stringify(n6All.map((a) => ({ w: a.w, count: a.touch.count, violations: a.touch.violations.slice(0, 4), emoteCount: a.touch.emoteCount, emoteMin: a.touch.emoteMin }))),
+    );
+    await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    await sleep(150);
+    const n6Reduced = await evaluate('window.__verify.n6LayoutAudit()');
+    await cdp.send('Emulation.setEmulatedMedia', { features: [] });
+    await evaluate('(() => { document.documentElement.dataset.animation = "false"; return true; })()');
+    await sleep(150);
+    const n6AnimOff = await evaluate('window.__verify.n6LayoutAudit()');
+    await evaluate('(() => { delete document.documentElement.dataset.animation; return true; })()');
+    const n6MotionStatic = (a) =>
+      ['orbit', 'banner', 'railStep', 'railTurn', 'lobbyCard'].every((key) => a.motion[key] === 'none') &&
+      a.motion.maxTransition <= 0.01;
+    check(
+      'N6 动效降级：reduced-motion 与动画关闭时 orbit/banner/rail/大厅牌无动画名、无过渡',
+      n6MotionStatic(n6Reduced) && n6MotionStatic(n6AnimOff),
+      JSON.stringify({ reduced: n6Reduced.motion, animationOff: n6AnimOff.motion }),
+    );
+
+    // 2/4/10 人用 mock 局面、6 人用引擎真实开局，覆盖新增的 1000 / 760 两档断点
+    const n6Seats = [];
+    for (const [label, w, h] of [['1000', 1000, 768], ['760', 760, 900]]) {
+      await n6Viewport(w, h);
+      for (const mockName of ['two-players', 'normal-play', 'ten-players']) {
+        await evaluate(`window.__verify.selectMock("${mockName}")`);
+        await waitFor('window.__verify.visibleScreen() === "game"', 5000, `N6 ${label} ${mockName}`);
+        await sleep(160);
+        const probe = await evaluate(layoutProbe);
+        n6Seats.push({ w: Number(label), scene: mockName, seats: probe.seats, overlaps: probe.overlaps.length,
+          inside: probe.inside, scrollW: probe.overflow.scrollW, clientW: probe.overflow.clientW });
+      }
+    }
+    await n6Viewport(1000, 768);
+    await navigate(`${BASE_URL}/?test=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'N6 6 人大厅');
+    await evaluate('window.__verify.selectPlayers(6)');
+    await evaluate('window.__verify.clickStart()');
+    await waitFor('window.__verify.visibleScreen() === "game"', 10000, 'N6 6 人牌桌');
+    await waitFor('window.__verify.handCount() >= 7', 5000, 'N6 6 人手牌 ≥7 张');
+    await sleep(300);
+    const n6Six = await evaluate(layoutProbe);
+    n6Seats.push({ w: 1000, scene: 'engine-6p', seats: n6Six.seats, overlaps: n6Six.overlaps.length,
+      inside: n6Six.inside, scrollW: n6Six.overflow.scrollW, clientW: n6Six.overflow.clientW });
+    check(
+      'N6 2/4/6/10 人 @1000/760：座位不重叠、桌面档在视口内、无横向溢出（6 人走引擎真实开局）',
+      n6Seats.every((r) => r.overlaps === 0 && r.scrollW <= r.clientW && (r.w < 761 || r.inside)) &&
+        n6Seats.some((r) => r.seats === 1) && n6Seats.some((r) => r.seats === 3) &&
+        n6Seats.some((r) => r.seats === 5) && n6Seats.some((r) => r.seats === 9),
+      JSON.stringify(n6Seats),
+    );
+
+    // 键盘路径复测：1000 宽下 Tab 焦点环 + 聚焦合法牌 Enter 提交
+    await n6Viewport(1000, 768);
+    await navigate(`${BASE_URL}/?mock=1`);
+    await waitFor('window.__verify.visibleScreen() === "lobby"', 10000, 'N6 键盘大厅');
+    await evaluate('window.__verify.selectMock("normal-play")');
+    await waitFor('window.__verify.visibleScreen() === "game"', 5000, 'N6 键盘牌桌');
+    await waitFor('document.querySelector("#game-screen").getAttribute("aria-busy") !== "true"', 8000, 'N6 输入锁释放');
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+    const n6Focus = await evaluate(`(() => {
+      const el = document.activeElement; const cs = getComputedStyle(el);
+      return { tag: el.tagName, visible: el.matches(':focus-visible'), ring: cs.boxShadow !== 'none' || cs.outlineStyle !== 'none' };
+    })()`);
+    check(
+      'N6 焦点环复查：1000 宽 Tab 聚焦后 :focus-visible 生效且焦点环可见',
+      n6Focus.visible && n6Focus.ring,
+      JSON.stringify(n6Focus),
+    );
+    await evaluate(`(() => { const card = document.querySelector('#hand .card.is-legal'); if (card) card.focus(); return Boolean(card); })()`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+    await sleep(300);
+    const n6Enter = await evaluate(`({ toast: document.querySelector('#toast-region')?.textContent || '' })`);
+    check(
+      'N6 键盘出牌复测：1000 宽聚焦合法牌按 Enter 仍成功提交（「出 红7」）',
+      n6Enter.toast.includes('出 红7'),
+      JSON.stringify(n6Enter),
+    );
+    await n6Viewport(1440, 900);
+    await n6HideToolbar();
+    await shot('v2/N6-a11y-game.png');
+
     // ---------------- 6. 控制台 / 网络 / 隐藏信息 ----------------
     const originViolations = [...requestUrls].filter(
       (url) =>
@@ -3702,6 +3967,7 @@ async function main() {
       '- review-assets/v2/M4-hand-dock-1440.png',
       '- review-assets/v2/M3-table-10p-1440.png',
       '- review-assets/v2/M3-table-10p-1024.png',
+      '- review-assets/v2/N6-a11y-game.png',
       '',
     ];
     const reportPath = join(ASSETS, 'ui-m32-verify.md');
