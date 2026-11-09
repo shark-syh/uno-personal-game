@@ -131,7 +131,7 @@ window.addEventListener("uno:settings-changed", () => {
 installDialogKeyboard();
 // M6-02：浏览器 autoplay 限制——首次用户交互时创建/恢复 AudioContext
 installAudioUnlock();
-// M2：品牌版本号只显示服务端 /api/health 的 version（形如 v1.3.0）；请求失败保持隐藏，不显示假版本
+// M2：品牌版本号只显示服务端 /api/health 的 version（形如 v2.2.0）；请求失败保持隐藏，不显示假版本
 fetch("/api/health")
   .then((response) => (response.ok ? response.json() : null))
   .then((health) => {

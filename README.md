@@ -6,8 +6,8 @@
 ![Desktop](https://img.shields.io/badge/desktop-Electron%20%2B%20NSIS-47848f)
 ![AI](https://img.shields.io/badge/AI-%E6%99%BA%E8%B0%B1%20%2B%20%E6%9C%AC%E5%9C%B0-8a2be2)
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/badge/release-v2.0.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.0.0)
-![Status](https://img.shields.io/badge/v2.2.0%20%E4%B8%89%E5%B1%8F%E6%94%B9%E7%89%88%20N1%7EN6-%E5%B7%B2%E5%AE%8C%E6%88%90-informational)
+[![Release](https://img.shields.io/badge/release-v2.2.0-success)](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.2.0)
+![Status](https://img.shields.io/badge/v2.2.0%20%E4%B8%89%E5%B1%8F%E6%94%B9%E7%89%88%20N1%7EN7-%E5%B7%B2%E5%8F%91%E5%B8%83-brightgreen)
 
 > 一张牌桌，108 张牌，一个你，和 2~9 个 AI。
 >
@@ -19,21 +19,21 @@
 
 规则大体照着原版，但有几处按手感做了取舍。它们被写进文档、做成了设置项，也都有测试兜底——下文会慢慢讲到。
 
-**发布版本：v2.0.0**（2026-10-25，radical 黑绿主题 UI 重构；Windows 安装包已随 Release 发布）· **main 分支：v2.2.0「三屏改版」开发中**（N1~N6 已完成，N7 待开发，本文截图与界面描述均为 v2.2 最新 UI）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
+**发布版本：v2.2.0**（2026-11-09，radical A 方向三屏改版；Windows 安装包与 Release 已随 v2.2.0 发布）· **main 分支：v2.2.0 已发布**（N1~N7 全部完成，本文截图与界面描述即 v2.2 UI）· 仓库：<https://github.com/shark-syh/uno-personal-game> · 变更摘要见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <a href="https://github.com/shark-syh/uno-personal-game/releases"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows%20%E5%AE%89%E8%A3%85%E5%8C%85-2ea44f?style=for-the-badge&logo=windows" alt="下载 Windows 安装包"></a>
-  <a href="https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.zip"><img src="https://img.shields.io/badge/%E6%BA%90%E7%A0%81-v2.0.0.zip-555?style=for-the-badge&logo=github" alt="下载源码"></a>
+  <a href="https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.2.0.zip"><img src="https://img.shields.io/badge/%E6%BA%90%E7%A0%81-v2.2.0.zip-555?style=for-the-badge&logo=github" alt="下载源码"></a>
 </p>
 
 ## 下载与安装
 
 | 文件 | 说明 |
 | --- | --- |
-| [`UNO-Setup-2.0.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.0.0/UNO-Setup-2.0.0.exe) | Windows 10/11 x64 安装包（约 107 MiB），当前用户安装，无需管理员 |
-| [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.0.0.tar.gz) | v2.0.0 完整源码（radical 黑绿主题 UI 重构版） |
+| [`UNO-Setup-2.2.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.2.0/UNO-Setup-2.2.0.exe) | Windows 10/11 x64 安装包（约 107 MiB），当前用户安装，无需管理员 |
+| [源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.2.0.zip) / [tar.gz](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.2.0.tar.gz) | v2.2.0 完整源码（radical A 三屏改版） |
 
-安装包 SHA256：`15884337046AFB9805555BC30EB7A177A7C32325B90CAE849B35F794A3AC361A`（与 Release 附带的 `SHA256SUMS.txt` 一致）。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
+安装包 SHA256：`A38857EBD3501898DD062C9C917F982C770208CE03B3AB4B2BD34F6847E9FE7B`（与 Release 附带的 `SHA256SUMS.txt` 一致）。安装后双击 **UNO** 即可启动；首次开房时 Windows 会询问防火墙权限，允许后同一局域网的朋友才能发现房间。安装包未做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」。
 
 <p align="center">
   <img src="docs/images/v22-game-4p.webp" width="900" alt="4 人对局">
@@ -173,7 +173,7 @@ Windows 也可以直接双击 **`启动服务.bat`**：脚本会在服务就绪�
 
 ```bash
 npm run desktop:dev   # 构建并启动 Electron 窗口（内嵌服务，随机端口）
-npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-2.0.0.exe
+npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup-2.2.0.exe
 ```
 
 桌面版自带内嵌服务，不依赖外部浏览器与 Node.js；同一局域网内主机开房后，其他玩家可在「附近房间」点击加入或输入房间码。设置页可填写智谱 Key（DPAPI 加密保存，优先级高于 `.env`）。v2.0.0 起桌面版与网页版共用 radical 黑绿主题；安装与双机联机仍待真机验收。
@@ -223,7 +223,7 @@ npm run desktop:dist  # 构建 NSIS 安装包 → apps/desktop/release/UNO-Setup
 | `npm run verify:ui` | 单机浏览器自动验收（206 项：v2.2 三屏改版全量断言 + N6 收口 + M2~M7 既有断言，无头 Chrome + CDP，需服务已启动） |
 | `npm run verify:online` | 联机多客户端验收（44 项：双客户端圆桌/表情/UNO 分流/金环/房主移交/v2.2 布局，需服务已启动） |
 | `npm run desktop:dev` | 构建并启动 Electron 桌面版（开发模式） |
-| `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-2.0.0.exe` |
+| `npm run desktop:dist` | 构建 NSIS 安装包 → `apps/desktop/release/UNO-Setup-2.2.0.exe` |
 | `npm run verify:desktop` | 双 Electron 实例验收（UDP 发现/加入/主机退出；沙箱 GUI 不可用时 SKIP） |
 | `npm run perf` | 性能检查（首屏 / 帧率 / 内存 / AI 耗时），本地生成 `review-assets/perf-report.md` |
 | `npm run selfplay` | AI 自对弈基准（难度单调性 / 混战排名 / 非法动作数） |
@@ -302,13 +302,14 @@ uno/
 
 **发布版本 v2.0.0**（2026-10-25，已标记 `v2.0.0`）：M1~M8 UI 重构完成——radical 黑绿主题（近黑基底 + 荧光绿点缀）、椭圆牌桌与圆周座位、悬浮手牌坞、UNO 金色倒计时环（按难度 10/8/6/4s）、结算飞牌转场与数据总结、无障碍与触控收口。方案与契约见 [`docs/v2.0.0-UI重构开发方案.md`](docs/v2.0.0-UI重构开发方案.md) 与 [`docs/v2.0.0-M1-视觉契约.md`](docs/v2.0.0-M1-视觉契约.md)。
 
-**main 分支 v2.2.0「三屏改版」开发中**（未发布，本文截图即此版本）：大厅两栏（品牌巨字 + SETUP 面板）、对局一屏三栏（回合轨 / 椭圆牌桌 / 右栏战况与手牌走势）、手牌坞占满宽度且动作条内嵌、主行动支持 <kbd>Space</kbd>、结算页巨字 `XX WINS.` + 六格统计 + 双图表；N1~N6 已完成，N7 回归发布待开发。`verify:ui` 206 项 / `verify:online` 44 项全过，lint / typecheck 0。
+**v2.2.0 已发布**（2026-11-09，本文截图即此版本）：大厅两栏（品牌巨字 + SETUP 面板）、对局一屏三栏（回合轨 / 椭圆牌桌 / 右栏战况与手牌走势）、手牌坞占满宽度且动作条内嵌、主行动支持 <kbd>Space</kbd>、结算页巨字 `XX WINS.` + 六格统计 + 双图表；N1~N7 全部完成并发布。`verify:ui` 206 项 / `verify:online` 44 项全过，lint / typecheck 0。
 
-- v2.2.0（开发中）：N1 设计契约与座位泛化 → N2 全局基底与顶栏 → N3 大厅两栏 → N4a/N4b 一屏牌桌与数据区 → N5 结算页 → N6 响应式/无障碍/性能收口；并行 U 系列微调（右栏压力与走势、手牌区融合、空格执行主行动）。方案见 [`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md)。
+- v2.2.0（开发中）：N1 设计契约与座位泛化 → N2 全局基底与顶栏 → N3 大厅两栏 → N4a/N4b 一屏牌桌与数据区 → N5 结算页 → N6 响应式/无障碍/性能收口 → N7 回归发布；并行 U 系列微调（右栏压力与走势、手牌区融合、空格执行主行动）。方案见 [`docs/UI优化方案-待开发.md`](docs/UI优化方案-待开发.md)。
 - v1.3：Electron 桌面壳与 NSIS 安装包、内嵌随机端口服务；桌面自填智谱 Key（DPAPI 加密）；UDP 局域网房间发现与房间码加入；远程主机断线重连、房主自动移交、主机关闭通知；新增 `verify:desktop` 双实例验收。
 - v1.2：联机多玩家座位框与逐视图动画、摸牌飞向对应座位；联机预置表情（12 个 emoji、座位框气泡、每座位 5 条 + 2 秒冷却）；新增 `verify:online` 双客户端验收。
 - v1.1：局域网联机（房间码、改名、AI 补位、断线重连、再来一局、按座位信息隔离）、UNO 窗口按钮按座位过滤等修复；单机模式不变。
 - v1.0：UNO 规则引擎、四档本地 AI、智谱混合决策与自动降级、事件动效与合成音效、规则设置页、6~10 人布局、结算操作统计（无分数）。
+- v2.2.0：radical A 三屏改版 N1~N7 + U1~U3，tag `v2.2.0`，Release 附 `UNO-Setup-2.2.0.exe` 与 `SHA256SUMS.txt`；详见 [`CHANGELOG.md`](CHANGELOG.md)。
 - v2.0.0：详见 [`CHANGELOG.md`](CHANGELOG.md)；版本通过 git tag 标注（`v1.0`~`v1.3`、`v2.0.0-alpha.2~5`、`v2.0.0-beta.1`、`v2.0.0`），`v1.3` Release 附带历史安装包；`v2.0.0` Release 附带 `UNO-Setup-2.0.0.exe` 与 `SHA256SUMS.txt`。
 - 后续可选方向见「已知限制与路线图」。
 
