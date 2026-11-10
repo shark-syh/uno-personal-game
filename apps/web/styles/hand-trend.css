@@ -1,26 +1,34 @@
 /* U2（2026-11-07）：右栏手牌数走势折线图。
    数据展示面板：与右栏 .status-card / .rail-turn-chip 同源，一律直角（0 圆角 + 1px 实线边框），
-   不套 squircle 遮罩（用户拍板「数据显示的卡片不用做圆角」）。§6 只约束有圆角的元素；直角面板不属其范围。 */
+   不套 squircle 遮罩（用户拍板「数据显示的卡片不用做圆角」）。§6 只约束有圆角的元素；直角面板不属其范围。
+
+   v2.2.1（2026-11-10）修复「桌面端全屏 / 任意窗口大小折线图不显示或变形」：
+   原实现 .hand-trend 用 flex:1 吸收右栏全部剩余高度——右栏稍紧（1280×820）画布被压到 0px，
+   折线图整个消失；超高屏（2560×1440 / 3840×2160 全屏）又被拉到 597 / 1317px，
+   preserveAspectRatio=none 把折线、网格与刻度纵向拉伸几倍，完全失真。
+   现改为按视口高度取稳定档位（clamp，上限 176px），多余空间交给 .rail-spacer 的 flex-grow 吸收；
+   画布高度恒定，配合 handTrend.js 按容器实际像素生成 viewBox，任意窗口下都不塌陷、不变形。 */
 
 .hand-trend {
   border: 1px solid var(--line);
   border-radius: 0;
   background: rgba(10, 21, 16, 0.91);
-  padding: 12px 12px 10px;
+  padding: 7px 9px 6px;
   min-width: 0;
   overflow: hidden;
-  /* U2：置于右栏末尾，flex:1 吸收剩余高度；自身纵向 flex 让画布撑满、窄屏压缩。
-     N5 验收期修复：basis 改 0 + max-height，避免内容高度把折线层顶出右栏（insideRail 偶发越界）。 */
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
+  /* 固定档位，不再随右栏剩余高度无限伸缩 */
+  flex: 0 0 auto;
+  height: clamp(116px, 17vh, 176px);
   min-height: 0;
-  max-height: 100%;
+  max-height: 176px;
 }
 .hand-trend h2 {
-  margin: 0 0 8px;
+  margin: 0 0 3px;
   color: var(--ink-muted);
   font-size: 10px;
+  line-height: 1.2;
   letter-spacing: .15em;
   text-transform: uppercase;
 }
@@ -51,8 +59,8 @@
 .hand-trend__legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 8px;
+  gap: 3px 8px;
+  margin-top: 4px;
 }
 .hand-trend__legend-item {
   display: inline-flex;
@@ -60,6 +68,7 @@
   gap: 4px;
   color: var(--ink-muted);
   font-size: 10px;
+  line-height: 1.2;
   white-space: nowrap;
 }
 .hand-trend__legend-item i {
@@ -78,21 +87,29 @@
   text-align: center;
 }
 
-/* U2：文档流（≤760）下右栏回归自然高度，图表按内容自适应，避免绝对定位 SVG 在无确定高度时塌陷 */
-@media (max-width: 760px) {
-  .hand-trend { flex: 0 0 auto; }
-  .hand-trend__canvas { position: static; flex: 0 0 auto; }
-  .hand-trend__svg { position: static; height: auto; max-height: 220px; }
+/* 中等偏矮窗口（如 1280×820 桌面默认窗口）：右栏剩余空间有限，降一档保证画布不塌陷 */
+@media (max-height: 860px) {
+  .hand-trend { height: 124px; max-height: 124px; }
 }
+/* 矮屏（1366×768 / 1024×720）：U1 三块面板已压缩，折线图按较小的固定档位显示，
+   不再被 flex 压到 0；装饰同步收紧，把高度让给画布。 */
 @media (max-height: 800px) {
-  .hand-trend { padding: 8px 9px 7px; }
-  .hand-trend h2 { margin-bottom: 5px; font-size: 8px; }
-  .hand-trend__legend { margin-top: 5px; gap: 3px 8px; }
+  .hand-trend { height: clamp(112px, 17vh, 140px); max-height: 140px; padding: 5px 8px 4px; }
+  .hand-trend h2 { margin-bottom: 2px; font-size: 8px; }
+  .hand-trend__legend { margin-top: 3px; gap: 2px 7px; }
   .hand-trend__legend-item { font-size: 9px; }
 }
-/* U2：极矮屏（≤640 高）把走势图自身装饰收起，使其可被压到 0 高，
-   绝不因内边距/标题/图例把右栏顶出 game-grid 或压到手牌区（DOM 与 dataset 仍在，断言不破） */
-@media (max-height: 640px) {
-  .hand-trend { padding: 0; border: none; }
+/* 极矮屏（≤700 高：覆盖 1366×657 / 1024×600 两档验收矮屏）：右栏只剩 ~200px，
+   收起自身装饰、只留一条 40px 细画布，绝不把右栏顶出 game-grid 或压到手牌区
+   （DOM 与 dataset 仍在，折线数与图例断言不破）。桌面端 minHeight 720，不受影响。 */
+@media (max-height: 700px) {
+  .hand-trend { height: 40px; max-height: 40px; padding: 0; border: none; }
   .hand-trend h2, .hand-trend__legend { display: none; }
+}
+/* 文档流（≤760 宽）：右栏自然高度，画布取固定高度并让 SVG 撑满，
+   放在最后以覆盖上面的 max-height 档位（窄屏允许纵向滚动，不受一屏约束）。 */
+@media (max-width: 760px) {
+  .hand-trend { flex: 0 0 auto; height: auto; max-height: none; }
+  .hand-trend__canvas { position: relative; flex: 0 0 auto; height: clamp(120px, 22vh, 200px); }
+  .hand-trend__svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 }

@@ -1438,6 +1438,28 @@ async function main() {
           u2.valuesMatch && u2.legendMatchesNames,
           JSON.stringify({ valuesMatch: u2.valuesMatch, legendMatchesNames: u2.legendMatchesNames }),
         );
+        // v2.2.1 回归：画布不能像旧版那样被 flex 压到 0（不显示）或拉到上千 px（变形）。
+        // viewBox 必须与画布实际像素 1:1，否则 preserveAspectRatio=none 会把折线与刻度纵向拉伸。
+        const trendGeom = await evaluate(
+          `(() => {
+            const mount = document.querySelector('#hand-trend');
+            const svg = mount?.querySelector('.hand-trend__svg');
+            if (!mount || !svg) return { canvasH: 0, canvasW: 0, viewW: 0, viewH: 0 };
+            const rect = mount.getBoundingClientRect();
+            const box = (svg.getAttribute('viewBox') || '').trim().split(/\\s+/).map(Number);
+            return {
+              canvasH: Math.round(rect.height), canvasW: Math.round(rect.width),
+              viewW: box[2] || 0, viewH: box[3] || 0,
+            };
+          })()`,
+        );
+        check(
+          'v2.2.1 折线图画布不塌陷/不拉伸：高度 40~200px 且 viewBox 与画布 1:1',
+          trendGeom.canvasH >= 40 && trendGeom.canvasH <= 200 &&
+            Math.abs(trendGeom.viewW - trendGeom.canvasW) <= 2 &&
+            Math.abs(trendGeom.viewH - trendGeom.canvasH) <= 2,
+          JSON.stringify(trendGeom),
+        );
         // ---------------- U3：手牌区融合 + 长条主按钮 ----------------
         const u3 = await evaluate('window.__verify.u3LayoutAudit()');
         check(
@@ -3174,6 +3196,31 @@ async function main() {
       'M6 飞牌落位：克隆清理、槽位恢复显示、转场解锁、不遮标题',
       m6Settled.flyGone && m6Settled.released && m6Settled.idle && m6Settled.slotShown && !m6Settled.titleWinOverlap,
       JSON.stringify(m6Settled),
+    );
+    // v2.2.1 回归：中文胜者名（如「你」）字形墨迹远大于 .88 行盒，旧版超出部分
+    // 落在 background-clip:text 的渐变绘制区之外变透明，且被紧邻的 meta 行压住。
+    const titleInk = await evaluate(
+      `(() => {
+        const title = document.querySelector('#result-title');
+        const name = document.querySelector('#result-title .result-title-name');
+        const meta = document.querySelector('#result-meta');
+        if (!title || !name || !meta) return { boxTop: 0, boxBottom: 0, inkTop: 1, inkBottom: 2, metaTop: 0 };
+        const box = title.getBoundingClientRect();
+        const range = document.createRange(); range.selectNodeContents(name);
+        const ink = range.getBoundingClientRect();
+        return {
+          boxTop: Math.round(box.top), boxBottom: Math.round(box.bottom),
+          inkTop: Math.round(ink.top), inkBottom: Math.round(ink.bottom),
+          metaTop: Math.round(meta.getBoundingClientRect().top),
+        };
+      })()`,
+    );
+    check(
+      'v2.2.1 结算中文标题完整：字形落在渐变绘制区内且不与下方 meta 重叠',
+      titleInk.inkTop >= titleInk.boxTop - 1 &&
+        titleInk.inkBottom <= titleInk.boxBottom + 1 &&
+        titleInk.metaTop >= titleInk.inkBottom - 1,
+      JSON.stringify(titleInk),
     );
 
     // 静态降级 §8.3/§8.5：动画关闭时不飞，槽内静态显示

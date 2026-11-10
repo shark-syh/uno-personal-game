@@ -78,9 +78,32 @@ function svgEl(name, attrs = {}) {
  * 把折线图渲染进 #hand-trend。无样本或无人时显示占位。
  * 同时把末值与座位名写进 dataset，供 verify:ui 一致性断言读取。
  */
+// v2.2.1：窗口缩放 / 全屏切换 / 断点变化会让画布尺寸改变，需按新的实际像素重绘，
+// 否则 viewBox 与容器不再 1:1，折线与刻度又会被拉伸。只在尺寸真正变化且处于对局屏时触发。
+let lastTrendView = null;
+let lastTrendSize = "";
+let trendObserver = null;
+
 export function renderHandTrend(view) {
   const mount = document.querySelector("#hand-trend");
   if (!mount) return;
+  lastTrendView = view;
+  lastTrendSize = `${mount.clientWidth}x${mount.clientHeight}`;
+  if (!trendObserver && typeof ResizeObserver !== "undefined") {
+    trendObserver = new ResizeObserver(() => {
+      const node = document.querySelector("#hand-trend");
+      if (!node || !lastTrendView) return;
+      if (document.querySelector(".screen.is-active")?.dataset.screen !== "game") return;
+      // 判据是「viewBox 与容器实际像素是否一致」，而不是「尺寸是否变过」：
+      // 首次渲染时布局可能尚未稳定（读到的 clientHeight 与最终 rect.height 相差十几 px），
+      // 以 viewBox 为基准可在稳定后自动补一次重绘，且两次之后必然收敛、不会死循环。
+      const svg = node.querySelector(".hand-trend__svg");
+      const box = (svg?.getAttribute("viewBox") || "").trim().split(/\s+/).map(Number);
+      if (Math.abs((box[2] || 0) - node.clientWidth) <= 1 && Math.abs((box[3] || 0) - node.clientHeight) <= 1) return;
+      renderHandTrend(lastTrendView);
+    });
+    trendObserver.observe(mount);
+  }
   const players = view.players || [];
   const viewer = view.human?.seat ?? 0;
   // 优先用 UI 层累积的全量事件历史（引擎/服务端每次动作都重置 events，单帧只有本批事件）
@@ -103,11 +126,34 @@ export function renderHandTrend(view) {
     return;
   }
 
-  // viewBox 坐标（CSS 负责缩放到容器宽度，保证窄屏不横向溢出）
-  const W = 300, H = 172;
-  const padL = 20, padR = 8, padT = 10, padB = 18;
-  const plotW = W - padL - padR;
-  const plotH = H - padT - padB;
+  // 先挂图例、再量画布：图例（含 flex-wrap）会占掉 section 高度、压缩 canvas；
+  // 若先量尺寸后挂图例，viewBox 会比实际画布高十几 px（旧版此处正是这么错的）。
+  const legend = document.createElement("div");
+  legend.className = "hand-trend__legend";
+  seats.forEach((s) => {
+    const item = document.createElement("span");
+    item.className = "hand-trend__legend-item";
+    const dot = document.createElement("i");
+    dot.style.background = s.color;
+    const label = document.createElement("span");
+    label.dataset.seat = String(s.seat);
+    label.textContent = s.isViewer ? `${s.name}（你）` : s.name;
+    item.append(dot, label);
+    legend.append(item);
+  });
+  (legendHost || mount).append(legend);
+
+  // v2.2.1：viewBox 直接取容器实际像素（1:1 映射），折线 / 网格 / 刻度文字在
+  // 任何窗口高度下都保持真实比例，不再被固定的 300×172 viewBox 纵向拉伸数倍。
+  // 容器在隐藏屏或首帧尚未布局时尺寸为 0，用下限兜底，ResizeObserver 会在布局完成后重绘。
+  const W = Math.max(120, Math.round(mount.clientWidth));
+  const H = Math.max(32, Math.round(mount.clientHeight));
+  const padL = Math.min(20, Math.round(W * 0.09));
+  const padR = 8;
+  const padT = Math.max(4, Math.min(10, Math.round(H * 0.08)));
+  const padB = Math.max(6, Math.min(18, Math.round(H * 0.14)));
+  const plotW = Math.max(1, W - padL - padR);
+  const plotH = Math.max(1, H - padT - padB);
   const n = samples.length;
   const xFor = (i) => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yFor = (v) => padT + plotH - (v / maxHand) * plotH;
@@ -153,23 +199,6 @@ export function renderHandTrend(view) {
     }));
   });
   mount.append(svg);
-
-  // 图例（座位名 → 颜色），与 players 顺序一致；viewer 标注「你」。
-  // 渲染到 #hand-trend-legend（画布外），无该容器时兜底追加进 mount。
-  const legend = document.createElement("div");
-  legend.className = "hand-trend__legend";
-  seats.forEach((s) => {
-    const item = document.createElement("span");
-    item.className = "hand-trend__legend-item";
-    const dot = document.createElement("i");
-    dot.style.background = s.color;
-    const label = document.createElement("span");
-    label.dataset.seat = String(s.seat);
-    label.textContent = s.isViewer ? `${s.name}（你）` : s.name;
-    item.append(dot, label);
-    legend.append(item);
-  });
-  (legendHost || mount).append(legend);
 
   // 暴露给断言：末值 / 座位名 / 样本数 / 座位总数
   const last = samples[n - 1];

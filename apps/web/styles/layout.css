@@ -292,7 +292,12 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .result-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "kicker kicker" "title wincard" "meta wincard"; align-items: center; column-gap: 24px; row-gap: 4px; }
 .result-kicker { grid-area: kicker; justify-self: start; margin: 0; color: var(--v2-gold); font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
 .result-kicker-en { grid-area: kicker; justify-self: end; margin: 0; color: var(--ink-muted); font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-.result-header h2 { grid-area: title; margin: 0; font-size: var(--v22-result-title-size); line-height: .88; letter-spacing: -.08em; }
+/* v2.2.1：中文胜者名（如「你」）字形墨迹约 1.33em，远大于 .88 的行盒；
+   原本超出内容盒的部分落在 background-clip:text 的渐变绘制区之外 → 变透明，
+   又被紧邻的 meta 行压住，视觉上「中文下半被下方遮挡」。
+   用上下 padding 把元素的 padding box 扩到完整字形范围：渐变随之覆盖整字，
+   grid 标题行同步撑开，下方 meta 不再与中文重叠（em 单位随窄屏降档自动缩放）。 */
+.result-header h2 { grid-area: title; margin: 0; font-size: var(--v22-result-title-size); line-height: .88; letter-spacing: -.08em; padding-block: .26em; }
 /* WINS. 用荧光绿点题；h2 自身的四色渐变 + transparent 填充不变（M6 断言读 h2 computed style） */
 .result-title-wins { -webkit-text-fill-color: var(--v2-gold); }
 .result-header h2:not(.is-draw) {
@@ -588,8 +593,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .status-card, .rail-turn-chip { flex: 0 0 auto; }
 /* 仅 U1 面板之间留白；末块（RECENT EVENTS）不留，留白交给可收缩 spacer */
 .rail-turn-chip, .status-card:first-of-type { margin-bottom: 10px; }
-/* 走势图前的弹性留白：有剩余空间时撑开 10px，空间不足时缩为 0，避免把折叠图顶出右栏 */
-.rail-spacer { flex: 0 1 10px; min-height: 0; }
+/* 走势图前的弹性留白：v2.2.1 起 flex-grow:1 —— 全屏超高视口的多余高度由它吸收，
+   折线图保持固定档位不再被拉长；空间不足时仍可缩为 0，避免把折叠图顶出右栏。 */
+.rail-spacer { flex: 1 1 10px; min-height: 0; }
 .hand-trend { margin: 0; }
 @media (min-width: 761px) {
   .right-rail { height: 100%; overflow: hidden; }
@@ -604,19 +610,21 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   background: rgba(10, 21, 16, 0.91);
 }
 
-.rail-turn-chip { display: flex; align-items: baseline; gap: 8px; padding: 10px 15px; }
+/* v2.2.1：三块数据面板适度收紧内边距与字号，为折线图让出稳定的高度预算
+   （六项字段与回合数一个不丢，面板间距仍 ≥8px，不引入圆角）。 */
+.rail-turn-chip { display: flex; align-items: baseline; gap: 8px; padding: 7px 12px; }
 .rail-turn-chip__kicker { color: var(--ink-muted); font-size: 10px; font-weight: 900; letter-spacing: .15em; }
-.rail-turn-chip strong { color: var(--v2-gold); font-size: 22px; line-height: 1; letter-spacing: -.06em; }
+.rail-turn-chip strong { color: var(--v2-gold); font-size: 20px; line-height: 1; letter-spacing: -.06em; }
 .rail-turn-chip__sep { color: var(--ink-muted); font-size: 11px; }
 .rail-turn-chip__phase { margin-left: auto; color: var(--ink-muted); font-size: 10px; white-space: nowrap; }
 
-.status-card { padding: 12px 14px; }
-.status-card h2 { margin: 0 0 10px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
+.status-card { padding: 8px 11px; }
+.status-card h2 { margin: 0 0 6px; color: var(--ink-muted); font-size: 10px; letter-spacing: .15em; text-transform: uppercase; }
 .status-big { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.status-big strong { color: var(--v2-gold); font-size: 30px; letter-spacing: -.07em; }
+.status-big strong { color: var(--v2-gold); font-size: 27px; letter-spacing: -.07em; }
 .status-big span { color: var(--ink-muted); font-size: 11px; text-align: right; }
-.status-list { display: grid; gap: 7px; margin-top: 10px; }
-.status-line { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-muted); font-size: 11px; }
+.status-list { display: grid; gap: 4px; margin-top: 6px; }
+.status-line { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-muted); font-size: 11px; line-height: 1.25; }
 .status-line b { color: var(--ink); }
 .status-line b[data-playable] { color: var(--v2-gold); }
 
@@ -688,7 +696,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   /* U1：三块直角面板之间不再压到 6px——8px 是「不贴死成双线」的下限，
      与 verify-ui 的 panelGeometry.minGap ≥ 8 断言同源。留白改用 margin + 可收缩 spacer。 */
   .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
-  .rail-spacer { flex: 0 1 8px; }
+  .rail-spacer { flex: 1 1 8px; }
   .rail-turn-chip { padding: 7px 10px; gap: 6px; }
   .rail-turn-chip strong { font-size: 17px; }
   .rail-turn-chip__phase { font-size: 9px; }
@@ -752,7 +760,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
      落在 #game-grid 行内、不被 #game-screen 的 overflow:hidden 裁掉。
      间距不再压到 5px（直角边框会贴死成双线），固定 8px；1024×600 实测仍有余量。 */
   .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
-  .rail-spacer { flex: 0 1 8px; }
+  .rail-spacer { flex: 1 1 8px; }
   .rail-turn-chip { padding: 5px 9px; gap: 6px; }
   .rail-turn-chip strong { font-size: 15px; }
   .rail-turn-chip__phase { font-size: 9px; }
@@ -774,7 +782,7 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
   .hand-deck { padding-top: 2px; padding-bottom: 4px; }
   #hand { padding-top: 16px; }
   .rail-turn-chip, .status-card:first-of-type { margin-bottom: 8px; }
-  .rail-spacer { flex: 0 1 8px; }
+  .rail-spacer { flex: 1 1 8px; }
   .rail-turn-chip { padding: 3px 8px; }
   .rail-turn-chip strong { font-size: 13px; }
   .status-card { padding: 4px 8px; }
