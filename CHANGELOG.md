@@ -10,7 +10,7 @@
 - **结算标题**：`.result-header h2` 的 `line-height: .88` 让行盒只有 111px，而中文「你」的字形墨迹约 168px；超出内容盒的部分落在 `background-clip:text` 渐变绘制区之外变透明，又被紧邻的 `#result-meta`（top 176）压住。给 h2 加 `padding-block: .26em` 把 padding box 扩到完整字形范围，渐变覆盖整字、grid 行同步撑开，下方 meta 不再重叠。
 - **右栏空间预算**：三块 U1 数据面板（TURN 胶囊 + 2 张 status-card）适度收紧内边距与字号（六项字段与回合数一个不丢、间距仍 ≥8px、直角与 1px 边框不变），为折线图让出稳定高度。
 - **回归**：`verify:ui` **208/208**（新增 2 条：折线画布 40~200px 且 viewBox 与画布 1:1；结算中文字形落在渐变区内且不与 meta 重叠）、`verify:online` **44/44**、lint / typecheck 0、`npm test` **334/335**（唯一失败仍为已知 esbuild 临时目录写入权限）；1280×820 / 1440×900 / 1366×768 / 1024×720 / 1366×657 / 1024×600 / 1920×1080 / 2560×1440 / 3840×2160 九档视口逐档核对折线画布 40~126px、右栏零溢出。
-- 安装包：`UNO-Setup-2.2.1.exe`（112,263,320 B），SHA256 `78B90A9D1DC72DF7E635CB2B3920C2570F9F3A1DBB7E6B4E380D101502DD3A97`（与 `apps/desktop/release/SHA256SUMS.txt` 一致）。
+- 安装包：`UNO-Setup-2.2.1.exe`（112,263,320 B，2026-11-11 同步打包并校验包内前端资源含修复），SHA256 `D44C6469A48A3497710C545913FD32B30ABC09DCA78324CA2A726D727F1965ED`（与 `apps/desktop/release/SHA256SUMS.txt` 一致）。
 
 ## v2.2.0（2026-11-09，[GitHub Release](https://github.com/shark-syh/uno-personal-game/releases/tag/v2.2.0)）
 
