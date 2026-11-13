@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0b" />
+
+    <!-- Primary SEO -->
+    <title>UNO No Mercy Rules: How to Play, All 168 Cards, Stacking &amp; Mercy Rule</title>
+    <meta name="description" content="The complete UNO No Mercy rule book, free online: how to play, all 168 cards (Draw 6, Draw 10, Skip Everyone, Color Roulette, 7 swap, 0 rotate), draw stacking rules, the 25-card mercy rule and the UNO call penalty. Checked against a working game engine." />
+    <meta name="keywords" content="uno no mercy rules, uno no mercy how to play, draw 6 uno, draw 10 uno, color roulette uno, skip everyone uno, uno no mercy cards, mercy rule uno, uno no mercy guide" />
+    <meta name="author" content="alii13" />
+    <link rel="canonical" href="https://open-mercy.com/rules/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://open-mercy.com/rules/" />
+    <meta property="og:title" content="UNO No Mercy Rules: How to Play, All 168 Cards, Stacking &amp; Mercy Rule" />
+    <meta property="og:description" content="Every card and rule from UNO No Mercy explained. Draw 6, Draw 10, Color Roulette, mercy elimination, and more." />
+    <meta property="og:image" content="https://open-mercy.com/og-image.png" />
+    <meta property="og:site_name" content="Open Mercy" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="UNO No Mercy Rules: How to Play, All 168 Cards, Stacking &amp; Mercy Rule" />
+    <meta name="twitter:description" content="Every card and rule from UNO No Mercy explained." />
+    <meta name="twitter:image" content="https://open-mercy.com/og-image.png" />
+
+    <!-- Structured Data: Article + Breadcrumb -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": "UNO No Mercy Rules: How to Play, All 168 Cards, Stacking & Mercy Rule",
+      "description": "Complete rules guide for UNO No Mercy. Every card type, every special effect, draw stacking variations, and elimination mechanics explained.",
+      "image": "https://open-mercy.com/og-image.png",
+      "url": "https://open-mercy.com/rules/",
+      "author": {
+        "@type": "Person",
+        "name": "alii13",
+        "url": "https://github.com/alii13"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Open Mercy",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://open-mercy.com/favicon.svg"
+        }
+      },
+      "mainEntityOfPage": "https://open-mercy.com/rules/",
+      "dateModified": "2026-11-11"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://open-mercy.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Rules", "item": "https://open-mercy.com/rules/" }
+      ]
+    }
+    </script>
+    <!-- Structured Data: FAQPage (mirrors the visible FAQ section below) -->
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How many cards are in UNO No Mercy?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "168. That is 80 number cards, 64 colored action cards (Skip, Reverse, Draw 2, Draw 4, Skip Everyone and Discard All) and 24 Wilds (Wild Reverse Draw 4, Draw 6, Draw 10 and Color Roulette). There is no plain Wild. It is the classic 108-card deck plus 60 new cards. Every card, explained."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you play UNO No Mercy?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Deal 7 cards each and take turns matching the top card by color, number or symbol. Draw cards can be stacked on each other, anyone who reaches 25 cards is eliminated, and the first player to empty their hand, or the last one left, wins. The step-by-step guide."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How many cards do you start with in UNO No Mercy?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "7, the same as classic UNO. The next card from the deck starts the discard pile."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the mercy rule in UNO No Mercy?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "If your hand reaches 25 cards at any point, you are eliminated from the round. If everyone else is eliminated, the last player left wins, even with cards in hand."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a UNO No Mercy rule book online?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The official printed rules ship with the game. This page is an independent, complete version: the one-screen summary at the top, then every card, stacking variant and edge case, all checked against a working game engine."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I play UNO No Mercy with a regular UNO deck?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You can play the variant rules (mercy, 7-swap, 0-rotate) with a regular deck, but you won't have the special cards (Draw 6, Draw 10, Skip Everyone, etc.). It's a watered-down version. Full breakdown of what you keep and lose, with workarounds."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if the deck runs out during a draw penalty?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Shuffle the discard pile (except the top card) and use it as the new deck. The penalty continues - if the player only got 4 cards out of a +6 penalty before the deck ran out, they draw the remaining 2 after the reshuffle."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I play a Wild card on top of a Draw stack?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Only Wild cards with a draw value can continue a Draw stack: Wild Reverse Draw 4, Wild Draw 6 and Wild Draw 10, subject to your stacking variant. Color Roulette has no draw value, so it can't be played on a stack."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the 7 - Swap have to be played?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "In the printed rules, yes. In our online version, the player can choose to \"keep my hand\" instead of swapping. This avoids the awkwardness of being forced into a swap when no opponent has fewer cards."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What if I'm forced to draw mid-game and my hand hits 25?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "You're immediately eliminated. The cards you drew that pushed you over count - you don't stop at 24."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there an online version?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes - open-mercy.com is a free browser game built on this ruleset, with real-time multiplayer (2-20 players) and a solo vs AI mode. No download, no login required."
+      }
+    }
+  ]
+}
+    </script>
+
+    <!-- Google Analytics + Google Ads -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HF9GCTVQ7J"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      // Consent Mode v2: Google tags start denied in the EEA, UK and Switzerland
+      // until the AdSense consent message (Google's certified CMP) records a choice.
+      gtag('consent', 'default', {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+        analytics_storage: 'denied',
+        region: ['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB','CH'],
+        wait_for_update: 500
+      });
+      gtag('js', new Date());
+      gtag('config', 'G-HF9GCTVQ7J');
+      gtag('config', 'AW-18192424425');
+    </script>
+
+    <!-- Google AdSense: Auto ads and the consent message run on the guide pages.
+         The app at / loads only the consent message, so ads never sit beside the game. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5481263585202262"
+         crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/rules/guide.css" />
+  </head>
+  <body>
+    <header>
+      <div class="container header-inner">
+        <div class="logo">
+          <a href="/">OPEN<span class="accent">MERCY</span></a>
+        </div>
+        <nav>
+          <a href="/">PLAY NOW</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <span class="sep">/</span>
+        <span>Rules</span>
+      </nav>
+
+      <div class="hero">
+        <h1>
+          UNO No Mercy Rules
+          <span class="accent">The Complete Guide</span>
+        </h1>
+        <p class="byline">By <a href="/about/">alii13</a> &middot; Last updated 25 October 2026 &middot; Checked against a working rules engine</p>
+        <p class="lead">
+          Every card, every special effect, every edge case. The complete rule set for UNO No Mercy - the ruthless expansion that turned every UNO night into a battlefield.
+        </p>
+        <div class="callout">
+          UNO&reg; and UNO Show 'Em No Mercy&reg; are trademarks of Mattel, Inc. This is an independent, unofficial rules guide. <a href="/">Open Mercy</a>, our free browser game, is built on this ruleset and is not affiliated with, endorsed by, or associated with Mattel.
+        </div>
+        <div class="cta-row">
+          <a href="/" class="btn btn-primary">Play Now Free</a>
+          <a href="/rules/how-to-play/" class="btn btn-ghost">How to play, step by step</a>
+              <a href="/rules/cheat-sheet.pdf" class="btn btn-ghost">One-page cheat sheet (PDF)</a>
+        </div>
+      </div>
+
+      <div class="toc">
+        <div class="toc-title">// CONTENTS</div>
+        <ol>
+          <li><a href="#rule-book">Quick rule book</a></li>
+          <li><a href="#what-is">What is UNO No Mercy?</a></li>
+          <li><a href="#setup">Setup &amp; Goal</a></li>
+          <li><a href="#basic-play">Basic Play</a></li>
+          <li><a href="#cards">All Cards &amp; Effects</a></li>
+          <li><a href="#stacking">Draw Stacking Rules</a></li>
+          <li><a href="#mercy">The Mercy Rule (Elimination at 25)</a></li>
+          <li><a href="#uno-call">UNO Call &amp; Penalty</a></li>
+          <li><a href="#scoring">Scoring</a></li>
+          <li><a href="#two-player">2-Player Variants</a></li>
+          <li><a href="#strategy">Strategy Tips</a></li>
+          <li><a href="#faq">Frequently Asked Questions</a></li>
+        </ol>
+      </div>
+
+      <section id="rule-book">
+        <h2>UNO No Mercy rule book: the one-screen summary</h2>
+        <p>Every rule in the game, in the order you meet it. Each row links to the full section below.</p>
+        <table class="card-table">
+          <thead>
+            <tr><th>Rule</th><th>Summary</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><a href="#setup">Players</a></td><td>2 to 20. Best with 3 to 6.</td></tr>
+            <tr><td><a href="#setup">Deck</a></td><td>168 cards: the classic 108 plus 60 No Mercy cards.</td></tr>
+            <tr><td><a href="#setup">Deal</a></td><td>7 cards each. The next card starts the discard pile.</td></tr>
+            <tr><td><a href="#setup">Goal</a></td><td>Empty your hand first, or be the last player not eliminated.</td></tr>
+            <tr><td><a href="#basic-play">Your turn</a></td><td>Play one card matching the top card by color, number or symbol. Wilds go on anything.</td></tr>
+            <tr><td><a href="#basic-play">Can't play</a></td><td>Draw until you can, then play it. House rule: draw one card.</td></tr>
+            <tr><td><a href="#stacking">Draw stacking</a></td><td>Answer a Draw card with one of equal or higher value to pass the total on. Can't stack: draw the whole total.</td></tr>
+            <tr><td><a href="#mercy">Mercy rule</a></td><td>Reach 25 cards at any moment and you are eliminated.</td></tr>
+            <tr><td><a href="#uno-call">UNO call</a></td><td>Call "UNO!" when you go down to one card. Forgetting costs you cards.</td></tr>
+            <tr><td><a href="#scoring">Scoring</a></td><td>Numbers at face value, action cards 20, Wilds 50, plus 250 for each player you eliminated.</td></tr>
+          </tbody>
+        </table>
+        <p>New to the game? <a href="/rules/how-to-play/">How to play UNO No Mercy</a> walks through a round step by step.</p>
+          <p>Printing for game night? The <a href="/rules/cheat-sheet/">one-page cheat sheet</a> has every rule and all 168 cards on a single sheet, with a <a href="/rules/cheat-sheet.pdf">PDF download</a>.</p>
+      </section>
+
+      <section id="what-is">
+        <h2>What is UNO No Mercy?</h2>
+        <p>
+          UNO No Mercy is an official rule expansion released by Mattel that takes the chaos of classic UNO and amplifies it. New cards force opponents to draw 6, 10, or even more cards. Players who hold 25+ cards are <strong>eliminated</strong> from the round entirely. Draw cards stack on top of each other, building penalties that can wipe a player out in a single turn.
+        </p>
+        <p>
+          It's UNO with the safety rails removed. One bad turn and you're holding half the deck. Two bad turns and you're out.
+        </p>
+        <p>
+          This page covers every official rule, plus common variants you might play with friends.
+        </p>
+      </section>
+
+      <section id="setup">
+        <h2>Setup &amp; Goal</h2>
+        <h3>Players</h3>
+        <p>2 to 20 players. Best with 3-6.</p>
+
+        <h3>Deck</h3>
+        <p>The No Mercy deck has 168 cards total - the classic 108 UNO cards plus 60 new "No Mercy" cards.</p>
+
+        <h3>Goal</h3>
+        <p>Be the last player standing. You win by either:</p>
+        <ul>
+          <li>Emptying your hand first, or</li>
+          <li>Surviving while every other player is eliminated by the mercy rule.</li>
+        </ul>
+
+        <h3>Deal</h3>
+        <p>Each player is dealt <strong>7 cards</strong>. The next card is placed face-up as the starting discard. The rest forms the draw pile.</p>
+
+        <h3>First Card</h3>
+        <p>If the first flipped card is a special card, it takes effect immediately:</p>
+        <ul>
+          <li><strong>Skip</strong> - the first player is skipped.</li>
+          <li><strong>Reverse</strong> - reverses turn order (in 2-player games, acts as Skip).</li>
+          <li><strong>Draw 2 / Draw 4</strong> - the first player must draw and is skipped.</li>
+          <li><strong>Skip Everyone</strong> - dealer plays again.</li>
+        </ul>
+      </section>
+
+      <section id="basic-play">
+        <h2>Basic Play</h2>
+        <p>On your turn, play one card that matches the top discard by <strong>color</strong>, <strong>number</strong>, or <strong>symbol</strong>. Wild cards can be played on any color.</p>
+        <p>If you can't play, draw cards from the deck until you draw a playable one - then you <strong>must</strong> play it immediately.</p>
+        <div class="callout">
+          <strong>House rule alternative:</strong> Many groups let you draw just one card per turn instead of "draw until playable." Decide before the round starts.
+        </div>
+      </section>
+
+      <section id="cards">
+        <h2>All Cards &amp; Effects</h2>
+        <p>
+          The No Mercy deck includes every classic UNO card plus seven new card types. Here's what each one does.
+        </p>
+        <div class="callout">
+          <strong>Deeper dive:</strong> <a href="/rules/cards/">Every card, explained</a> covers all 168 with exact deck counts and the interactions that catch people out.
+        </div>
+
+        <h3>Classic UNO Cards</h3>
+        <table class="card-table">
+          <thead>
+            <tr><th>Card</th><th>Effect</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Number (0-9)</td><td>Match by color or number. The 0 and 7 have special No Mercy effects (see below).</td></tr>
+            <tr><td>Skip</td><td>Next player loses their turn.</td></tr>
+            <tr><td>Reverse</td><td>Reverses turn direction. In 2-player games, acts as a Skip.</td></tr>
+            <tr><td>Draw 2 (+2)</td><td>Next player draws 2 cards and loses their turn (unless stacked).</td></tr>
+            <tr><td>Draw 4 (+4)</td><td>Next player draws 4 and loses their turn (unless stacked). In No Mercy this one is colored, so it follows normal color matching.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>No Mercy Cards</h3>
+        <table class="card-table">
+          <thead>
+            <tr><th>Card</th><th>Effect</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Draw 6 (+6)</td>
+              <td>Next player draws 6 cards. Stackable with other draw cards.</td>
+            </tr>
+            <tr>
+              <td>Draw 10 (+10)</td>
+              <td>Next player draws 10 cards. The most devastating single card in the game. <a href="/rules/draw-10/">Draw 10 in depth</a></td>
+            </tr>
+            <tr>
+              <td>Skip Everyone</td>
+              <td>All other players are skipped. You play again on the same turn. <a href="/rules/skip-everyone/">Skip Everyone in depth</a></td>
+            </tr>
+            <tr>
+              <td>Discard All</td>
+              <td>
+                Discard every card of the matching color from your hand at once.
+                You choose which card stays on top of the pile (the next player must match that one).
+                <a href="/rules/discard-all/">Discard All in depth</a>
+              </td>
+            </tr>
+            <tr>
+              <td>7 - Swap</td>
+              <td>
+                When you play a 7, you may swap your entire hand with another player.
+                In our online version, you can also choose to keep your own hand.
+                <a href="/rules/7-0-rule/">The 7 and 0 rule in depth</a>
+              </td>
+            </tr>
+            <tr>
+              <td>0 - Rotate</td>
+              <td>
+                When you play a 0, every player's hand rotates one seat in the current play direction.
+                <a href="/rules/7-0-rule/">How the rotation works</a>
+              </td>
+            </tr>
+            <tr>
+              <td>Wild Reverse Draw 4</td>
+              <td>
+                Wild + Draw 4 + reverses direction. In 2-player games Open Mercy sends the +4 to your opponent
+                (the printed rules have you draw it yourself unless you stack it back).
+              </td>
+            </tr>
+            <tr>
+              <td>Wild Color Roulette</td>
+              <td>
+                The next player calls a color, then must draw from the deck until they hit it. Can be 1 card. Can be 15.
+                Wild cards drawn during roulette do not count - they keep drawing.
+                <a href="/rules/color-roulette/">Color Roulette in depth</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="stacking">
+        <h2>Draw Stacking Rules</h2>
+        <p>
+          Stacking is the most-debated rule in UNO No Mercy. When a Draw card is played, the next player can sometimes "stack" their own Draw card on top, passing the accumulated penalty to the player after them. Three common rule variants exist:
+        </p>
+        <div class="callout">
+          <strong>Deeper dive:</strong> <a href="/rules/stacking/">Can you stack draw cards?</a> covers the full stack-on-stack matrix, worked examples, and the edge cases that start arguments.
+        </div>
+
+        <figure class="shot">
+          <img src="/guides/img/stack-draw-10.jpg" width="390" height="664" loading="lazy" alt="A Draw 10 on the discard pile in Open Mercy, the status bar reading +10 and the hand counter at 6 of 25 cards" />
+          <figcaption>A Draw 10 lands. The next player stacks a Draw 10 of their own or takes all 10 cards. The 6/25 counter is the mercy rule, always in view.</figcaption>
+        </figure>
+        <h3>Official Rule (Equal or Higher)</h3>
+        <p>
+          A Draw card can only be stacked if its value is <strong>equal to or higher than</strong> the top card.
+          So a +4 cannot go on a +10, but a +10 can go on a +6.
+        </p>
+        <p>
+          This is the printed rule and the default we use. It rewards holding higher-value Draw cards.
+        </p>
+
+        <h3>House Rule (Wild Cards Stack on Anything)</h3>
+        <p>
+          Wild Draw cards (Wild Reverse Draw 4, Wild Draw 6, Wild Draw 10) can stack on any Draw card regardless of value.
+          Colored Draw cards still follow the equal-or-higher rule. This is one of the most common house rules.
+        </p>
+
+        <h3>Casual Rule (Anything Goes)</h3>
+        <p>
+          Any Draw card stacks on any Draw card. A +2 can go on a +10. The game becomes more chaotic and luck-based.
+        </p>
+
+        <div class="callout success">
+          <strong>On our site:</strong> the host of each multiplayer game picks the stacking rule when creating the room. The selection is shown in the waiting room so joiners know what they're getting into.
+        </div>
+
+        <h3>What Happens When You Can't Stack</h3>
+        <p>
+          If you don't have a stackable Draw card, you must draw the full accumulated penalty. So if a +10 was played and then a +6 was stacked on it, the next player who can't continue stacking draws all 16 cards.
+        </p>
+      </section>
+
+      <section id="mercy">
+        <h2>The Mercy Rule (Elimination at 25 Cards)</h2>
+        <div class="callout danger">
+          <strong>If your hand reaches 25 cards at any point, you are eliminated from the round.</strong> Your remaining cards are discarded and you're out until the next game.
+        </div>
+        <p>
+          This is the most defining rule of No Mercy. Drawing penalties can pile up fast - a +10 followed by another +10 is enough to push a 6-card hand over the line.
+        </p>
+        <p>
+          The mercy rule applies at any moment during play. If you're forced to draw cards (from a Draw stack, a Roulette, or normal drawing) and your hand crosses 25, elimination is immediate.
+        </p>
+        <p>
+          If all but one player is eliminated, the surviving player wins the round - even if their hand isn't empty.
+        </p>
+        <p>
+          <strong>Deeper dive:</strong> <a href="/rules/mercy-rule/">The mercy rule, explained</a> covers exactly when the count is checked, what happens to your cards, and how to stay under 25.
+        </p>
+      </section>
+
+      <section id="uno-call">
+        <h2>UNO Call &amp; Penalty</h2>
+        <p>
+          When you play your second-to-last card (going from 2 cards to 1), you must call <strong>"UNO!"</strong> before the next player takes their turn.
+        </p>
+        <p>
+          In our online game, Open Mercy, the call button says <strong>MERCY!</strong> - same rule, same timing.
+        </p>
+        <p>
+          In Open Mercy, forgetting costs you in one of two ways. Sit on 1 card without calling and every opponent gets a CAUGHT button for a few seconds - if anyone presses it, you draw <strong>10 cards</strong>. If nobody catches you in time, playing your last card still wins.
+        </p>
+        <div class="callout">
+          <strong>Exception:</strong> If a card effect (like Discard All) drops you from many cards to 0 in a single play, you don't need to have called UNO - there was no chance.
+        </div>
+      </section>
+
+      <section id="scoring">
+        <h2>Scoring</h2>
+        <p>
+          When a round ends, the winner scores points based on the cards left in opponents' hands:
+        </p>
+        <ul>
+          <li><strong>Number cards (0-9):</strong> face value</li>
+          <li><strong>Action cards</strong> (Skip, Reverse, Draw 2, etc.): 20 points each</li>
+          <li><strong>Wild cards</strong>: 50 points each</li>
+          <li><strong>Eliminated player bonus:</strong> 250 points to the winner for each player eliminated by the mercy rule</li>
+        </ul>
+        <p>
+          Multi-round games typically play to a target score (500 or 1000).
+        </p>
+      </section>
+
+      <section id="two-player">
+        <h2>2-Player Variants</h2>
+        <p>Some rules change when only two players are at the table:</p>
+        <ul>
+          <li><strong>Reverse</strong> acts as a Skip.</li>
+          <li><strong>Wild Reverse Draw 4:</strong> Open Mercy sends the +4 to your opponent. The printed rules have you draw it yourself unless you stack it back, so agree on one before a table game.</li>
+          <li><strong>0 - Rotate</strong> is essentially a hand swap.</li>
+          <li><strong>7 - Swap</strong> only has one possible target.</li>
+        </ul>
+      </section>
+
+      <section id="strategy">
+        <h2>Strategy Tips</h2>
+        <h3>Hold Your High-Value Draws</h3>
+        <p>
+          A +10 in hand is insurance. If someone plays a Draw chain, you're the only one who can stack on top - or at least force them to absorb it. Don't waste your +10 on an opening play.
+        </p>
+
+        <h3>Time Your Skip Everyone</h3>
+        <p>
+          The Skip Everyone is most valuable when you're about to call UNO. Playing it as your second-to-last card lets you slip in your final card before anyone else can react.
+        </p>
+
+        <h3>Color Roulette is a Gamble Both Ways</h3>
+        <p>
+          Roulette can be devastating, but the victim controls the spin. When you're hit, call smart: the deck is finite, so if most of a color is already in hands or on the discard pile, calling it means a long, painful draw. Call the color you've seen the least of.
+        </p>
+
+        <h3>Track Card Counts</h3>
+        <p>
+          In No Mercy, knowing who's close to elimination matters more than in regular UNO. If a player has 20+ cards, push them to elimination with Draw cards or Color Roulette before they can recover.
+        </p>
+
+        <h3>The 7 Card is a Defensive Tool</h3>
+        <p>
+          If your hand is bloated, a 7 can save you - swap with whoever has the smallest hand. The player you swap with may end up close to mercy elimination on their next turn.
+        </p>
+      </section>
+
+      <section id="faq">
+        <h2>Frequently Asked Questions</h2>
+
+        <div class="faq-item">
+          <div class="faq-q">How many cards are in UNO No Mercy?</div>
+          <p>168. That is 80 number cards, 64 colored action cards (Skip, Reverse, Draw 2, Draw 4, Skip Everyone and Discard All) and 24 Wilds (Wild Reverse Draw 4, Draw 6, Draw 10 and Color Roulette). There is no plain Wild. It is the classic 108-card deck plus 60 new cards. <a href="/rules/cards/">Every card, explained.</a></p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">How do you play UNO No Mercy?</div>
+          <p>Deal 7 cards each and take turns matching the top card by color, number or symbol. Draw cards can be stacked on each other, anyone who reaches 25 cards is eliminated, and the first player to empty their hand, or the last one left, wins. <a href="/rules/how-to-play/">The step-by-step guide.</a></p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">How many cards do you start with in UNO No Mercy?</div>
+          <p>7, the same as classic UNO. The next card from the deck starts the discard pile.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What is the mercy rule in UNO No Mercy?</div>
+          <p>If your hand reaches 25 cards at any point, you are eliminated from the round. If everyone else is eliminated, the last player left wins, even with cards in hand.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Is there a UNO No Mercy rule book online?</div>
+          <p>The official printed rules ship with the game. This page is an independent, complete version: the <a href="#rule-book">one-screen summary</a> at the top, then every card, stacking variant and edge case, all checked against a working game engine.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Can I play UNO No Mercy with a regular UNO deck?</div>
+          <p>You can play the variant rules (mercy, 7-swap, 0-rotate) with a regular deck, but you won't have the special cards (Draw 6, Draw 10, Skip Everyone, etc.). It's a watered-down version. <a href="/rules/regular-deck/">Full breakdown of what you keep and lose</a>, with workarounds.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What happens if the deck runs out during a draw penalty?</div>
+          <p>Shuffle the discard pile (except the top card) and use it as the new deck. The penalty continues - if the player only got 4 cards out of a +6 penalty before the deck ran out, they draw the remaining 2 after the reshuffle.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Can I play a Wild card on top of a Draw stack?</div>
+          <p>Only Wild cards with a draw value can continue a Draw stack: Wild Reverse Draw 4, Wild Draw 6 and Wild Draw 10, subject to your stacking variant. Color Roulette has no draw value, so it can't be played on a stack.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Does the 7 - Swap have to be played?</div>
+          <p>In the printed rules, yes. In our online version, the player can choose to "keep my hand" instead of swapping. This avoids the awkwardness of being forced into a swap when no opponent has fewer cards.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What if I'm forced to draw mid-game and my hand hits 25?</div>
+          <p>You're immediately eliminated. The cards you drew that pushed you over count - you don't stop at 24.</p>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Is there an online version?</div>
+          <p>Yes - <a href="/">open-mercy.com</a> is a free browser game built on this ruleset, with real-time multiplayer (2-20 players) and a solo vs AI mode. No download, no login required.</p>
+        </div>
+      </section>
+
+      <div class="final-cta">
+        <h2>Ready to Play?</h2>
+        <p>Test these rules in a real game. Free, no download, no login.</p>
+        <div class="cta-row">
+          <a href="/" class="btn btn-primary">Play Open Mercy Now</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      Built by
+      <a href="https://github.com/alii13" target="_blank" rel="noopener noreferrer">alii13</a>
+      &middot; <a href="/how-to-play/">How to play</a>
+      &middot; <a href="/rules/">Rules</a>
+      &middot; <a href="/strategy/">Strategy</a>
+      &middot; <a href="/faq/">FAQ</a>
+      &middot; <a href="/about/">About</a>
+      &middot; <a href="/contact/">Contact</a>
+      &middot; <a href="/privacy/">Privacy</a>
+      &middot; <a href="/terms/">Terms</a>
+      <span class="fc-settings" hidden>&middot; <a href="#" onclick="window.googlefc = window.googlefc || {}; googlefc.callbackQueue = googlefc.callbackQueue || []; googlefc.callbackQueue.push(function () { googlefc.showRevocationMessage(); }); return false;">Privacy settings</a></span>
+      <script>(window.googlefc = window.googlefc || {}).callbackQueue = window.googlefc.callbackQueue || []; googlefc.callbackQueue.push({ CONSENT_DATA_READY: function () { if (typeof googlefc.showRevocationMessage === 'function') document.querySelector('.fc-settings').hidden = false; } });</script>
+    </footer>
+  </body>
+</html>

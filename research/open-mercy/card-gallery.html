@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>open-mercy 卡面参考预览</title>
+<style>
+  body{margin:0;padding:32px 28px 48px;background:#0f1115;color:#e9eaee;font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+  h1{font-size:20px;font-weight:500;margin:0 0 6px}
+  .lead{font-size:13px;color:#9aa0ad;margin:0 0 22px}
+  h2{font-size:15px;font-weight:500;margin:30px 0 6px}
+  .hint{font-size:12px;color:#888e9b;margin:0 0 14px}
+  .banner{background:#181b21;border:1px solid #2e323c;padding:14px 16px;font-size:13px;line-height:1.75;margin-bottom:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
+  .item{background:#181b21;border:1px solid #2e323c;padding:12px}
+  .item img{width:100%;height:224px;object-fit:contain;display:block;background:#0b0d11}
+  .name{font-size:13px;margin-top:10px}
+  .note{font-size:12px;color:#9aa0ad;margin-top:3px;line-height:1.5}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border:1px solid #3a3f4b;color:#aeb3bf;margin-bottom:10px}
+  .ok{border-color:#2f6b4f}
+  .sub{font-size:12px;color:#9aa0ad;margin:10px 0 12px}
+  footer{margin-top:34px;padding:16px;background:#181b21;border:1px solid #2e323c;font-size:12px;color:#a8aebb;line-height:1.9}
+  footer strong{color:#e9eaee;font-weight:500}
+</style>
+</head>
+<body>
+<h1>open-mercy 卡面预览</h1>
+<p class="lead">资料目录 research/open-mercy · 2026-11-13 · B 版（官方卡面矢量描摹及其四色渲染）按用户决定用于个人学习</p>
+
+<div class="banner">
+  <strong>使用决定（2026-11-13）：</strong>采用 B 版官方卡面矢量描摹及其四色 webp 渲染，仅用于本人非商业学习，权限申明见本页末尾。B 版是<strong>纯友尽版（No Mercy）卡面</strong>：68 个唯一卡面可拼出完整 168 张牌堆；<strong>不含任何 Flip 专属牌</strong>（+1 / Wild +2 / +5 / 抽到指定色 / Flip 牌 / 暗面四色均缺失）。因此友尽模式卡面现成，Flip 模式需另做第三套卡面，基础模式继续用现有 CC0 54 张。
+</div>
+
+<h2>A · 官方实物参考（cards/ 12 张 PNG）<span class="tag">个人学习采用</span></h2>
+<p class="hint">照片/扫描，可见划痕与噪点；用于理解牌面符号语言。</p>
+<div class="grid">
+  <div class="item"><img src="cards/0.png" alt="绿色 +2"><div class="name">绿色 Draw 2（+2）</div><div class="note">椭圆中央两张白牌 + 四角 +2。</div></div>
+  <div class="item"><img src="cards/5.png" alt="红色反转"><div class="name">红色 Reverse</div><div class="note">粗白环形箭头，四角小回环符号。</div></div>
+  <div class="item"><img src="cards/6.png" alt="Wild 反转 +4"><div class="name">Wild Reverse Draw 4</div><div class="note">黑底 + 四色椭圆 + 双向箭头，友尽版独有。</div></div>
+  <div class="item"><img src="cards/10.png" alt="黄色 7"><div class="name">黄色 7（换手）</div><div class="note">大数字 7 配双向小箭头，表示交换手牌。</div></div>
+</div>
+
+<h2>B · 官方卡面矢量描摹（cards-svgs/ 20 个 SVG）<span class="tag">个人学习采用</span></h2>
+<p class="hint">单个 60~756 KB 的复杂路径描摹，&lt;text&gt; 元素为 0；这些只是单色参考源，运行时使用下面的四色 webp。</p>
+<div class="grid">
+  <div class="item"><img src="cards-svgs/wild-ten-draw.svg" alt="Wild +10"><div class="name">Wild Draw 10</div><div class="note">友尽版最高罚牌，+10 是叠链上限。</div></div>
+  <div class="item"><img src="cards-svgs/wild-draw-six.svg" alt="Wild +6"><div class="name">Wild Draw 6</div><div class="note">无打出限制、不可被质疑。</div></div>
+  <div class="item"><img src="cards-svgs/skip-everyone-red.svg" alt="全员跳过"><div class="name">Skip Everyone（红）</div><div class="note">跳过所有其他玩家，出牌者再来一回合。</div></div>
+  <div class="item"><img src="cards-svgs/discard-all-green.svg" alt="全弃"><div class="name">Discard All（绿）</div><div class="note">一次弃掉手中所有同色牌。</div></div>
+  <div class="item"><img src="cards-svgs/wild-roulette.svg" alt="颜色轮盘"><div class="name">Wild Color Roulette</div><div class="note">下家选色后一直抽到该颜色，Wild 不计。</div></div>
+  <div class="item"><img src="cards-svgs/seven-swap-yellow.svg" alt="7 换手"><div class="name">7（换手）</div><div class="note">数字牌 7 自带换手效果。</div></div>
+</div>
+
+<h2>B+ · 完整四色渲染（cards-webp/ 68 个 webp，已提取）<span class="tag">友尽模式可直接拼牌堆</span></h2>
+<p class="sub">数字 0~9 × 4 色 = 40 · 彩色功能牌（+2 / +4 / Skip / Reverse / 全员跳过 / 全弃）× 4 色 = 24 · 万能牌（+6 / +10 / 反转+4 / 颜色轮盘）= 4，合计 68 个唯一面，按份数复制成官方 168 张。</p>
+<div class="grid">
+  <div class="item"><img src="cards-webp/zero-red.webp" alt="红 0"><div class="name">红 0（传手）</div><div class="note">四色变体齐全，示例之一。</div></div>
+  <div class="item"><img src="cards-webp/zero-blue.webp" alt="蓝 0"><div class="name">蓝 0（传手）</div><div class="note">同一牌型的换色复用。</div></div>
+  <div class="item"><img src="cards-webp/skip-everyone-red.webp" alt="全员跳过"><div class="name">全员跳过（红 webp）</div><div class="note">与上方 SVG 描摹同源的渲染结果。</div></div>
+  <div class="item"><img src="cards-webp/wild-ten-draw.webp" alt="Wild +10"><div class="name">Wild +10（webp）</div><div class="note">万能牌无颜色变体。</div></div>
+</div>
+
+<h2>C · 项目现有 CC0 基础版卡面（research/cards/）<span class="tag ok">基础模式继续使用</span></h2>
+<p class="hint">来源 github.com/celsiusnarhwal/uno（CC0），切自 Wikimedia Commons UNO_cards_deck.svg；受「牌面素材不可修改」红线保护，三个模式都不改动这 54 张。</p>
+<div class="grid">
+  <div class="item"><img src="../cards/R7.png" alt="红 7"><div class="name">红 7（基础版）</div><div class="note">标准 UNO 美术，与 B 版 No Mercy 风格明显不同。</div></div>
+  <div class="item"><img src="../cards/BA2.png" alt="蓝 +2"><div class="name">蓝 +2（基础版）</div><div class="note">同一效果，两套视觉语言。</div></div>
+  <div class="item"><img src="../cards/W4.png" alt="Wild +4"><div class="name">Wild +4（基础版）</div><div class="note">友尽版取消普通 Wild / Wild +4。</div></div>
+</div>
+
+<footer>
+  <strong>权限申明</strong><br>
+  1. <strong>使用者与用途</strong>：本项目作者本人，仅用于个人学习、研究与非商业演示；不用于任何商业活动，不对外提供 UNO 游戏服务，不单独售卖、转授权或声称拥有这些卡面素材。<br>
+  2. <strong>素材来源</strong>：A / B / B+ 三组卡面取自开源仓库 alii13/open-mercy（MIT，Copyright (c) 2026 alii13）的 cards/、cards-svgs/、frontend/src/assets/cards-webp/；该仓库的规则引擎、规则参考与文档按 MIT 使用。C 组为项目原有 CC0 / public domain 素材。<br>
+  3. <strong>权利归属</strong>：UNO® 与 UNO Show 'Em No Mercy® 为 Mattel, Inc. 的注册商标；卡面美术、图形、符号与 trade dress 的著作权及商标权归 Mattel 或原权利人所有。上游 MIT 许可证仅覆盖软件与文档文件，<strong>不构成对上述美术与商标的授权</strong>；B 组矢量描摹属复制性演绎，本项目不主张任何原创权利，也不将其标注为「开源卡面」。<br>
+  4. <strong>独立性</strong>：本项目为个人独立学习项目，与 Mattel 无关联，未获其授权、背书或赞助。<br>
+  5. <strong>分发限制</strong>：上述官方卡面仅供本地个人使用，<strong>不随安装包（exe）、GitHub Release 或任何公开分发渠道外传</strong>；若日后需要公开分发，改用项目自有 CC0 基础卡面或完全自绘素材，并在发布前重新评估商标与版权风险。<br>
+  6. 完整说明见同目录 README-来源与裁剪.md 末尾「使用决定与权限申明」。
+</footer>
+</body>
+</html>
