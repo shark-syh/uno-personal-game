@@ -11,23 +11,24 @@
  * - `full`：全部已出牌（超几何分布精确推断）；
  * - `full-plus`：在 full 基础上增加行为建模（对手诈唬/挑战历史）。
  */
-import { createDeck } from '@uno/game-core';
+import { ALL_CARD_KINDS, createDeck } from '@uno/game-core';
 import type { Card, CardKind, Color, GameEvent } from '@uno/game-core';
 import type { AiMemory, AiView, MemoryLevel, PlayerMemory } from './types.ts';
 import { colorBeforeLastWild4 } from './view.ts';
 
-/** 用引擎牌组推导初始张数，避免与引擎口径不一致 */
+/**
+ * 全部牌型的零值表，由引擎导出的牌型清单推导。
+ * M1 起牌型扩展为基础 6 种 + 友尽 7 种，避免手写常量随模式新增而漂移。
+ */
+function emptyKindRecord(): Record<CardKind, number> {
+  return Object.fromEntries(ALL_CARD_KINDS.map((kind) => [kind, 0])) as Record<CardKind, number>;
+}
+
+/** 用引擎牌组推导初始张数，避免与引擎口径不一致（默认 classic 108 张） */
 const INITIAL = (() => {
   const deck = createDeck();
   const colors: Record<Color, number> = { red: 0, yellow: 0, green: 0, blue: 0 };
-  const kinds: Record<CardKind, number> = {
-    number: 0,
-    skip: 0,
-    reverse: 0,
-    draw2: 0,
-    wild: 0,
-    wild4: 0,
-  };
+  const kinds = emptyKindRecord();
   for (const card of deck) {
     if (card.color) colors[card.color] += 1;
     kinds[card.kind] += 1;
@@ -51,14 +52,7 @@ function countSeen(cards: readonly Card[]): {
   kinds: Record<CardKind, number>;
 } {
   const colors = emptyColorRecord();
-  const kinds: Record<CardKind, number> = {
-    number: 0,
-    skip: 0,
-    reverse: 0,
-    draw2: 0,
-    wild: 0,
-    wild4: 0,
-  };
+  const kinds = emptyKindRecord();
   for (const card of cards) {
     if (card.color) colors[card.color] += 1;
     kinds[card.kind] += 1;

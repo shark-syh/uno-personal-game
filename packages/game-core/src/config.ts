@@ -3,6 +3,7 @@ import type {
   DeckExhaustion,
   Difficulty,
   GameConfig,
+  GameMode,
   StackingMode,
   StartCardRule,
   StartingPlayer,
@@ -12,10 +13,12 @@ import type {
 /**
  * 规则默认值（对应 `docs/开发计划.md` 4.12 规则决策表）。
  *
- * 本作与"原版"的唯一玩法差异：宽松叠牌（loose）。
+ * 基础版与"原版"的唯一玩法差异：宽松叠牌（loose）。
  * 其余默认值均按原版：标准 108 张、单局定胜负、UNO 罚 2 张、+4 可挑战、2 人特殊规则开启。
+ * M1 新增 mode：默认 classic，确保 createDeck() / createInitialGame() 等既有调用行为完全不变。
  */
 export const DEFAULT_GAME_CONFIG: GameConfig = {
+  mode: 'classic',
   playerCount: 4,
   humanSeat: 0,
   names: null,
@@ -33,6 +36,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
   seed: undefined,
 };
 
+const GAME_MODES = new Set<GameMode>(['classic', 'flip', 'mercy']);
 const DIFFICULTIES = new Set<Difficulty>(['casual', 'easy', 'realistic', 'hardcore']);
 const AI_MODES = new Set<AiMode>(['zhipu', 'local', 'auto']);
 const STARTING_PLAYERS = new Set<StartingPlayer>(['random', 'human']);
@@ -43,11 +47,14 @@ const WILD4_LEGALITIES = new Set<Wild4Legality>(['color-only', 'new-version']);
 
 /**
  * 合并默认值并校验配置。
- * @throws RangeError 配置非法时抛出（人数越界、未知难度等）
+ * @throws RangeError 配置非法时抛出（人数越界、未知难度、未知模式等）
  */
 export function normalizeGameConfig(partial: Partial<GameConfig> = {}): GameConfig {
   const merged: GameConfig = { ...DEFAULT_GAME_CONFIG, ...partial };
 
+  if (!GAME_MODES.has(merged.mode)) {
+    throw new RangeError(`未知玩法模式：${merged.mode}`);
+  }
   if (!Number.isInteger(merged.playerCount) || merged.playerCount < 2 || merged.playerCount > 10) {
     throw new RangeError(`playerCount 必须是 2~10 的整数，收到 ${merged.playerCount}`);
   }

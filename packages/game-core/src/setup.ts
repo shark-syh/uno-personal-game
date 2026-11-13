@@ -9,7 +9,7 @@ import type {
   PlayerState,
 } from './types.ts';
 import { normalizeGameConfig } from './config.ts';
-import { createDeck } from './deck.ts';
+import { createDeck, expectedDeckSize } from './deck.ts';
 import { createRng, nextInt, shuffle } from './rng.ts';
 
 /** AI 默认名字池（最多 9 个 AI） */
@@ -40,7 +40,7 @@ export function buildPlayerNames(config: GameConfig): string[] {
   return names;
 }
 
-/** 统计全牌数量（手牌 + 抽牌堆 + 弃牌堆），必须恒等于 108 */
+/** 统计全牌数量（手牌 + 抽牌堆 + 弃牌堆）；classic 恒为 108，mercy 恒为 168 */
 export function countCards(state: GameState): number {
   return (
     state.players.reduce((sum, player) => sum + player.hand.length, 0) +
@@ -59,6 +59,9 @@ export function countCards(state: GameState): number {
  * - 起手 Wild+4：放回洗牌重新翻（classic 规则）；
  * - 起手 Skip / Reverse / +2：由首位玩家承受效果；
  * - ignore-action 模式：跳过动作牌继续翻（Wild 仍保留，由首位玩家选色）。
+ *
+ * M1：mode='mercy' 时牌堆为 168 张，且起手翻到任一功能牌 / 万能牌都忽略重翻，
+ * 保证起手一定是数字牌（官方建议口径）。友尽牌的效果结算由后续阶段实现。
  */
 export function createInitialGame(partial: Partial<GameConfig> = {}): GameState {
   const config = normalizeGameConfig(partial);
@@ -73,7 +76,7 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     saidUno: false,
   }));
 
-  let drawPile = shuffle(createDeck(), rng);
+  let drawPile = shuffle(createDeck(config), rng);
 
   const drawCard = (): Card => {
     const card = drawPile.pop();
@@ -96,15 +99,22 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     config.startingPlayer === 'human' ? config.humanSeat : nextInt(rng, config.playerCount);
   const dealerSeat = prevSeat(nominalFirst, config.playerCount);
 
-  // 起手翻牌：处理 Wild+4 重翻 / ignore-action 忽略动作牌
+  // 起手翻牌：处理 Wild+4 重翻 / ignore-action 忽略动作牌 / 友尽模式起手只认数字牌
   const ignoredCards: Card[] = [];
   let startCard: Card | null = null;
   let guard = 0;
+  const maxStartCardAttempts = expectedDeckSize(config) * 2;
   while (!startCard) {
     guard += 1;
-    if (guard > 216) throw new Error('起手翻牌异常：超过重翻上限');
+    if (guard > maxStartCardAttempts) throw new Error('起手翻牌异常：超过重翻上限');
 
     const candidate = drawCard();
+    // M1：友尽版起手若为功能牌 / 万能牌，忽略并重翻（放回抽牌堆底部，保持牌数守恒）
+    if (config.mode === 'mercy' && candidate.kind !== 'number') {
+      ignoredCards.push(candidate);
+      events.push({ type: 'START_CARD_IGNORED', card: candidate });
+      continue;
+    }
     if (candidate.kind === 'wild4') {
       // 原版：放回牌堆、洗牌、重新翻
       drawPile.push(candidate);
@@ -122,7 +132,7 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     }
     startCard = candidate;
   }
-  // 被忽略的动作牌放回抽牌堆底部，保证 108 张始终守恒
+  // 被忽略的牌放回抽牌堆底部，保证牌堆总数始终守恒
   if (ignoredCards.length > 0) {
     drawPile = [...ignoredCards, ...drawPile];
     events.push({ type: 'PILE_RESHUFFLE', reason: 'ignore-action' });
@@ -173,6 +183,10 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     case 'wild4': {
       // 上面的循环已保证起手不可能是 wild4
       throw new Error('起手牌不应该是 Wild+4');
+    }
+    default: {
+      // 友尽版新牌型的效果由后续阶段实现；M1 起手阶段不应走到这里
+      throw new Error(`起手牌型尚未支持：${startCard.kind}`);
     }
   }
 

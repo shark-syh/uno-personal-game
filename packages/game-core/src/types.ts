@@ -7,8 +7,32 @@
 /** 四种颜色 */
 export type Color = 'red' | 'yellow' | 'green' | 'blue';
 
-/** 牌型：数字 / 跳过 / 反转 / +2 / 万能 / +4 万能 */
-export type CardKind = 'number' | 'skip' | 'reverse' | 'draw2' | 'wild' | 'wild4';
+/**
+ * 玩法模式（三模式升级 · M1）。
+ * - classic：标准 108 张，现有行为完全不变；
+ * - mercy：UNO Show 'Em No Mercy，168 张（牌表见 deck.ts）；
+ * - flip：UNO Flip，112 张双面牌，方案已写、后续阶段实现（M1 起遇到会明确抛错）。
+ */
+export type GameMode = 'classic' | 'flip' | 'mercy';
+
+/**
+ * 牌型并集：基础版 6 种 + 友尽版新增 7 种。
+ * 友尽版不含普通 wild / wild4，由四类新万能牌取代（见 docs/三模式升级-友尽模式规则契约.md）。
+ */
+export type CardKind =
+  | 'number'
+  | 'skip'
+  | 'reverse'
+  | 'draw2'
+  | 'wild'
+  | 'wild4'
+  | 'draw4'
+  | 'skipEveryone'
+  | 'discardAll'
+  | 'draw6'
+  | 'draw10'
+  | 'wildReverseDraw4'
+  | 'wildColorRoulette';
 
 /** AI 难度四档（M2 阶段使用，类型先就位） */
 export type Difficulty = 'casual' | 'easy' | 'realistic' | 'hardcore';
@@ -22,7 +46,7 @@ export type StartingPlayer = 'random' | 'human';
 /** 起手翻牌为动作牌时的处理：原版结算 / 忽略动作牌重新翻 */
 export type StartCardRule = 'classic' | 'ignore-action';
 
-/** 叠加模式：本作固定宽松叠法，保留配置位 */
+/** 叠加模式：基础版宽松叠法；友尽版后续阶段切换为 official 口径 */
 export type StackingMode = 'loose' | 'classic' | 'none';
 
 /** 抽牌堆耗尽策略：洗回弃牌堆 / 按手牌最少者结束 */
@@ -39,16 +63,22 @@ export interface Card {
   /** 全局唯一，如 "R7#0" */
   id: string;
   kind: CardKind;
-  /** wild / wild4 为 null */
+  /** 万能牌为 null（基础 wild/wild4 与友尽四类新万能牌） */
   color: Color | null;
   /** 数字牌 0-9，其余为 null */
   value: number | null;
-  /** 卡面资源码，对应 apps/web/cards/{faceCode}.png，如 "R7" / "BA2" / "WC" / "W4" */
+  /**
+   * 卡面资源码。classic 对应 apps/web/cards/{faceCode}.png（如 "R7" / "BA2" / "WC" / "W4"）；
+   * mercy 对应 B 版资源文件名（如 "two-draw-red" / "seven-swap-blue" / "wild-ten-draw"），
+   * 由后续阶段按 mode 切换资源目录，不在本阶段改动现有 54 张 PNG。
+   */
   faceCode: string;
 }
 
 /** 对局配置（默认值见 config.ts 的 DEFAULT_GAME_CONFIG） */
 export interface GameConfig {
+  /** 玩法模式：默认 classic，保证所有既有调用零改动 */
+  mode: GameMode;
   /** 总人数 2~10（人类 1 人 + 其余 AI） */
   playerCount: number;
   /** 人类座位，本期固定为 0 */

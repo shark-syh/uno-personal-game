@@ -2,6 +2,7 @@
 
 // packages/game-core/src/config.ts
 var DEFAULT_GAME_CONFIG = {
+  mode: "classic",
   playerCount: 4,
   humanSeat: 0,
   names: null,
@@ -18,6 +19,7 @@ var DEFAULT_GAME_CONFIG = {
   autoCallUno: false,
   seed: void 0
 };
+var GAME_MODES = /* @__PURE__ */ new Set(["classic", "flip", "mercy"]);
 var DIFFICULTIES = /* @__PURE__ */ new Set(["casual", "easy", "realistic", "hardcore"]);
 var AI_MODES = /* @__PURE__ */ new Set(["zhipu", "local", "auto"]);
 var STARTING_PLAYERS = /* @__PURE__ */ new Set(["random", "human"]);
@@ -27,6 +29,9 @@ var DECK_EXHAUSTIONS = /* @__PURE__ */ new Set(["reshuffle", "end-by-fewest"]);
 var WILD4_LEGALITIES = /* @__PURE__ */ new Set(["color-only", "new-version"]);
 function normalizeGameConfig(partial = {}) {
   const merged = { ...DEFAULT_GAME_CONFIG, ...partial };
+  if (!GAME_MODES.has(merged.mode)) {
+    throw new RangeError(`\u672A\u77E5\u73A9\u6CD5\u6A21\u5F0F\uFF1A${merged.mode}`);
+  }
   if (!Number.isInteger(merged.playerCount) || merged.playerCount < 2 || merged.playerCount > 10) {
     throw new RangeError(`playerCount \u5FC5\u987B\u662F 2~10 \u7684\u6574\u6570\uFF0C\u6536\u5230 ${merged.playerCount}`);
   }
@@ -121,7 +126,45 @@ var COLOR_NAME = {
   green: "\u7EFF",
   blue: "\u84DD"
 };
-function createDeck() {
+var ALL_CARD_KINDS = [
+  "number",
+  "skip",
+  "reverse",
+  "draw2",
+  "wild",
+  "wild4",
+  "draw4",
+  "skipEveryone",
+  "discardAll",
+  "draw6",
+  "draw10",
+  "wildReverseDraw4",
+  "wildColorRoulette"
+];
+var MERCY_NUMBER_WORD = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven-swap",
+  "eight",
+  "nine"
+];
+var DECK_SIZE = {
+  classic: 108,
+  mercy: 168
+};
+function expectedDeckSize(config = {}) {
+  const mode = config.mode ?? "classic";
+  if (mode === "flip") {
+    throw new Error("UNO Flip \u724C\u5806\u5C1A\u672A\u5B9E\u73B0\uFF08\u540E\u7EED\u9636\u6BB5\uFF09");
+  }
+  return DECK_SIZE[mode];
+}
+function createPusher() {
   const cards = [];
   const counters = /* @__PURE__ */ new Map();
   const push = (kind, color, value, faceCode) => {
@@ -129,6 +172,10 @@ function createDeck() {
     counters.set(faceCode, index + 1);
     cards.push({ id: `${faceCode}#${index}`, kind, color, value, faceCode });
   };
+  return { cards, push };
+}
+function createClassicDeck() {
+  const { cards, push } = createPusher();
   for (const color of ALL_COLORS) {
     const prefix = COLOR_CODE[color];
     push("number", color, 0, `${prefix}0`);
@@ -147,24 +194,88 @@ function createDeck() {
     push("wild", null, null, "WC");
     push("wild4", null, null, "W4");
   }
-  if (cards.length !== 108) {
-    throw new Error(`\u724C\u7EC4\u751F\u6210\u9519\u8BEF\uFF1A\u671F\u671B 108 \u5F20\uFF0C\u5B9E\u9645 ${cards.length} \u5F20`);
+  if (cards.length !== DECK_SIZE.classic) {
+    throw new Error(`\u724C\u7EC4\u751F\u6210\u9519\u8BEF\uFF1A\u671F\u671B ${DECK_SIZE.classic} \u5F20\uFF0C\u5B9E\u9645 ${cards.length} \u5F20`);
   }
   return cards;
 }
+function createMercyDeck() {
+  const { cards, push } = createPusher();
+  for (const color of ALL_COLORS) {
+    for (let value = 0; value <= 9; value += 1) {
+      const face = `${MERCY_NUMBER_WORD[value]}-${color}`;
+      for (let copy = 0; copy < 2; copy += 1) {
+        push("number", color, value, face);
+      }
+    }
+    for (let copy = 0; copy < 3; copy += 1) {
+      push("draw2", color, null, `two-draw-${color}`);
+      push("skip", color, null, `skip-${color}`);
+      push("reverse", color, null, `reverse-${color}`);
+      push("discardAll", color, null, `discard-all-${color}`);
+    }
+    for (let copy = 0; copy < 2; copy += 1) {
+      push("draw4", color, null, `four-draw-${color}`);
+      push("skipEveryone", color, null, `skip-everyone-${color}`);
+    }
+  }
+  for (let copy = 0; copy < 8; copy += 1) {
+    push("wildReverseDraw4", null, null, "wild-reverse-four-draw");
+    push("wildColorRoulette", null, null, "wild-roulette");
+  }
+  for (let copy = 0; copy < 4; copy += 1) {
+    push("draw6", null, null, "wild-draw-six");
+    push("draw10", null, null, "wild-ten-draw");
+  }
+  if (cards.length !== DECK_SIZE.mercy) {
+    throw new Error(`\u724C\u7EC4\u751F\u6210\u9519\u8BEF\uFF1A\u671F\u671B ${DECK_SIZE.mercy} \u5F20\uFF0C\u5B9E\u9645 ${cards.length} \u5F20`);
+  }
+  return cards;
+}
+function createDeck(config = {}) {
+  const mode = config.mode ?? "classic";
+  switch (mode) {
+    case "classic":
+      return createClassicDeck();
+    case "mercy":
+      return createMercyDeck();
+    case "flip":
+      throw new Error("UNO Flip \u724C\u5806\u5C1A\u672A\u5B9E\u73B0\uFF08\u540E\u7EED\u9636\u6BB5\uFF09");
+    default:
+      throw new Error(`\u672A\u77E5\u73A9\u6CD5\u6A21\u5F0F\uFF1A${mode}`);
+  }
+}
 function cardLabel(card) {
-  if (card.kind === "wild") return "Wild";
-  if (card.kind === "wild4") return "Wild+4";
   const color = card.color ? COLOR_NAME[card.color] : "";
   switch (card.kind) {
     case "number":
       return `${color}${card.value ?? ""}`;
     case "draw2":
       return `${color}+2`;
+    case "draw4":
+      return `${color}+4`;
     case "reverse":
       return `${color}\u53CD\u8F6C`;
     case "skip":
       return `${color}\u8DF3\u8FC7`;
+    case "skipEveryone":
+      return `${color}\u5168\u5458\u8DF3\u8FC7`;
+    case "discardAll":
+      return `${color}\u5168\u5F03`;
+    case "wild":
+      return "Wild";
+    case "wild4":
+      return "Wild+4";
+    case "draw6":
+      return "Wild+6";
+    case "draw10":
+      return "Wild+10";
+    case "wildReverseDraw4":
+      return "Wild \u53CD\u8F6C+4";
+    case "wildColorRoulette":
+      return "Wild \u989C\u8272\u8F6E\u76D8";
+    default:
+      return card.faceCode;
   }
 }
 
@@ -203,7 +314,7 @@ function createInitialGame(partial = {}) {
     hand: [],
     saidUno: false
   }));
-  let drawPile = shuffle(createDeck(), rng);
+  let drawPile = shuffle(createDeck(config), rng);
   const drawCard = () => {
     const card = drawPile.pop();
     if (!card) throw new Error("\u62BD\u724C\u5806\u5DF2\u8017\u5C3D\uFF08\u5F00\u5C40\u9636\u6BB5\u4E0D\u5E94\u53D1\u751F\uFF09");
@@ -222,10 +333,16 @@ function createInitialGame(partial = {}) {
   const ignoredCards = [];
   let startCard = null;
   let guard = 0;
+  const maxStartCardAttempts = expectedDeckSize(config) * 2;
   while (!startCard) {
     guard += 1;
-    if (guard > 216) throw new Error("\u8D77\u624B\u7FFB\u724C\u5F02\u5E38\uFF1A\u8D85\u8FC7\u91CD\u7FFB\u4E0A\u9650");
+    if (guard > maxStartCardAttempts) throw new Error("\u8D77\u624B\u7FFB\u724C\u5F02\u5E38\uFF1A\u8D85\u8FC7\u91CD\u7FFB\u4E0A\u9650");
     const candidate = drawCard();
+    if (config.mode === "mercy" && candidate.kind !== "number") {
+      ignoredCards.push(candidate);
+      events.push({ type: "START_CARD_IGNORED", card: candidate });
+      continue;
+    }
     if (candidate.kind === "wild4") {
       drawPile.push(candidate);
       drawPile = shuffle(drawPile, rng);
@@ -284,6 +401,9 @@ function createInitialGame(partial = {}) {
     }
     case "wild4": {
       throw new Error("\u8D77\u624B\u724C\u4E0D\u5E94\u8BE5\u662F Wild+4");
+    }
+    default: {
+      throw new Error(`\u8D77\u624B\u724C\u578B\u5C1A\u672A\u652F\u6301\uFF1A${startCard.kind}`);
     }
   }
   return {
@@ -1627,17 +1747,13 @@ function getAiView(state, seat) {
 }
 
 // packages/ai/src/memory.ts
+function emptyKindRecord() {
+  return Object.fromEntries(ALL_CARD_KINDS.map((kind) => [kind, 0]));
+}
 var INITIAL = (() => {
   const deck = createDeck();
   const colors = { red: 0, yellow: 0, green: 0, blue: 0 };
-  const kinds = {
-    number: 0,
-    skip: 0,
-    reverse: 0,
-    draw2: 0,
-    wild: 0,
-    wild4: 0
-  };
+  const kinds = emptyKindRecord();
   for (const card of deck) {
     if (card.color) colors[card.color] += 1;
     kinds[card.kind] += 1;
@@ -1651,14 +1767,7 @@ function emptyColorRecord() {
 }
 function countSeen(cards) {
   const colors = emptyColorRecord();
-  const kinds = {
-    number: 0,
-    skip: 0,
-    reverse: 0,
-    draw2: 0,
-    wild: 0,
-    wild4: 0
-  };
+  const kinds = emptyKindRecord();
   for (const card of cards) {
     if (card.color) colors[card.color] += 1;
     kinds[card.kind] += 1;
@@ -2484,10 +2593,12 @@ function runMixedTable(options) {
   };
 }
 export {
+  ALL_CARD_KINDS,
   ALL_COLORS,
   CHALLENGE_ESTIMATE_CALIBRATION,
   COLOR_CODE,
   COLOR_NAME,
+  DECK_SIZE,
   DEFAULT_GAME_CONFIG,
   DEFAULT_VIEW_SETTINGS,
   DIFFICULTY_LABEL,
@@ -2514,6 +2625,7 @@ export {
   estimateChallengeIllegalProbability,
   estimateExpectedDraws,
   estimatePlayerHasColor,
+  expectedDeckSize,
   extractFeatures,
   generateCandidates,
   getAiView,
