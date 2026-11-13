@@ -35,6 +35,6 @@
 
 ## 截图与验收产物
 
-- [`images/`](./images/)：根 README 使用的 10 张 WebP 截图，随仓库提交。
+- [`images/`](./images/)：README 与项目文档使用的 WebP 界面截图（v2.0 旧版 + v2.2 / v2.2.1 新版），随仓库提交。
 - `review-assets/`：`verify:ui` / `perf` 本地生成的报告与 PNG，已 gitignore，需要时重新运行命令生成。
 - `apps/desktop/release/`：Windows NSIS 安装包成品与 `SHA256SUMS.txt`；`release-*/` 为打包中间产物，可清理。
