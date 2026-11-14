@@ -14,6 +14,7 @@ import type {
   GameEvent,
   GamePhase,
   RngState,
+  RoundEndReason,
   StackingMode,
   Wild4Legality,
 } from '@uno/game-core';
@@ -298,7 +299,7 @@ export interface SelfPlayGameResult {
   difficulties: Difficulty[];
   winnerSeat: number | null;
   isDraw: boolean;
-  reason: 'empty-hand' | 'deck-empty';
+  reason: RoundEndReason;
   turns: number;
   actions: number;
   draws: number;

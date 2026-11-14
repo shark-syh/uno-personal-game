@@ -46,8 +46,14 @@ export type StartingPlayer = 'random' | 'human';
 /** 起手翻牌为动作牌时的处理：原版结算 / 忽略动作牌重新翻 */
 export type StartCardRule = 'classic' | 'ignore-action';
 
-/** 叠加模式：基础版宽松叠法；友尽版后续阶段切换为 official 口径 */
-export type StackingMode = 'loose' | 'classic' | 'none';
+/**
+ * 叠加模式：基础版宽松叠法；友尽版 M2 起为 official（只能叠等值或更高罚牌）。
+ * classic 配置项保留但本期仍按 loose 处理（历史行为不变）。
+ */
+export type StackingMode = 'loose' | 'classic' | 'none' | 'official';
+
+/** 对局结束原因：出完手牌 / 牌堆耗尽按手牌最少 / 友尽模式其余玩家全被淘汰 */
+export type RoundEndReason = 'empty-hand' | 'deck-empty' | 'last-survivor';
 
 /** 抽牌堆耗尽策略：洗回弃牌堆 / 按手牌最少者结束 */
 export type DeckExhaustion = 'reshuffle' | 'end-by-fewest';
@@ -115,6 +121,8 @@ export type GamePhase =
   | 'choose-color'
   | 'stack-response'
   | 'challenge-decide'
+  | 'choose-swap-target'
+  | 'choose-roulette-color'
   | 'uno-window'
   | 'turn-end'
   | 'round-end';
@@ -126,6 +134,8 @@ export interface PlayerState {
   isHuman: boolean;
   hand: Card[];
   saidUno: boolean;
+  /** 友尽模式：手牌 ≥25 张被淘汰（可选，classic 恒为 false） */
+  eliminated?: boolean;
 }
 
 /** 可序列化的 RNG 状态（mulberry32） */
@@ -147,8 +157,8 @@ export type GameEvent =
   | { type: 'PILE_RESHUFFLE'; reason: 'wild4-start' | 'ignore-action' | 'draw' }
   | { type: 'PLAYER_OUT'; seat: number }
   // M1-7：对局结束。winnerSeat 为 null 表示平局（牌堆耗尽且手牌最少者并列）；
-  // reason 区分"出完手牌获胜"与"牌堆耗尽按手牌最少者判定"
-  | { type: 'ROUND_END'; winnerSeat: number | null; reason: 'empty-hand' | 'deck-empty' }
+  // reason 区分"出完手牌获胜" / "牌堆耗尽按手牌最少者判定" / 友尽"最后幸存者"
+  | { type: 'ROUND_END'; winnerSeat: number | null; reason: RoundEndReason }
   // M1-4 叠牌链：每有一张 +2/+4 加入链中就发一次（total 为加入后的累计数）
   | { type: 'STACK_PUSH'; seat: number; card: Card; total: number }
   // M1-4 叠牌链结算：seat 为需要摸牌的人，total 为累计要摸的张数
@@ -161,7 +171,21 @@ export type GameEvent =
   // M1-6 UNO 喊牌：某玩家出牌后剩 1 张并成功喊出 UNO
   | { type: 'UNO_CALLED'; seat: number }
   // M1-6 UNO 被抓住：seat 罚摸 penalty 张（默认 2）
-  | { type: 'UNO_CAUGHT'; seat: number; penalty: number };
+  | { type: 'UNO_CAUGHT'; seat: number; penalty: number }
+  // M2 友尽：7 换手（与指定座位交换整副手牌）
+  | { type: 'SWAP_HANDS'; seat: number; targetSeat: number }
+  // M2 友尽：0 传手（全体活跃玩家按当前方向传递手牌）
+  | { type: 'PASS_HANDS'; direction: Direction }
+  // M2 友尽：全员跳过（出牌者立即再来一回合，方向不变）
+  | { type: 'SKIP_EVERYONE'; seat: number }
+  // M2 友尽：全弃（同色牌压在该牌下方）
+  | { type: 'DISCARD_ALL'; seat: number; count: number }
+  // M2 友尽：颜色轮盘由下家选色
+  | { type: 'COLOR_ROULETTE'; seat: number; color: Color }
+  // M2 友尽：轮盘抽牌途中牌堆与弃牌堆同时耗尽，停止抽牌并跳过该回合
+  | { type: 'ROULETTE_EXHAUSTED'; seat: number }
+  // M2 友尽：手牌 ≥25 张立即出局，手牌搁置（重洗时放回）
+  | { type: 'MERCY_ELIMINATED'; seat: number; count: number };
 
 /** 引擎动作（人类/AI/演示脚本通用） */
 export type EngineAction =
@@ -181,7 +205,11 @@ export type EngineAction =
   // M1-6 UNO：出牌后剩 1 张的玩家喊 UNO
   | { type: 'CALL_UNO' }
   // M1-6 UNO：抓住某个忘喊 UNO 的玩家（罚其摸 2 张）；抓人者不消耗自己的行动
-  | { type: 'CATCH_UNO'; targetSeat: number };
+  | { type: 'CATCH_UNO'; targetSeat: number }
+  // M2 友尽：7 换手选目标（官方强制，无「不换」选项）
+  | { type: 'SWAP_HANDS'; targetSeat: number }
+  // M2 友尽：Wild 颜色轮盘由下家选色
+  | { type: 'CHOOSE_ROULETTE_COLOR'; color: Color };
 
 /** Wild+4 打出记录（隐藏信息：只有挑战判定时才使用，不进入公开视图） */
 export interface Wild4PlayInfo {
@@ -212,6 +240,8 @@ export interface StackState {
   topColor: Color;
   /** 当前必须做出响应的玩家 */
   awaitingSeat: number;
+  /** official 口径：链顶罚牌值，只有 ≥ 该值的罚牌才能继续叠（可选，loose 不使用） */
+  topDrawValue?: number;
 }
 
 /**
@@ -274,8 +304,14 @@ export interface GameState {
   actionCount: number;
   /** 获胜者座位；null 表示对局未结束或平局（配合 phase/endReason 判断） */
   winnerSeat: number | null;
-  /** 对局结束原因；未结束时为 null（M1-7） */
-  endReason: 'empty-hand' | 'deck-empty' | null;
+  /** 对局结束原因；未结束时为 null（M1-7；M2 新增 last-survivor） */
+  endReason: RoundEndReason | null;
+  /** M2 友尽：7 换手待选目标（仅 choose-swap-target 阶段非 null） */
+  pendingSwap?: { initiatorSeat: number } | null;
+  /** M2 友尽：颜色轮盘等待下家选色（仅 choose-roulette-color 阶段非 null） */
+  roulette?: { initiatorSeat: number; chooserSeat: number; targetColor: Color | null } | null;
+  /** M2 友尽：淘汰者搁置的手牌，抽牌堆耗尽重洗弃牌堆时放回 */
+  parkedCards?: Card[];
   /** 本次动作产生的事件（UI 消费后清空） */
   events: GameEvent[];
   /** 整局事件历史（回放/调试用） */
@@ -311,7 +347,7 @@ export interface GameResult {
   winnerSeat: number | null;
   /** 是否平局 */
   isDraw: boolean;
-  reason: 'empty-hand' | 'deck-empty';
+  reason: RoundEndReason;
   players: PlayerResult[];
   /** 回合数（turnCount） */
   turns: number;

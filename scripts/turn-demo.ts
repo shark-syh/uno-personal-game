@@ -213,6 +213,10 @@ function describeAction(action: EngineAction, state: GameState, actorSeat: numbe
       const targetName = state.players[action.targetSeat]?.name ?? `座位 ${action.targetSeat}`;
       return `${name} 抓住 ${targetName} 没喊的 UNO（罚 2 张）`;
     }
+    case 'SWAP_HANDS':
+      return `${name} 与座位 ${action.targetSeat} 交换整副手牌`;
+    case 'CHOOSE_ROULETTE_COLOR':
+      return `${name} 轮盘选色 ${COLOR_NAME[action.color]}`;
   }
 }
 

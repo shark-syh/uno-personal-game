@@ -24,7 +24,7 @@ var DIFFICULTIES = /* @__PURE__ */ new Set(["casual", "easy", "realistic", "hard
 var AI_MODES = /* @__PURE__ */ new Set(["zhipu", "local", "auto"]);
 var STARTING_PLAYERS = /* @__PURE__ */ new Set(["random", "human"]);
 var START_CARD_RULES = /* @__PURE__ */ new Set(["classic", "ignore-action"]);
-var STACKING_MODES = /* @__PURE__ */ new Set(["loose", "classic", "none"]);
+var STACKING_MODES = /* @__PURE__ */ new Set(["loose", "classic", "none", "official"]);
 var DECK_EXHAUSTIONS = /* @__PURE__ */ new Set(["reshuffle", "end-by-fewest"]);
 var WILD4_LEGALITIES = /* @__PURE__ */ new Set(["color-only", "new-version"]);
 function normalizeGameConfig(partial = {}) {
@@ -64,6 +64,11 @@ function normalizeGameConfig(partial = {}) {
   }
   if (!Number.isInteger(merged.unoPenalty) || merged.unoPenalty < 0) {
     throw new RangeError(`unoPenalty \u5FC5\u987B\u662F\u975E\u8D1F\u6574\u6570\uFF0C\u6536\u5230 ${merged.unoPenalty}`);
+  }
+  if (merged.mode === "mercy") {
+    merged.stacking = "official";
+    merged.challengeWild4 = false;
+    merged.wild4Legality = "color-only";
   }
   return { ...merged, names: merged.names ? [...merged.names] : null };
 }
@@ -157,6 +162,32 @@ var DECK_SIZE = {
   classic: 108,
   mercy: 168
 };
+var MERCY_HAND_LIMIT = 25;
+function isMercyWild(kind) {
+  return kind === "draw6" || kind === "draw10" || kind === "wildReverseDraw4" || kind === "wildColorRoulette";
+}
+function needsColorChoice(card) {
+  return card.kind === "wild" || card.kind === "wild4" || card.kind === "draw6" || card.kind === "draw10" || card.kind === "wildReverseDraw4";
+}
+function getDrawValue(card) {
+  switch (card.kind) {
+    case "draw2":
+      return 2;
+    case "draw4":
+    case "wild4":
+    case "wildReverseDraw4":
+      return 4;
+    case "draw6":
+      return 6;
+    case "draw10":
+      return 10;
+    default:
+      return 0;
+  }
+}
+function isMercyDrawCard(card) {
+  return card.kind === "draw2" || card.kind === "draw4" || card.kind === "draw6" || card.kind === "draw10" || card.kind === "wildReverseDraw4";
+}
 function expectedDeckSize(config = {}) {
   const mode = config.mode ?? "classic";
   if (mode === "flip") {
@@ -301,7 +332,7 @@ function buildPlayerNames(config) {
   return names;
 }
 function countCards(state) {
-  return state.players.reduce((sum, player) => sum + player.hand.length, 0) + state.drawPile.length + state.discardPile.length;
+  return state.players.reduce((sum, player) => sum + player.hand.length, 0) + state.drawPile.length + state.discardPile.length + (state.parkedCards?.length ?? 0);
 }
 function createInitialGame(partial = {}) {
   const config = normalizeGameConfig(partial);
@@ -312,7 +343,8 @@ function createInitialGame(partial = {}) {
     name,
     isHuman: seat === config.humanSeat,
     hand: [],
-    saidUno: false
+    saidUno: false,
+    eliminated: false
   }));
   let drawPile = shuffle(createDeck(config), rng);
   const drawCard = () => {
@@ -422,6 +454,9 @@ function createInitialGame(partial = {}) {
     wild4Info: null,
     pendingChallenge: null,
     unoWindow: null,
+    pendingSwap: null,
+    roulette: null,
+    parkedCards: [],
     turnCount: 0,
     actionCount: 0,
     winnerSeat: null,
@@ -446,9 +481,14 @@ function isColor(value) {
 }
 function isPlayable(state, card) {
   if (card.kind === "wild" || card.kind === "wild4") return true;
+  if (state.config.mode === "mercy" && isMercyWild(card.kind)) return true;
   const top = topCard(state);
   if (!top) return false;
   if (state.currentColor !== null && card.color === state.currentColor) return true;
+  if (state.config.mode === "mercy") {
+    if (card.kind === top.kind) return card.kind === "number" ? card.value === top.value : true;
+    return false;
+  }
   if (top.kind === "number" && card.kind === "number" && card.value === top.value) return true;
   if ((top.kind === "skip" || top.kind === "reverse" || top.kind === "draw2") && card.kind === top.kind) {
     return true;
@@ -474,10 +514,10 @@ function isWild4Legal(state, seat) {
   return true;
 }
 function isStackableCard(card) {
-  return card.kind === "draw2" || card.kind === "wild4";
+  return card.kind === "wild4" || isMercyDrawCard(card);
 }
 function playActionsFor(card, type) {
-  if (card.kind === "wild" || card.kind === "wild4") {
+  if (needsColorChoice(card)) {
     return ALL_COLORS.map(
       (color) => type === "PLAY_CARD" ? { type: "PLAY_CARD", cardId: card.id, colorChoice: color } : { type: "PLAY_DRAWN", cardId: card.id, colorChoice: color }
     );
@@ -485,7 +525,7 @@ function playActionsFor(card, type) {
   return type === "PLAY_CARD" ? [{ type: "PLAY_CARD", cardId: card.id }] : [{ type: "PLAY_DRAWN", cardId: card.id }];
 }
 function stackActionsFor(card) {
-  if (card.kind === "wild4") {
+  if (needsColorChoice(card)) {
     return ALL_COLORS.map((color) => ({
       type: "STACK_PLAY",
       cardId: card.id,
@@ -499,12 +539,24 @@ function stackResponseActions(state) {
   if (!stack) return [];
   const player = state.players[stack.awaitingSeat];
   if (!player) return [];
+  const official = state.config.stacking === "official";
+  const chainTop = stack.chain[stack.chain.length - 1];
+  const minValue = official ? stack.topDrawValue ?? (chainTop ? getDrawValue(chainTop) : 0) : 0;
   const actions = [];
   for (const card of player.hand) {
-    if (isStackableCard(card)) actions.push(...stackActionsFor(card));
+    if (!isStackableCard(card)) continue;
+    if (official && getDrawValue(card) < minValue) continue;
+    actions.push(...stackActionsFor(card));
   }
   actions.push({ type: "STACK_DECLINE" });
   return actions;
+}
+function swapTargetActions(state) {
+  const initiator = state.pendingSwap?.initiatorSeat ?? state.currentSeat;
+  return state.players.filter((player) => player.seat !== initiator && !player.eliminated).map((player) => ({ type: "SWAP_HANDS", targetSeat: player.seat }));
+}
+function rouletteColorActions() {
+  return ALL_COLORS.map((color) => ({ type: "CHOOSE_ROULETTE_COLOR", color }));
 }
 function challengeActions(state) {
   const pending = state.pendingChallenge;
@@ -538,6 +590,10 @@ function getLegalActions(state) {
       return stackResponseActions(state);
     case "challenge-decide":
       return challengeActions(state);
+    case "choose-swap-target":
+      return swapTargetActions(state);
+    case "choose-roulette-color":
+      return rouletteColorActions();
     case "uno-window": {
       const win = state.unoWindow;
       if (!win) return [];
@@ -577,13 +633,43 @@ function requirePlayer(state, seat) {
   if (!player) throw new Error(`\u5EA7\u4F4D ${seat} \u4E0D\u5B58\u5728`);
   return player;
 }
+function nextActiveSeat(state, seat, steps = 1) {
+  let current = seat;
+  for (let step = 0; step < steps; step += 1) {
+    let candidate = nextSeat(current, state.players.length, state.direction);
+    let guard = 0;
+    while (state.players[candidate]?.eliminated && guard < state.players.length) {
+      candidate = nextSeat(candidate, state.players.length, state.direction);
+      guard += 1;
+    }
+    current = candidate;
+  }
+  return current;
+}
+function eliminateIfMercy(state, seat, events) {
+  if (state.config.mode !== "mercy") return false;
+  const player = requirePlayer(state, seat);
+  if (player.eliminated || player.hand.length < MERCY_HAND_LIMIT) return false;
+  player.eliminated = true;
+  player.saidUno = false;
+  const parked = player.hand.splice(0, player.hand.length);
+  state.parkedCards = [...state.parkedCards ?? [], ...parked];
+  events.push({ type: "MERCY_ELIMINATED", seat, count: parked.length });
+  const alive = state.players.filter((item) => !item.eliminated);
+  if (alive.length <= 1) {
+    endRound(state, alive[0]?.seat ?? seat, events, "last-survivor");
+  }
+  return true;
+}
 function replenishDrawPile(state, events) {
   if (state.drawPile.length > 0) return true;
-  if (state.discardPile.length <= 1) return false;
-  const top = state.discardPile[state.discardPile.length - 1];
+  const parked = state.parkedCards ?? [];
   const recyclable = state.discardPile.slice(0, -1);
-  state.drawPile = shuffle(recyclable, state.rng);
-  state.discardPile = [top];
+  if (recyclable.length + parked.length === 0) return false;
+  const top = state.discardPile[state.discardPile.length - 1];
+  state.drawPile = shuffle([...recyclable, ...parked], state.rng);
+  state.discardPile = top ? [top] : [];
+  state.parkedCards = [];
   events.push({ type: "PILE_RESHUFFLE", reason: "draw" });
   return state.drawPile.length > 0;
 }
@@ -611,27 +697,35 @@ function drawTo(state, seat, count, events, options = {}) {
   if (drawn.length > 0) {
     events.push({ type: "DRAW", seat, count: drawn.length, cards: drawn });
     if (requirePlayer(state, seat).hand.length > 1) requirePlayer(state, seat).saidUno = false;
+    if (state.config.mode === "mercy") {
+      eliminateIfMercy(state, seat, events);
+      if (state.phase === "round-end") return drawn;
+    }
   }
   if (exhausted) endRoundByFewestCards(state, events);
   return drawn;
 }
-function endRound(state, winnerSeat, events) {
+function endRound(state, winnerSeat, events, reason = "empty-hand") {
   state.phase = "round-end";
   state.winnerSeat = winnerSeat;
-  state.endReason = "empty-hand";
+  state.endReason = reason;
   state.pendingColorChoiceSeat = null;
   state.drawnThisTurn = null;
   state.stack = null;
   state.wild4Info = null;
   state.pendingChallenge = null;
   state.unoWindow = null;
-  events.push({ type: "PLAYER_OUT", seat: winnerSeat });
-  events.push({ type: "ROUND_END", winnerSeat, reason: "empty-hand" });
+  state.pendingSwap = null;
+  state.roulette = null;
+  if (reason === "empty-hand") events.push({ type: "PLAYER_OUT", seat: winnerSeat });
+  events.push({ type: "ROUND_END", winnerSeat, reason });
 }
 function endRoundByFewestCards(state, events) {
+  const active = state.players.filter((player) => !player.eliminated);
+  const pool = active.length > 0 ? active : state.players;
   let minCount = Number.POSITIVE_INFINITY;
-  for (const player of state.players) minCount = Math.min(minCount, player.hand.length);
-  const fewest = state.players.filter((player) => player.hand.length === minCount);
+  for (const player of pool) minCount = Math.min(minCount, player.hand.length);
+  const fewest = pool.filter((player) => player.hand.length === minCount);
   const winnerSeat = fewest.length === 1 ? fewest[0].seat : null;
   state.phase = "round-end";
   state.winnerSeat = winnerSeat;
@@ -642,13 +736,12 @@ function endRoundByFewestCards(state, events) {
   state.wild4Info = null;
   state.pendingChallenge = null;
   state.unoWindow = null;
+  state.pendingSwap = null;
+  state.roulette = null;
   events.push({ type: "ROUND_END", winnerSeat, reason: "deck-empty" });
 }
 function advanceTurn(state, skipNext = false) {
-  const playerCount = state.players.length;
-  let next = nextSeat(state.currentSeat, playerCount, state.direction);
-  if (skipNext) next = nextSeat(next, playerCount, state.direction);
-  state.currentSeat = next;
+  state.currentSeat = nextActiveSeat(state, state.currentSeat, skipNext ? 2 : 1);
   state.phase = "await-play";
   state.drawnThisTurn = null;
   state.pendingChallenge = null;
@@ -658,17 +751,19 @@ function advanceTurn(state, skipNext = false) {
 function isStackingEnabled(state) {
   return state.config.stacking !== "none";
 }
-function startStack(state, card, events) {
+function startStack(state, card, events, awaitingSeatOverride) {
   const actor = state.currentSeat;
   const topColor = state.currentColor;
   if (!topColor) throw new Error("\u53E0\u724C\u94FE\u9700\u8981\u5DF2\u7ECF\u786E\u5B9A\u7684\u989C\u8272");
-  const awaitingSeat = nextSeat(actor, state.players.length, state.direction);
+  const awaitingSeat = awaitingSeatOverride ?? nextActiveSeat(state, actor);
+  const drawValue = getDrawValue(card) || (card.kind === "draw2" ? 2 : 4);
   state.stack = {
-    total: card.kind === "draw2" ? 2 : 4,
+    total: drawValue,
     chain: [card],
     lastPlayer: actor,
     topColor,
-    awaitingSeat
+    awaitingSeat,
+    topDrawValue: drawValue
   };
   state.phase = "stack-response";
   state.currentSeat = awaitingSeat;
@@ -685,7 +780,7 @@ function resolveStackDraw(state, events) {
   drawTo(state, drawerSeat, total, events);
   state.wild4Info = null;
   if (state.phase === "round-end") return;
-  state.currentSeat = nextSeat(drawerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, drawerSeat);
   state.phase = "await-play";
   state.drawnThisTurn = null;
   state.turnCount += 1;
@@ -746,7 +841,7 @@ function resolveChallengeFail(state, events) {
   drawTo(state, pending.challengerSeat, penalty, events);
   if (state.phase === "round-end") return;
   state.phase = "await-play";
-  state.currentSeat = nextSeat(pending.challengerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, pending.challengerSeat);
   state.turnCount += 1;
 }
 function resolveChallengeDecline(state, events) {
@@ -758,7 +853,7 @@ function resolveChallengeDecline(state, events) {
   drawTo(state, pending.challengerSeat, pending.total, events);
   if (state.phase === "round-end") return;
   state.phase = "await-play";
-  state.currentSeat = nextSeat(pending.challengerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, pending.challengerSeat);
   state.turnCount += 1;
 }
 function openUnoWindow(state, seat, pendingPhase) {
@@ -803,7 +898,7 @@ function closeUnoWindow(state, events) {
   const catchChance = AI_UNO_CATCH_CHANCE[state.config.aiDifficulty];
   let catcherSeat = win.seat;
   for (let step = 1; step < state.players.length; step += 1) {
-    catcherSeat = nextSeat(catcherSeat, state.players.length, state.direction);
+    catcherSeat = nextActiveSeat(state, catcherSeat);
     const catcher = requirePlayer(state, catcherSeat);
     if (catcher.isHuman) continue;
     if (catchChance >= 1 || nextFloat(state.rng) < catchChance) {
@@ -818,38 +913,50 @@ function playStackCard(state, card, colorChoice, events) {
   const actor = state.currentSeat;
   if (actor !== stack.awaitingSeat) throw new Error("\u8FD8\u6CA1\u8F6E\u5230\u8BE5\u73A9\u5BB6\u54CD\u5E94\u53E0\u724C");
   const player = requirePlayer(state, actor);
-  const isWild4Card = card.kind === "wild4";
+  const drawValue = getDrawValue(card);
+  if (state.config.stacking === "official") {
+    const minValue = stack.topDrawValue ?? getDrawValue(stack.chain[stack.chain.length - 1]);
+    if (drawValue < minValue) throw new Error("\u7F5A\u724C\u6570\u503C\u4E0D\u8DB3\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u53E0\u94FE");
+  }
+  const needsColor = needsColorChoice(card);
   let chosenColor = null;
-  if (isWild4Card) {
-    if (!isColor(colorChoice)) throw new Error("Wild+4 \u53E0\u724C\u5FC5\u987B\u9009\u62E9\u4E00\u4E2A\u5408\u6CD5\u989C\u8272");
+  if (needsColor) {
+    if (!isColor(colorChoice)) throw new Error("\u4E07\u80FD\u7F5A\u724C\u53E0\u724C\u5FC5\u987B\u9009\u62E9\u4E00\u4E2A\u5408\u6CD5\u989C\u8272");
     chosenColor = colorChoice;
   }
   const previousColor = state.currentColor;
-  const wild4WasLegal = isWild4Card ? isWild4Legal(state, actor) : true;
+  const wild4WasLegal = card.kind === "wild4" ? isWild4Legal(state, actor) : true;
   const handIndex = player.hand.findIndex((item) => item.id === card.id);
   if (handIndex < 0) throw new Error("\u624B\u724C\u4E2D\u6CA1\u6709\u8FD9\u5F20\u724C");
   player.hand.splice(handIndex, 1);
   state.discardPile.push(card);
   events.push({ type: "PLAY", seat: actor, card });
-  if (isWild4Card && chosenColor) {
+  if (needsColor && chosenColor) {
     state.currentColor = chosenColor;
     events.push({ type: "COLOR_SET", seat: actor, color: chosenColor });
-    state.wild4Info = {
-      seat: actor,
-      wasLegal: wild4WasLegal,
-      previousColor,
-      challengeable: false,
-      turn: state.turnCount
-    };
+    if (card.kind === "wild4") {
+      state.wild4Info = {
+        seat: actor,
+        wasLegal: wild4WasLegal,
+        previousColor,
+        challengeable: false,
+        turn: state.turnCount
+      };
+    }
   } else if (card.color) {
     state.currentColor = card.color;
   }
-  stack.total += card.kind === "draw2" ? 2 : 4;
+  stack.total += drawValue;
+  stack.topDrawValue = drawValue;
   stack.chain.push(card);
   stack.lastPlayer = actor;
   if (!state.currentColor) throw new Error("\u53E0\u724C\u94FE\u989C\u8272\u5F02\u5E38");
   stack.topColor = state.currentColor;
-  const next = nextSeat(actor, state.players.length, state.direction);
+  if (card.kind === "wildReverseDraw4") {
+    state.direction = state.direction === 1 ? -1 : 1;
+    events.push({ type: "REVERSE", direction: state.direction });
+  }
+  const next = nextActiveSeat(state, actor);
   stack.awaitingSeat = next;
   state.currentSeat = next;
   events.push({ type: "STACK_PUSH", seat: actor, card, total: stack.total });
@@ -965,6 +1072,145 @@ function playCard(state, card, colorChoice, events) {
   advanceTurn(state, skipNext);
   handleUnoAfterPlay(state, actor, "await-play", events);
 }
+function rotateActiveHands(state, events) {
+  const active = state.players.filter((player) => !player.eliminated);
+  if (active.length < 2) return;
+  const hands = active.map((player) => [...player.hand]);
+  const count = hands.length;
+  active.forEach((player, index) => {
+    const source = state.direction === 1 ? (index - 1 + count) % count : (index + 1) % count;
+    player.hand = [...hands[source]];
+  });
+  events.push({ type: "PASS_HANDS", direction: state.direction });
+  for (const player of active) {
+    eliminateIfMercy(state, player.seat, events);
+    if (state.phase === "round-end") return;
+  }
+}
+function applyMercyEffect(state, card, events, actor, isLastCard) {
+  const result = {
+    mode: "advance",
+    skipNext: false
+  };
+  const victim = nextActiveSeat(state, actor);
+  if (isLastCard && (card.kind === "number" && (card.value === 0 || card.value === 7) || card.kind === "wildColorRoulette" || card.kind === "skipEveryone" || card.kind === "discardAll")) {
+    return result;
+  }
+  switch (card.kind) {
+    case "number": {
+      if (card.value === 0) {
+        rotateActiveHands(state, events);
+      } else if (card.value === 7) {
+        state.pendingSwap = { initiatorSeat: actor };
+        state.phase = "choose-swap-target";
+        state.currentSeat = actor;
+        state.drawnThisTurn = null;
+        result.mode = "hold";
+      }
+      break;
+    }
+    case "skip": {
+      events.push({ type: "SKIP", seat: victim });
+      result.skipNext = true;
+      break;
+    }
+    case "reverse": {
+      state.direction = state.direction === 1 ? -1 : 1;
+      events.push({ type: "REVERSE", direction: state.direction });
+      if (state.players.length === 2 && state.config.twoPlayerRules) {
+        events.push({ type: "SKIP", seat: victim });
+        result.skipNext = true;
+      }
+      break;
+    }
+    case "skipEveryone": {
+      events.push({ type: "SKIP_EVERYONE", seat: actor });
+      result.mode = "stay";
+      break;
+    }
+    case "discardAll": {
+      const player = requirePlayer(state, actor);
+      const sameColor = player.hand.filter((item) => item.color === card.color);
+      player.hand = player.hand.filter((item) => item.color !== card.color);
+      state.discardPile.splice(state.discardPile.length - 1, 0, ...sameColor);
+      events.push({ type: "DISCARD_ALL", seat: actor, count: sameColor.length });
+      break;
+    }
+    case "wildColorRoulette": {
+      state.roulette = { initiatorSeat: actor, chooserSeat: victim, targetColor: null };
+      state.phase = "choose-roulette-color";
+      state.currentSeat = victim;
+      state.drawnThisTurn = null;
+      result.mode = "hold";
+      break;
+    }
+    case "draw2":
+    case "draw4":
+    case "draw6":
+    case "draw10":
+    case "wildReverseDraw4": {
+      if (card.kind === "wildReverseDraw4") {
+        state.direction = state.direction === 1 ? -1 : 1;
+        events.push({ type: "REVERSE", direction: state.direction });
+      }
+      const override = card.kind === "wildReverseDraw4" && state.players.length === 2 ? actor : void 0;
+      startStack(state, card, events, override);
+      result.mode = "hold";
+      break;
+    }
+    default:
+      break;
+  }
+  return result;
+}
+function playMercyCard(state, card, colorChoice, events) {
+  const actor = state.currentSeat;
+  const player = requirePlayer(state, actor);
+  let chosenColor = null;
+  if (needsColorChoice(card)) {
+    if (!isColor(colorChoice)) throw new Error("\u4E07\u80FD\u724C\u5FC5\u987B\u9009\u62E9\u4E00\u4E2A\u5408\u6CD5\u989C\u8272");
+    chosenColor = colorChoice;
+  }
+  const handIndex = player.hand.findIndex((item) => item.id === card.id);
+  if (handIndex < 0) throw new Error("\u624B\u724C\u4E2D\u6CA1\u6709\u8FD9\u5F20\u724C");
+  player.hand.splice(handIndex, 1);
+  state.discardPile.push(card);
+  events.push({ type: "PLAY", seat: actor, card });
+  if (chosenColor) {
+    state.currentColor = chosenColor;
+    events.push({ type: "COLOR_SET", seat: actor, color: chosenColor });
+  } else if (card.color) {
+    state.currentColor = card.color;
+  }
+  const effect = applyMercyEffect(state, card, events, actor, player.hand.length === 0);
+  if (state.phase === "round-end") return;
+  if (player.hand.length === 0) {
+    if (state.stack) {
+      const pending = state.stack;
+      const victimSeat = pending.awaitingSeat;
+      const total = pending.total;
+      state.stack = null;
+      events.push({ type: "STACK_RESOLVE", seat: victimSeat, total });
+      drawTo(state, victimSeat, total, events, { allowRoundEnd: false });
+    }
+    endRound(state, actor, events);
+    return;
+  }
+  if (state.phase === "stack-response") {
+    handleUnoAfterPlay(state, actor, "stack-response", events);
+    return;
+  }
+  if (state.phase === "choose-swap-target" || state.phase === "choose-roulette-color") return;
+  if (effect.mode === "stay") {
+    state.currentSeat = actor;
+    state.phase = "await-play";
+    state.drawnThisTurn = null;
+    state.turnCount += 1;
+  } else {
+    advanceTurn(state, effect.skipNext);
+  }
+  handleUnoAfterPlay(state, actor, "await-play", events);
+}
 function applyAction(state, action) {
   const next = cloneState(state);
   const events = [];
@@ -1015,7 +1261,11 @@ function applyAction(state, action) {
       if ((card.kind === "wild" || card.kind === "wild4") && (!isColor(action.colorChoice) || !ALL_COLORS.includes(action.colorChoice))) {
         throw new Error("\u51FA\u4E07\u80FD\u724C\u5FC5\u987B\u9009\u62E9\u989C\u8272");
       }
-      playCard(next, card, action.colorChoice, events);
+      if (next.config.mode === "mercy") {
+        playMercyCard(next, card, action.colorChoice, events);
+      } else {
+        playCard(next, card, action.colorChoice, events);
+      }
       break;
     }
     case "PLAY_DRAWN": {
@@ -1029,7 +1279,11 @@ function applyAction(state, action) {
         throw new Error("\u51FA\u4E07\u80FD\u724C\u5FC5\u987B\u9009\u62E9\u989C\u8272");
       }
       next.drawnThisTurn = null;
-      playCard(next, card, action.colorChoice, events);
+      if (next.config.mode === "mercy") {
+        playMercyCard(next, card, action.colorChoice, events);
+      } else {
+        playCard(next, card, action.colorChoice, events);
+      }
       break;
     }
     case "END_TURN": {
@@ -1046,8 +1300,14 @@ function applyAction(state, action) {
       const player = requirePlayer(next, next.currentSeat);
       const card = player.hand.find((item) => item.id === action.cardId);
       if (!card) throw new Error("\u624B\u724C\u4E2D\u6CA1\u6709\u8FD9\u5F20\u724C");
-      if (card.kind !== "draw2" && card.kind !== "wild4") {
-        throw new Error("\u53E0\u724C\u54CD\u5E94\u9636\u6BB5\u53EA\u80FD\u6253\u51FA +2 \u6216 +4");
+      if (!isStackableCard(card)) throw new Error("\u53E0\u724C\u54CD\u5E94\u9636\u6BB5\u53EA\u80FD\u6253\u51FA\u7F5A\u724C");
+      if (next.config.stacking === "official") {
+        const stack = next.stack;
+        const minValue = stack.topDrawValue ?? getDrawValue(stack.chain[stack.chain.length - 1]);
+        if (getDrawValue(card) < minValue) throw new Error("\u7F5A\u724C\u6570\u503C\u4E0D\u8DB3\uFF0C\u4E0D\u80FD\u7EE7\u7EED\u53E0\u94FE");
+      }
+      if (needsColorChoice(card) && !isColor(action.colorChoice)) {
+        throw new Error("\u4E07\u80FD\u7F5A\u724C\u5FC5\u987B\u9009\u62E9\u4E00\u4E2A\u5408\u6CD5\u989C\u8272");
       }
       playStackCard(next, card, action.colorChoice, events);
       break;
@@ -1113,6 +1373,66 @@ function applyAction(state, action) {
       penalizeUno(next, win.seat, events);
       next.unoWindow = null;
       if (next.endReason === null) next.phase = win.pendingPhase;
+      break;
+    }
+    case "SWAP_HANDS": {
+      if (next.phase !== "choose-swap-target" || !next.pendingSwap) {
+        throw new Error("\u5F53\u524D\u4E0D\u662F 7 \u6362\u624B\u9636\u6BB5");
+      }
+      const initiator = next.pendingSwap.initiatorSeat;
+      if (next.currentSeat !== initiator) throw new Error("\u53EA\u6709\u51FA 7 \u7684\u73A9\u5BB6\u80FD\u9009\u62E9\u6362\u624B\u76EE\u6807");
+      const target = requirePlayer(next, action.targetSeat);
+      if (target.seat === initiator || target.eliminated) throw new Error("\u6362\u624B\u76EE\u6807\u5FC5\u987B\u4ECD\u5728\u5C40\u4E2D\u4E14\u4E0D\u662F\u81EA\u5DF1");
+      const source = requirePlayer(next, initiator);
+      const temp = source.hand;
+      source.hand = target.hand;
+      target.hand = temp;
+      events.push({ type: "SWAP_HANDS", seat: initiator, targetSeat: target.seat });
+      next.pendingSwap = null;
+      eliminateIfMercy(next, initiator, events);
+      eliminateIfMercy(next, target.seat, events);
+      if (isGameOver(next)) break;
+      advanceTurn(next);
+      handleUnoAfterPlay(next, initiator, "await-play", events);
+      break;
+    }
+    case "CHOOSE_ROULETTE_COLOR": {
+      if (next.phase !== "choose-roulette-color" || !next.roulette) {
+        throw new Error("\u5F53\u524D\u4E0D\u662F\u989C\u8272\u8F6E\u76D8\u9009\u8272\u9636\u6BB5");
+      }
+      const { initiatorSeat, chooserSeat } = next.roulette;
+      if (next.currentSeat !== chooserSeat) throw new Error("\u53EA\u6709\u8F6E\u76D8\u4E0B\u5BB6\u80FD\u9009\u8272");
+      if (!isColor(action.color)) throw new Error("\u975E\u6CD5\u989C\u8272");
+      const chooser = requirePlayer(next, chooserSeat);
+      next.roulette = { ...next.roulette, targetColor: action.color };
+      events.push({ type: "COLOR_ROULETTE", seat: chooserSeat, color: action.color });
+      let matched = false;
+      for (let guard = 0; guard < 1e3; guard += 1) {
+        if (!canProvideDraw(next, events, false)) {
+          events.push({ type: "ROULETTE_EXHAUSTED", seat: chooserSeat });
+          break;
+        }
+        const card = next.drawPile.pop();
+        chooser.hand.push(card);
+        events.push({ type: "DRAW", seat: chooserSeat, count: 1, cards: [card] });
+        if (card.color === action.color) {
+          matched = true;
+          break;
+        }
+        if (eliminateIfMercy(next, chooserSeat, events) || isGameOver(next)) break;
+      }
+      if (chooser.hand.length > 1) chooser.saidUno = false;
+      if (matched) {
+        next.currentColor = action.color;
+        events.push({ type: "COLOR_SET", seat: chooserSeat, color: action.color });
+      }
+      next.roulette = null;
+      if (isGameOver(next)) break;
+      next.currentSeat = nextActiveSeat(next, chooserSeat);
+      next.phase = "await-play";
+      next.drawnThisTurn = null;
+      next.turnCount += 1;
+      handleUnoAfterPlay(next, initiatorSeat, "await-play", events);
       break;
     }
     default: {
@@ -1271,6 +1591,10 @@ function labelFor(action, card, state) {
       return "\u7ED3\u675F\u56DE\u5408";
     case "CHOOSE_COLOR":
       return `${COLOR_NAME[action.color]}\u8272`;
+    case "CHOOSE_ROULETTE_COLOR":
+      return `${COLOR_NAME[action.color]}\u8272\uFF08\u8F6E\u76D8\uFF09`;
+    case "SWAP_HANDS":
+      return `\u4E0E ${action.targetSeat + 1} \u53F7\u6362\u624B`;
     case "STACK_DECLINE":
       return `\u653E\u5F03\u53E0\u724C\uFF08\u6478 ${state.stack?.total ?? 0} \u5F20\uFF09`;
     case "CHALLENGE_W4":
@@ -1299,6 +1623,10 @@ function hintFor(action, state) {
       return "\u7ED3\u675F\u672C\u56DE\u5408";
     case "CHOOSE_COLOR":
       return "\u8BF7\u9009\u62E9\u4E07\u80FD\u724C\u7684\u989C\u8272";
+    case "CHOOSE_ROULETTE_COLOR":
+      return "\u4F60\u88AB\u989C\u8272\u8F6E\u76D8\u6307\u5411\uFF1A\u9009\u4E00\u4E2A\u989C\u8272\uFF0C\u62BD\u5230\u8BE5\u8272\u4E3A\u6B62";
+    case "SWAP_HANDS":
+      return "\u6253\u51FA 7\uFF1A\u9009\u4E00\u4F4D\u73A9\u5BB6\u4EA4\u6362\u6574\u526F\u624B\u724C\uFF08\u5B98\u65B9\u5F3A\u5236\uFF09";
     case "STACK_DECLINE":
       return `\u653E\u5F03\u53E0\u724C\uFF0C\u6478 ${state.stack?.total ?? 0} \u5F20`;
     case "CHALLENGE_W4":
@@ -1330,6 +1658,10 @@ function idFor(action) {
       return `stack:${action.cardId}:${action.colorChoice ?? "-"}`;
     case "CHOOSE_COLOR":
       return `choose-color:${action.color}`;
+    case "CHOOSE_ROULETTE_COLOR":
+      return `roulette-color:${action.color}`;
+    case "SWAP_HANDS":
+      return `swap:${action.targetSeat}`;
     case "CATCH_UNO":
       return `catch:${action.targetSeat}`;
     default:
@@ -1377,6 +1709,12 @@ function toEngineAction(uiAction) {
     case "CHOOSE_COLOR":
       if (!uiAction.color) throw new Error("CHOOSE_COLOR \u7F3A\u5C11 color");
       return { type: "CHOOSE_COLOR", color: uiAction.color };
+    case "CHOOSE_ROULETTE_COLOR":
+      if (!uiAction.color) throw new Error("CHOOSE_ROULETTE_COLOR \u7F3A\u5C11 color");
+      return { type: "CHOOSE_ROULETTE_COLOR", color: uiAction.color };
+    case "SWAP_HANDS":
+      if (uiAction.targetSeat === void 0) throw new Error("SWAP_HANDS \u7F3A\u5C11 targetSeat");
+      return { type: "SWAP_HANDS", targetSeat: uiAction.targetSeat };
     case "CATCH_UNO":
       if (uiAction.targetSeat === void 0) throw new Error("CATCH_UNO \u7F3A\u5C11 targetSeat");
       return { type: "CATCH_UNO", targetSeat: uiAction.targetSeat };
@@ -2159,6 +2497,8 @@ function toDraft(action, view) {
     case "CALL_UNO":
     case "CATCH_UNO":
       throw new Error("UNO \u7A97\u53E3\u52A8\u4F5C\u4E0D\u5E94\u751F\u6210 AI \u5019\u9009\uFF08\u5E94\u5728\u8FC7\u6EE4\u9636\u6BB5\u6392\u9664\uFF09");
+    default:
+      throw new Error(`\u53CB\u5C3D\u52A8\u4F5C\u6682\u4E0D\u652F\u6301 AI \u5019\u9009\uFF1A${action.type}`);
   }
 }
 function candidateId(action) {
@@ -2606,6 +2946,7 @@ export {
   DIFFICULTY_PROFILES,
   INITIAL_COLOR_COUNTS,
   INITIAL_KIND_COUNTS,
+  MERCY_HAND_LIMIT,
   UNO_CALL_PROBABILITY,
   UNO_CATCH_PROBABILITY,
   applyAction,
@@ -2630,6 +2971,7 @@ export {
   generateCandidates,
   getAiView,
   getDifficultyProfile,
+  getDrawValue,
   getGameView,
   getHumanLegalActions,
   getLegalActions,
@@ -2639,10 +2981,13 @@ export {
   hashSeed,
   isColor,
   isGameOver,
+  isMercyDrawCard,
+  isMercyWild,
   isPlayable,
   isStackableCard,
   isTerminal,
   isWild4Legal,
+  needsColorChoice,
   nextFloat,
   nextInt,
   nextPlayerSeat,

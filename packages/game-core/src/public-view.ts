@@ -22,6 +22,7 @@ import type {
   GameEvent,
   GamePhase,
   GameState,
+  RoundEndReason,
   StackState,
 } from './types.ts';
 
@@ -110,7 +111,7 @@ export interface PublicTableView {
 export interface PublicResult {
   winnerSeat: number | null;
   isDraw: boolean;
-  reason: 'empty-hand' | 'deck-empty';
+  reason: RoundEndReason;
   players: Array<{
     seat: number;
     name: string;
@@ -245,6 +246,10 @@ function labelFor(action: EngineAction, card: Card | null, state: GameState): st
       return '结束回合';
     case 'CHOOSE_COLOR':
       return `${COLOR_NAME[action.color]}色`;
+    case 'CHOOSE_ROULETTE_COLOR':
+      return `${COLOR_NAME[action.color]}色（轮盘）`;
+    case 'SWAP_HANDS':
+      return `与 ${action.targetSeat + 1} 号换手`;
     case 'STACK_DECLINE':
       return `放弃叠牌（摸 ${state.stack?.total ?? 0} 张）`;
     case 'CHALLENGE_W4':
@@ -275,6 +280,10 @@ function hintFor(action: EngineAction, state: GameState): string {
       return '结束本回合';
     case 'CHOOSE_COLOR':
       return '请选择万能牌的颜色';
+    case 'CHOOSE_ROULETTE_COLOR':
+      return '你被颜色轮盘指向：选一个颜色，抽到该色为止';
+    case 'SWAP_HANDS':
+      return '打出 7：选一位玩家交换整副手牌（官方强制）';
     case 'STACK_DECLINE':
       return `放弃叠牌，摸 ${state.stack?.total ?? 0} 张`;
     case 'CHALLENGE_W4':
@@ -310,6 +319,10 @@ function idFor(action: EngineAction): string {
       return `stack:${action.cardId}:${action.colorChoice ?? '-'}`;
     case 'CHOOSE_COLOR':
       return `choose-color:${action.color}`;
+    case 'CHOOSE_ROULETTE_COLOR':
+      return `roulette-color:${action.color}`;
+    case 'SWAP_HANDS':
+      return `swap:${action.targetSeat}`;
     case 'CATCH_UNO':
       return `catch:${action.targetSeat}`;
     default:
@@ -361,6 +374,12 @@ export function toEngineAction(uiAction: UiAction): EngineAction {
     case 'CHOOSE_COLOR':
       if (!uiAction.color) throw new Error('CHOOSE_COLOR 缺少 color');
       return { type: 'CHOOSE_COLOR', color: uiAction.color };
+    case 'CHOOSE_ROULETTE_COLOR':
+      if (!uiAction.color) throw new Error('CHOOSE_ROULETTE_COLOR 缺少 color');
+      return { type: 'CHOOSE_ROULETTE_COLOR', color: uiAction.color };
+    case 'SWAP_HANDS':
+      if (uiAction.targetSeat === undefined) throw new Error('SWAP_HANDS 缺少 targetSeat');
+      return { type: 'SWAP_HANDS', targetSeat: uiAction.targetSeat };
     case 'CATCH_UNO':
       if (uiAction.targetSeat === undefined) throw new Error('CATCH_UNO 缺少 targetSeat');
       return { type: 'CATCH_UNO', targetSeat: uiAction.targetSeat };

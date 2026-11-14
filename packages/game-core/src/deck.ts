@@ -50,6 +50,62 @@ export const DECK_SIZE: Record<'classic' | 'mercy', number> = {
   mercy: 168,
 };
 
+/** 友尽模式淘汰阈值：任何时刻手牌 ≥25 张立即出局（规则契约 §2.5） */
+export const MERCY_HAND_LIMIT = 25;
+
+/** 友尽版四类万能牌（无「手里没有当前颜色牌」限制、不可被质疑） */
+export function isMercyWild(kind: CardKind): boolean {
+  return (
+    kind === 'draw6' ||
+    kind === 'draw10' ||
+    kind === 'wildReverseDraw4' ||
+    kind === 'wildColorRoulette'
+  );
+}
+
+/** 打出时需要出牌者指定续玩颜色的牌（颜色轮盘由下家选色，不在此列） */
+export function needsColorChoice(card: Card): boolean {
+  return (
+    card.kind === 'wild' ||
+    card.kind === 'wild4' ||
+    card.kind === 'draw6' ||
+    card.kind === 'draw10' ||
+    card.kind === 'wildReverseDraw4'
+  );
+}
+
+/**
+ * 罚牌数值（叠链累计与 official 口径比较用）。
+ * 非罚牌返回 0；classic 的 Wild+4 保留 4，友尽的彩色 +4 与 Wild 反转+4 同为 4。
+ */
+export function getDrawValue(card: Card): number {
+  switch (card.kind) {
+    case 'draw2':
+      return 2;
+    case 'draw4':
+    case 'wild4':
+    case 'wildReverseDraw4':
+      return 4;
+    case 'draw6':
+      return 6;
+    case 'draw10':
+      return 10;
+    default:
+      return 0;
+  }
+}
+
+/** 是否可参与友尽叠链的罚牌（+2 / 彩色+4 / +6 / +10 / Wild 反转+4） */
+export function isMercyDrawCard(card: Card): boolean {
+  return (
+    card.kind === 'draw2' ||
+    card.kind === 'draw4' ||
+    card.kind === 'draw6' ||
+    card.kind === 'draw10' ||
+    card.kind === 'wildReverseDraw4'
+  );
+}
+
 /** 取某模式的牌堆总张数；flip 明确抛错，避免静默回退到基础牌堆 */
 export function expectedDeckSize(config: Partial<GameConfig> = {}): number {
   const mode = config.mode ?? 'classic';

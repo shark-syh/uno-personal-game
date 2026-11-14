@@ -45,7 +45,8 @@ export function countCards(state: GameState): number {
   return (
     state.players.reduce((sum, player) => sum + player.hand.length, 0) +
     state.drawPile.length +
-    state.discardPile.length
+    state.discardPile.length +
+    (state.parkedCards?.length ?? 0)
   );
 }
 
@@ -74,6 +75,7 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     isHuman: seat === config.humanSeat,
     hand: [],
     saidUno: false,
+    eliminated: false,
   }));
 
   let drawPile = shuffle(createDeck(config), rng);
@@ -206,6 +208,9 @@ export function createInitialGame(partial: Partial<GameConfig> = {}): GameState 
     wild4Info: null,
     pendingChallenge: null,
     unoWindow: null,
+    pendingSwap: null,
+    roulette: null,
+    parkedCards: [],
     turnCount: 0,
     actionCount: 0,
     winnerSeat: null,

@@ -1,4 +1,10 @@
-import { ALL_COLORS } from './deck.ts';
+import {
+  ALL_COLORS,
+  getDrawValue,
+  isMercyDrawCard,
+  isMercyWild,
+  needsColorChoice,
+} from './deck.ts';
 import type { Card, Color, EngineAction, GameState } from './types.ts';
 
 /** 取弃牌堆顶牌（没有则返回 null） */
@@ -22,11 +28,19 @@ export function isColor(value: unknown): value is Color {
  */
 export function isPlayable(state: GameState, card: Card): boolean {
   if (card.kind === 'wild' || card.kind === 'wild4') return true;
+  // 友尽四类万能牌任意时刻可出、不可被质疑（无「手里没有当前颜色牌」限制）
+  if (state.config.mode === 'mercy' && isMercyWild(card.kind)) return true;
 
   const top = topCard(state);
   if (!top) return false;
 
   if (state.currentColor !== null && card.color === state.currentColor) return true;
+
+  if (state.config.mode === 'mercy') {
+    // 友尽：颜色 / 数字 / 符号匹配；同类功能牌可跨色压，数字还需点数相同
+    if (card.kind === top.kind) return card.kind === 'number' ? card.value === top.value : true;
+    return false;
+  }
 
   if (top.kind === 'number' && card.kind === 'number' && card.value === top.value) return true;
 
@@ -72,14 +86,14 @@ export function isWild4Legal(state: GameState, seat: number): boolean {
   return true;
 }
 
-/** 某张牌能否用于叠牌（宽松叠法：+2 / +4 都可，且不看颜色） */
+/** 某张牌能否参与叠链（classic：+2 / Wild+4；友尽：全部五种罚牌） */
 export function isStackableCard(card: Card): boolean {
-  return card.kind === 'draw2' || card.kind === 'wild4';
+  return card.kind === 'wild4' || isMercyDrawCard(card);
 }
 
 /** 某张牌对应的可行动作（万能牌展开为 4 种颜色） */
 function playActionsFor(card: Card, type: 'PLAY_CARD' | 'PLAY_DRAWN'): EngineAction[] {
-  if (card.kind === 'wild' || card.kind === 'wild4') {
+  if (needsColorChoice(card)) {
     return ALL_COLORS.map((color) =>
       type === 'PLAY_CARD'
         ? { type: 'PLAY_CARD' as const, cardId: card.id, colorChoice: color }
@@ -91,9 +105,9 @@ function playActionsFor(card: Card, type: 'PLAY_CARD' | 'PLAY_DRAWN'): EngineAct
     : [{ type: 'PLAY_DRAWN', cardId: card.id }];
 }
 
-/** 叠牌响应阶段的动作：任意 +2/+4（宽松叠法不看颜色）+ 弃权 */
+/** 叠牌响应阶段的动作：罚牌展开为动作（需选色的万能罚牌展开为 4 色） */
 function stackActionsFor(card: Card): EngineAction[] {
-  if (card.kind === 'wild4') {
+  if (needsColorChoice(card)) {
     return ALL_COLORS.map((color) => ({
       type: 'STACK_PLAY' as const,
       cardId: card.id,
@@ -103,18 +117,42 @@ function stackActionsFor(card: Card): EngineAction[] {
   return [{ type: 'STACK_PLAY', cardId: card.id }];
 }
 
-/** 叠牌响应阶段的合法动作（宽松叠法不看颜色）：任意 +2/+4 + 弃权 */
+/**
+ * 叠牌响应阶段的合法动作：
+ * - loose / classic / none（历史口径）：任意 +2 / Wild+4 不看颜色互叠；
+ * - official（友尽）：只能打出罚牌值 ≥ 链顶的罚牌，+10 可等值传递但单张不会更大。
+ */
 function stackResponseActions(state: GameState): EngineAction[] {
   const stack = state.stack;
   if (!stack) return [];
   const player = state.players[stack.awaitingSeat];
   if (!player) return [];
+  const official = state.config.stacking === 'official';
+  const chainTop = stack.chain[stack.chain.length - 1];
+  const minValue = official
+    ? (stack.topDrawValue ?? (chainTop ? getDrawValue(chainTop) : 0))
+    : 0;
   const actions: EngineAction[] = [];
   for (const card of player.hand) {
-    if (isStackableCard(card)) actions.push(...stackActionsFor(card));
+    if (!isStackableCard(card)) continue;
+    if (official && getDrawValue(card) < minValue) continue;
+    actions.push(...stackActionsFor(card));
   }
   actions.push({ type: 'STACK_DECLINE' });
   return actions;
+}
+
+/** 7 换手：可选目标为所有其他仍在局中的座位（官方强制换手，无「不换」） */
+function swapTargetActions(state: GameState): EngineAction[] {
+  const initiator = state.pendingSwap?.initiatorSeat ?? state.currentSeat;
+  return state.players
+    .filter((player) => player.seat !== initiator && !player.eliminated)
+    .map((player) => ({ type: 'SWAP_HANDS' as const, targetSeat: player.seat }));
+}
+
+/** Wild 颜色轮盘：由下家选色 */
+function rouletteColorActions(): EngineAction[] {
+  return ALL_COLORS.map((color) => ({ type: 'CHOOSE_ROULETTE_COLOR' as const, color }));
 }
 
 /** +4 挑战窗口的合法动作：只有挑战权的玩家二选一 */
@@ -166,6 +204,10 @@ export function getLegalActions(state: GameState): EngineAction[] {
       return stackResponseActions(state);
     case 'challenge-decide':
       return challengeActions(state);
+    case 'choose-swap-target':
+      return swapTargetActions(state);
+    case 'choose-roulette-color':
+      return rouletteColorActions();
     case 'uno-window': {
       const win = state.unoWindow;
       if (!win) return [];

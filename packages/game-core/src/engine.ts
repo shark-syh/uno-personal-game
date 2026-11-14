@@ -1,5 +1,5 @@
-import { ALL_COLORS } from './deck.ts';
-import { isColor, isPlayable, isWild4Legal } from './legal.ts';
+import { ALL_COLORS, MERCY_HAND_LIMIT, getDrawValue, needsColorChoice } from './deck.ts';
+import { isColor, isPlayable, isStackableCard, isWild4Legal } from './legal.ts';
 import { nextFloat, shuffle } from './rng.ts';
 import { nextSeat } from './setup.ts';
 import type {
@@ -9,6 +9,7 @@ import type {
   EngineAction,
   GameEvent,
   GameState,
+  RoundEndReason,
   UnoWindowState,
 } from './types.ts';
 
@@ -44,15 +45,57 @@ function requirePlayer(state: GameState, seat: number) {
   return player;
 }
 
-/** 抽牌堆空了：把弃牌堆（保留顶牌）洗回抽牌堆。返回是否可以继续抽牌 */
+/**
+ * 按当前方向取第 steps 个「仍在局中」的座位。
+ * classic 下无人淘汰，结果与 nextSeat() 完全一致（不消耗随机数）。
+ */
+function nextActiveSeat(state: GameState, seat: number, steps = 1): number {
+  let current = seat;
+  for (let step = 0; step < steps; step += 1) {
+    let candidate = nextSeat(current, state.players.length, state.direction);
+    let guard = 0;
+    while (state.players[candidate]?.eliminated && guard < state.players.length) {
+      candidate = nextSeat(candidate, state.players.length, state.direction);
+      guard += 1;
+    }
+    current = candidate;
+  }
+  return current;
+}
+
+/**
+ * M2 友尽淘汰：手牌 ≥25 张立即出局，手牌搁置（重洗弃牌堆时放回）。
+ * 只剩一名未淘汰玩家时按「最后幸存者」直接结束本局。
+ */
+function eliminateIfMercy(state: GameState, seat: number, events: GameEvent[]): boolean {
+  if (state.config.mode !== 'mercy') return false;
+  const player = requirePlayer(state, seat);
+  if (player.eliminated || player.hand.length < MERCY_HAND_LIMIT) return false;
+
+  player.eliminated = true;
+  player.saidUno = false;
+  const parked = player.hand.splice(0, player.hand.length);
+  state.parkedCards = [...(state.parkedCards ?? []), ...parked];
+  events.push({ type: 'MERCY_ELIMINATED', seat, count: parked.length });
+
+  const alive = state.players.filter((item) => !item.eliminated);
+  if (alive.length <= 1) {
+    endRound(state, alive[0]?.seat ?? seat, events, 'last-survivor');
+  }
+  return true;
+}
+
+/** 抽牌堆空了：把弃牌堆（保留顶牌）与友尽淘汰者搁置的手牌洗回抽牌堆。 */
 function replenishDrawPile(state: GameState, events: GameEvent[]): boolean {
   if (state.drawPile.length > 0) return true;
-  if (state.discardPile.length <= 1) return false;
-
-  const top = state.discardPile[state.discardPile.length - 1]!;
+  const parked = state.parkedCards ?? [];
   const recyclable = state.discardPile.slice(0, -1);
-  state.drawPile = shuffle(recyclable, state.rng);
-  state.discardPile = [top];
+  if (recyclable.length + parked.length === 0) return false;
+
+  const top = state.discardPile[state.discardPile.length - 1];
+  state.drawPile = shuffle([...recyclable, ...parked], state.rng);
+  state.discardPile = top ? [top] : [];
+  state.parkedCards = [];
   events.push({ type: 'PILE_RESHUFFLE', reason: 'draw' });
   return state.drawPile.length > 0;
 }
@@ -108,24 +151,36 @@ function drawTo(
     events.push({ type: 'DRAW', seat, count: drawn.length, cards: drawn });
     // 手牌多于 1 张时 UNO 状态失效：下次再出到 1 张需要重新喊（M1-6）
     if (requirePlayer(state, seat).hand.length > 1) requirePlayer(state, seat).saidUno = false;
+    // M2：友尽模式摸牌后立即检查 25 张淘汰；事件顺序固定为 DRAW → MERCY_ELIMINATED → ROUND_END
+    if (state.config.mode === 'mercy') {
+      eliminateIfMercy(state, seat, events);
+      if (state.phase === 'round-end') return drawn;
+    }
   }
   if (exhausted) endRoundByFewestCards(state, events);
   return drawn;
 }
 
-/** 结束本局（有人出完手牌） */
-function endRound(state: GameState, winnerSeat: number, events: GameEvent[]): void {
+/** 结束本局（出完手牌 / 牌堆耗尽 / 友尽最后幸存者） */
+function endRound(
+  state: GameState,
+  winnerSeat: number,
+  events: GameEvent[],
+  reason: RoundEndReason = 'empty-hand',
+): void {
   state.phase = 'round-end';
   state.winnerSeat = winnerSeat;
-  state.endReason = 'empty-hand';
+  state.endReason = reason;
   state.pendingColorChoiceSeat = null;
   state.drawnThisTurn = null;
   state.stack = null;
   state.wild4Info = null;
   state.pendingChallenge = null;
   state.unoWindow = null;
-  events.push({ type: 'PLAYER_OUT', seat: winnerSeat });
-  events.push({ type: 'ROUND_END', winnerSeat, reason: 'empty-hand' });
+  state.pendingSwap = null;
+  state.roulette = null;
+  if (reason === 'empty-hand') events.push({ type: 'PLAYER_OUT', seat: winnerSeat });
+  events.push({ type: 'ROUND_END', winnerSeat, reason });
 }
 
 /**
@@ -133,9 +188,11 @@ function endRound(state: GameState, winnerSeat: number, events: GameEvent[]): vo
  * 若并列最少则平局（winnerSeat = null）。事件 reason='deck-empty' 作为日志标注。
  */
 function endRoundByFewestCards(state: GameState, events: GameEvent[]): void {
+  const active = state.players.filter((player) => !player.eliminated);
+  const pool = active.length > 0 ? active : state.players;
   let minCount = Number.POSITIVE_INFINITY;
-  for (const player of state.players) minCount = Math.min(minCount, player.hand.length);
-  const fewest = state.players.filter((player) => player.hand.length === minCount);
+  for (const player of pool) minCount = Math.min(minCount, player.hand.length);
+  const fewest = pool.filter((player) => player.hand.length === minCount);
   const winnerSeat = fewest.length === 1 ? fewest[0]!.seat : null;
 
   state.phase = 'round-end';
@@ -147,16 +204,14 @@ function endRoundByFewestCards(state: GameState, events: GameEvent[]): void {
   state.wild4Info = null;
   state.pendingChallenge = null;
   state.unoWindow = null;
+  state.pendingSwap = null;
+  state.roulette = null;
   events.push({ type: 'ROUND_END', winnerSeat, reason: 'deck-empty' });
 }
 
-/** 回合推进（skipNext=true 表示下一位玩家被跳过） */
+/** 回合推进（skipNext=true 表示下一位玩家被跳过；自动越过已淘汰座位） */
 function advanceTurn(state: GameState, skipNext = false): void {
-  const playerCount = state.players.length;
-  let next = nextSeat(state.currentSeat, playerCount, state.direction);
-  if (skipNext) next = nextSeat(next, playerCount, state.direction);
-
-  state.currentSeat = next;
+  state.currentSeat = nextActiveSeat(state, state.currentSeat, skipNext ? 2 : 1);
   state.phase = 'await-play';
   state.drawnThisTurn = null;
   state.pendingChallenge = null;
@@ -173,18 +228,25 @@ function isStackingEnabled(state: GameState): boolean {
  * 打出的 +2/+4 创建叠牌链，等待下一位玩家选择"叠牌或弃权"。
  * 调用前牌已进入弃牌堆、颜色已结算（`currentColor` 为链顶颜色）。
  */
-function startStack(state: GameState, card: Card, events: GameEvent[]): void {
+function startStack(
+  state: GameState,
+  card: Card,
+  events: GameEvent[],
+  awaitingSeatOverride?: number,
+): void {
   const actor = state.currentSeat;
   const topColor = state.currentColor;
   if (!topColor) throw new Error('叠牌链需要已经确定的颜色');
-  const awaitingSeat = nextSeat(actor, state.players.length, state.direction);
+  const awaitingSeat = awaitingSeatOverride ?? nextActiveSeat(state, actor);
+  const drawValue = getDrawValue(card) || (card.kind === 'draw2' ? 2 : 4);
 
   state.stack = {
-    total: card.kind === 'draw2' ? 2 : 4,
+    total: drawValue,
     chain: [card],
     lastPlayer: actor,
     topColor,
     awaitingSeat,
+    topDrawValue: drawValue,
   };
   state.phase = 'stack-response';
   state.currentSeat = awaitingSeat;
@@ -210,7 +272,7 @@ function resolveStackDraw(state: GameState, events: GameEvent[]): void {
   state.wild4Info = null;
   if (state.phase === 'round-end') return;
 
-  state.currentSeat = nextSeat(drawerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, drawerSeat);
   state.phase = 'await-play';
   state.drawnThisTurn = null;
   state.turnCount += 1;
@@ -302,7 +364,7 @@ function resolveChallengeFail(state: GameState, events: GameEvent[]): void {
   if (state.phase === 'round-end') return;
 
   state.phase = 'await-play';
-  state.currentSeat = nextSeat(pending.challengerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, pending.challengerSeat);
   state.turnCount += 1;
 }
 
@@ -320,7 +382,7 @@ function resolveChallengeDecline(state: GameState, events: GameEvent[]): void {
   if (state.phase === 'round-end') return;
 
   state.phase = 'await-play';
-  state.currentSeat = nextSeat(pending.challengerSeat, state.players.length, state.direction);
+  state.currentSeat = nextActiveSeat(state, pending.challengerSeat);
   state.turnCount += 1;
 }
 
@@ -400,7 +462,7 @@ function closeUnoWindow(state: GameState, events: GameEvent[]): void {
   const catchChance = AI_UNO_CATCH_CHANCE[state.config.aiDifficulty];
   let catcherSeat = win.seat;
   for (let step = 1; step < state.players.length; step += 1) {
-    catcherSeat = nextSeat(catcherSeat, state.players.length, state.direction);
+    catcherSeat = nextActiveSeat(state, catcherSeat);
     const catcher = requirePlayer(state, catcherSeat);
     if (catcher.isHuman) continue; // 人类抓人由 UI 按钮触发，不做自动判定
     if (catchChance >= 1 || nextFloat(state.rng) < catchChance) {
@@ -428,15 +490,20 @@ function playStackCard(
   if (actor !== stack.awaitingSeat) throw new Error('还没轮到该玩家响应叠牌');
   const player = requirePlayer(state, actor);
 
-  const isWild4Card = card.kind === 'wild4';
+  const drawValue = getDrawValue(card);
+  if (state.config.stacking === 'official') {
+    const minValue = stack.topDrawValue ?? getDrawValue(stack.chain[stack.chain.length - 1]!);
+    if (drawValue < minValue) throw new Error('罚牌数值不足，不能继续叠链');
+  }
+  const needsColor = needsColorChoice(card);
   let chosenColor: Color | null = null;
-  if (isWild4Card) {
-    if (!isColor(colorChoice)) throw new Error('Wild+4 叠牌必须选择一个合法颜色');
+  if (needsColor) {
+    if (!isColor(colorChoice)) throw new Error('万能罚牌叠牌必须选择一个合法颜色');
     chosenColor = colorChoice;
   }
 
   const previousColor = state.currentColor;
-  const wild4WasLegal = isWild4Card ? isWild4Legal(state, actor) : true;
+  const wild4WasLegal = card.kind === 'wild4' ? isWild4Legal(state, actor) : true;
 
   const handIndex = player.hand.findIndex((item) => item.id === card.id);
   if (handIndex < 0) throw new Error('手牌中没有这张牌');
@@ -444,28 +511,36 @@ function playStackCard(
   state.discardPile.push(card);
   events.push({ type: 'PLAY', seat: actor, card });
 
-  if (isWild4Card && chosenColor) {
+  if (needsColor && chosenColor) {
     state.currentColor = chosenColor;
     events.push({ type: 'COLOR_SET', seat: actor, color: chosenColor });
     // 隐藏信息：叠牌链中的 +4 不开放挑战（M1-5 只对普通回合打出的 +4 开放挑战）
-    state.wild4Info = {
-      seat: actor,
-      wasLegal: wild4WasLegal,
-      previousColor,
-      challengeable: false,
-      turn: state.turnCount,
-    };
+    if (card.kind === 'wild4') {
+      state.wild4Info = {
+        seat: actor,
+        wasLegal: wild4WasLegal,
+        previousColor,
+        challengeable: false,
+        turn: state.turnCount,
+      };
+    }
   } else if (card.color) {
     state.currentColor = card.color;
   }
 
-  stack.total += card.kind === 'draw2' ? 2 : 4;
+  stack.total += drawValue;
+  stack.topDrawValue = drawValue;
   stack.chain.push(card);
   stack.lastPlayer = actor;
   if (!state.currentColor) throw new Error('叠牌链颜色异常');
   stack.topColor = state.currentColor;
 
-  const next = nextSeat(actor, state.players.length, state.direction);
+  // Wild 反转+4 在叠链中同样先反转方向，再按新方向找下一位响应者
+  if (card.kind === 'wildReverseDraw4') {
+    state.direction = state.direction === 1 ? -1 : 1;
+    events.push({ type: 'REVERSE', direction: state.direction });
+  }
+  const next = nextActiveSeat(state, actor);
   stack.awaitingSeat = next;
   state.currentSeat = next;
   events.push({ type: 'STACK_PUSH', seat: actor, card, total: stack.total });
@@ -612,6 +687,193 @@ function playCard(
 }
 
 /**
+ * M2 友尽 0 传手：全体仍在局中的玩家按当前方向把手牌传给下一位。
+ * 已淘汰座位不参与旋转（否则会把活牌转进空座位、把 0 张手牌误判为获胜）。
+ */
+function rotateActiveHands(state: GameState, events: GameEvent[]): void {
+  const active = state.players.filter((player) => !player.eliminated);
+  if (active.length < 2) return;
+  const hands = active.map((player) => [...player.hand]);
+  const count = hands.length;
+  active.forEach((player, index) => {
+    const source = state.direction === 1 ? (index - 1 + count) % count : (index + 1) % count;
+    player.hand = [...hands[source]!];
+  });
+  events.push({ type: 'PASS_HANDS', direction: state.direction });
+  for (const player of active) {
+    eliminateIfMercy(state, player.seat, events);
+    if (state.phase === 'round-end') return;
+  }
+}
+
+type MercyTurnMode = 'advance' | 'stay' | 'hold';
+
+/**
+ * M2 友尽效果结算。返回回合推进方式：
+ * - advance：正常推进（skipNext=true 时跳过一位）；
+ * - stay：全员跳过，出牌者立即再来一回合（方向不变）；
+ * - hold：等待后续输入（7 换手选目标 / 轮盘选色 / 叠牌响应）。
+ */
+function applyMercyEffect(
+  state: GameState,
+  card: Card,
+  events: GameEvent[],
+  actor: number,
+  isLastCard: boolean,
+): { mode: MercyTurnMode; skipNext: boolean } {
+  const result: { mode: MercyTurnMode; skipNext: boolean } = {
+    mode: 'advance',
+    skipNext: false,
+  };
+  const victim = nextActiveSeat(state, actor);
+
+  // 最后一牌是 7 / 0 先判胜、效果不再发生；轮盘 / 全员跳过 / 全弃同理直接判胜
+  if (
+    isLastCard &&
+    ((card.kind === 'number' && (card.value === 0 || card.value === 7)) ||
+      card.kind === 'wildColorRoulette' ||
+      card.kind === 'skipEveryone' ||
+      card.kind === 'discardAll')
+  ) {
+    return result;
+  }
+
+  switch (card.kind) {
+    case 'number': {
+      if (card.value === 0) {
+        rotateActiveHands(state, events);
+      } else if (card.value === 7) {
+        state.pendingSwap = { initiatorSeat: actor };
+        state.phase = 'choose-swap-target';
+        state.currentSeat = actor;
+        state.drawnThisTurn = null;
+        result.mode = 'hold';
+      }
+      break;
+    }
+    case 'skip': {
+      events.push({ type: 'SKIP', seat: victim });
+      result.skipNext = true;
+      break;
+    }
+    case 'reverse': {
+      state.direction = state.direction === 1 ? -1 : 1;
+      events.push({ type: 'REVERSE', direction: state.direction });
+      if (state.players.length === 2 && state.config.twoPlayerRules) {
+        events.push({ type: 'SKIP', seat: victim });
+        result.skipNext = true;
+      }
+      break;
+    }
+    case 'skipEveryone': {
+      events.push({ type: 'SKIP_EVERYONE', seat: actor });
+      result.mode = 'stay';
+      break;
+    }
+    case 'discardAll': {
+      const player = requirePlayer(state, actor);
+      const sameColor = player.hand.filter((item) => item.color === card.color);
+      player.hand = player.hand.filter((item) => item.color !== card.color);
+      // 同色牌压在全弃牌「下方」，顶牌不变、颜色不变
+      state.discardPile.splice(state.discardPile.length - 1, 0, ...sameColor);
+      events.push({ type: 'DISCARD_ALL', seat: actor, count: sameColor.length });
+      break;
+    }
+    case 'wildColorRoulette': {
+      state.roulette = { initiatorSeat: actor, chooserSeat: victim, targetColor: null };
+      state.phase = 'choose-roulette-color';
+      state.currentSeat = victim;
+      state.drawnThisTurn = null;
+      result.mode = 'hold';
+      break;
+    }
+    case 'draw2':
+    case 'draw4':
+    case 'draw6':
+    case 'draw10':
+    case 'wildReverseDraw4': {
+      if (card.kind === 'wildReverseDraw4') {
+        // 先反转方向，再按新方向确定罚牌指向者；2 人局按官方变成自己抽 4
+        state.direction = state.direction === 1 ? -1 : 1;
+        events.push({ type: 'REVERSE', direction: state.direction });
+      }
+      const override =
+        card.kind === 'wildReverseDraw4' && state.players.length === 2 ? actor : undefined;
+      startStack(state, card, events, override);
+      result.mode = 'hold';
+      break;
+    }
+    default:
+      break;
+  }
+  return result;
+}
+
+/**
+ * M2 友尽出牌入口：与 classic 的 playCard 并列，基础模式代码路径一个字不动。
+ * 罚牌统一走 official 叠链；友尽不设 Wild+4 挑战；7/0 最后一牌先判胜。
+ */
+function playMercyCard(
+  state: GameState,
+  card: Card,
+  colorChoice: string | undefined,
+  events: GameEvent[],
+): void {
+  const actor = state.currentSeat;
+  const player = requirePlayer(state, actor);
+  let chosenColor: Color | null = null;
+  if (needsColorChoice(card)) {
+    if (!isColor(colorChoice)) throw new Error('万能牌必须选择一个合法颜色');
+    chosenColor = colorChoice;
+  }
+
+  const handIndex = player.hand.findIndex((item) => item.id === card.id);
+  if (handIndex < 0) throw new Error('手牌中没有这张牌');
+  player.hand.splice(handIndex, 1);
+  state.discardPile.push(card);
+  events.push({ type: 'PLAY', seat: actor, card });
+
+  if (chosenColor) {
+    state.currentColor = chosenColor;
+    events.push({ type: 'COLOR_SET', seat: actor, color: chosenColor });
+  } else if (card.color) {
+    state.currentColor = card.color;
+  }
+
+  const effect = applyMercyEffect(state, card, events, actor, player.hand.length === 0);
+
+  if (state.phase === 'round-end') return;
+  if (player.hand.length === 0) {
+    // 最后一张是罚牌：下家仍抽累计张数并计入结算，链不再继续
+    if (state.stack) {
+      const pending = state.stack;
+      const victimSeat = pending.awaitingSeat;
+      const total = pending.total;
+      state.stack = null;
+      events.push({ type: 'STACK_RESOLVE', seat: victimSeat, total });
+      drawTo(state, victimSeat, total, events, { allowRoundEnd: false });
+    }
+    endRound(state, actor, events);
+    return;
+  }
+  if (state.phase === 'stack-response') {
+    handleUnoAfterPlay(state, actor, 'stack-response', events);
+    return;
+  }
+  // 7 换手 / 颜色轮盘：等对应动作完成后再推进回合
+  if (state.phase === 'choose-swap-target' || state.phase === 'choose-roulette-color') return;
+  if (effect.mode === 'stay') {
+    state.currentSeat = actor;
+    state.phase = 'await-play';
+    state.drawnThisTurn = null;
+    state.turnCount += 1;
+  } else {
+    advanceTurn(state, effect.skipNext);
+  }
+  handleUnoAfterPlay(state, actor, 'await-play', events);
+}
+
+/**
  * 执行一个动作，返回新状态与本次事件。
  * 纯函数：不修改传入 state（内部 structuredClone）。
  */
@@ -690,7 +952,11 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
         throw new Error('出万能牌必须选择颜色');
       }
 
-      playCard(next, card, action.colorChoice, events);
+      if (next.config.mode === 'mercy') {
+        playMercyCard(next, card, action.colorChoice, events);
+      } else {
+        playCard(next, card, action.colorChoice, events);
+      }
       break;
     }
 
@@ -708,7 +974,11 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
         throw new Error('出万能牌必须选择颜色');
       }
       next.drawnThisTurn = null;
-      playCard(next, card, action.colorChoice, events);
+      if (next.config.mode === 'mercy') {
+        playMercyCard(next, card, action.colorChoice, events);
+      } else {
+        playCard(next, card, action.colorChoice, events);
+      }
       break;
     }
 
@@ -727,8 +997,15 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       const player = requirePlayer(next, next.currentSeat);
       const card = player.hand.find((item) => item.id === action.cardId);
       if (!card) throw new Error('手牌中没有这张牌');
-      if (card.kind !== 'draw2' && card.kind !== 'wild4') {
-        throw new Error('叠牌响应阶段只能打出 +2 或 +4');
+      if (!isStackableCard(card)) throw new Error('叠牌响应阶段只能打出罚牌');
+      if (next.config.stacking === 'official') {
+        const stack = next.stack;
+        const minValue =
+          stack.topDrawValue ?? getDrawValue(stack.chain[stack.chain.length - 1]!);
+        if (getDrawValue(card) < minValue) throw new Error('罚牌数值不足，不能继续叠链');
+      }
+      if (needsColorChoice(card) && !isColor(action.colorChoice)) {
+        throw new Error('万能罚牌必须选择一个合法颜色');
       }
       playStackCard(next, card, action.colorChoice, events);
       break;
@@ -801,6 +1078,77 @@ export function applyAction(state: GameState, action: EngineAction): ApplyAction
       // 抓人不消耗行动：窗口关闭后仍轮到原来的下一位玩家行动（牌堆耗尽结束本局时除外）
       next.unoWindow = null;
       if (next.endReason === null) next.phase = win.pendingPhase;
+      break;
+    }
+
+    case 'SWAP_HANDS': {
+      if (next.phase !== 'choose-swap-target' || !next.pendingSwap) {
+        throw new Error('当前不是 7 换手阶段');
+      }
+      const initiator = next.pendingSwap.initiatorSeat;
+      if (next.currentSeat !== initiator) throw new Error('只有出 7 的玩家能选择换手目标');
+      const target = requirePlayer(next, action.targetSeat);
+      if (target.seat === initiator || target.eliminated) throw new Error('换手目标必须仍在局中且不是自己');
+
+      const source = requirePlayer(next, initiator);
+      const temp = source.hand;
+      source.hand = target.hand;
+      target.hand = temp;
+      events.push({ type: 'SWAP_HANDS', seat: initiator, targetSeat: target.seat });
+      next.pendingSwap = null;
+
+      eliminateIfMercy(next, initiator, events);
+      eliminateIfMercy(next, target.seat, events);
+      if (isGameOver(next)) break;
+
+      advanceTurn(next);
+      handleUnoAfterPlay(next, initiator, 'await-play', events);
+      break;
+    }
+
+    case 'CHOOSE_ROULETTE_COLOR': {
+      if (next.phase !== 'choose-roulette-color' || !next.roulette) {
+        throw new Error('当前不是颜色轮盘选色阶段');
+      }
+      const { initiatorSeat, chooserSeat } = next.roulette;
+      if (next.currentSeat !== chooserSeat) throw new Error('只有轮盘下家能选色');
+      if (!isColor(action.color)) throw new Error('非法颜色');
+
+      const chooser = requirePlayer(next, chooserSeat);
+      next.roulette = { ...next.roulette, targetColor: action.color };
+      events.push({ type: 'COLOR_ROULETTE', seat: chooserSeat, color: action.color });
+
+      // 逐张翻抽直到抽到所选颜色（万能牌 color=null 不计），全部加入手牌
+      let matched = false;
+      for (let guard = 0; guard < 1000; guard += 1) {
+        if (!canProvideDraw(next, events, false)) {
+          // 牌堆与弃牌堆同时耗尽：停止抽牌并跳过该回合（规则契约 §5 兜底）
+          events.push({ type: 'ROULETTE_EXHAUSTED', seat: chooserSeat });
+          break;
+        }
+        const card = next.drawPile.pop()!;
+        chooser.hand.push(card);
+        events.push({ type: 'DRAW', seat: chooserSeat, count: 1, cards: [card] });
+        if (card.color === action.color) {
+          matched = true;
+          break;
+        }
+        if (eliminateIfMercy(next, chooserSeat, events) || isGameOver(next)) break;
+      }
+      if (chooser.hand.length > 1) chooser.saidUno = false;
+      if (matched) {
+        next.currentColor = action.color;
+        events.push({ type: 'COLOR_SET', seat: chooserSeat, color: action.color });
+      }
+      next.roulette = null;
+      if (isGameOver(next)) break;
+
+      // 轮盘下家被跳过，回合交给再下一位仍在局中的玩家
+      next.currentSeat = nextActiveSeat(next, chooserSeat);
+      next.phase = 'await-play';
+      next.drawnThisTurn = null;
+      next.turnCount += 1;
+      handleUnoAfterPlay(next, initiatorSeat, 'await-play', events);
       break;
     }
 

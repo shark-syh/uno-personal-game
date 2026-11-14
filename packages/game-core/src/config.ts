@@ -41,7 +41,7 @@ const DIFFICULTIES = new Set<Difficulty>(['casual', 'easy', 'realistic', 'hardco
 const AI_MODES = new Set<AiMode>(['zhipu', 'local', 'auto']);
 const STARTING_PLAYERS = new Set<StartingPlayer>(['random', 'human']);
 const START_CARD_RULES = new Set<StartCardRule>(['classic', 'ignore-action']);
-const STACKING_MODES = new Set<StackingMode>(['loose', 'classic', 'none']);
+const STACKING_MODES = new Set<StackingMode>(['loose', 'classic', 'none', 'official']);
 const DECK_EXHAUSTIONS = new Set<DeckExhaustion>(['reshuffle', 'end-by-fewest']);
 const WILD4_LEGALITIES = new Set<Wild4Legality>(['color-only', 'new-version']);
 
@@ -87,6 +87,14 @@ export function normalizeGameConfig(partial: Partial<GameConfig> = {}): GameConf
   }
   if (!Number.isInteger(merged.unoPenalty) || merged.unoPenalty < 0) {
     throw new RangeError(`unoPenalty 必须是非负整数，收到 ${merged.unoPenalty}`);
+  }
+
+  // M2 友尽口径（规则契约 §7）：official 叠链、不设 +4 挑战、wild4Legality 不适用。
+  // 只影响 mode='mercy'，classic 的所有默认值与既有调用完全不变。
+  if (merged.mode === 'mercy') {
+    merged.stacking = 'official';
+    merged.challengeWild4 = false;
+    merged.wild4Legality = 'color-only';
   }
 
   return { ...merged, names: merged.names ? [...merged.names] : null };

@@ -67,6 +67,10 @@ function toDraft(action: EngineAction, view: AiView): CandidateDraft {
     case 'CALL_UNO':
     case 'CATCH_UNO':
       throw new Error('UNO 窗口动作不应生成 AI 候选（应在过滤阶段排除）');
+    default:
+      // M2 友尽的新动作（7 换手 / 轮盘选色）暂不进入 AI 评分，
+      // 基础模式永远不会产生这些动作；友尽 AI 决策由后续阶段对接。
+      throw new Error(`友尽动作暂不支持 AI 候选：${(action as { type: string }).type}`);
   }
 }
 
