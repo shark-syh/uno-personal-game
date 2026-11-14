@@ -6,7 +6,7 @@
  * - 动作只在「房间 + 座位 + 回合」都对得上时才会交给引擎 applyAction；
  * - 服务端下发的视图永远走 getGameView(state, seat)（隔离见 rooms.ts / wsServer.ts）。
  */
-import type { Color, EngineAction } from '@uno/game-core';
+import type { Color, EngineAction, GameMode } from '@uno/game-core';
 
 /** 显示名最大长度（与单机大厅名字截断一致） */
 export const MAX_NAME_LENGTH = 12;
@@ -30,6 +30,15 @@ export interface StartGameMessage {
   type: 'start-game';
   /** M8-04：AI 补位数量（0 = 不补位；开局人数 = 真人数 + aiCount） */
   aiCount?: number;
+  /** M3：玩法模式（不传 = classic）；flip 方案暂缓，协议层直接拒绝 */
+  mode?: GameMode;
+}
+
+/** M3：协议层允许透传的玩法模式（flip 未实现，不接受） */
+export const PLAYABLE_MODES = ['classic', 'mercy'] as const satisfies readonly GameMode[];
+
+export function isPlayableMode(value: unknown): value is GameMode {
+  return typeof value === 'string' && (PLAYABLE_MODES as readonly string[]).includes(value);
 }
 
 export interface ActionMessage {
@@ -84,6 +93,8 @@ export interface RoomSnapshot {
   status: 'lobby' | 'playing' | 'ended';
   hostSeat: number;
   players: Array<{ seat: number; name: string; connected: boolean }>;
+  /** M3：房间当前玩法模式（大厅阶段可被房主开局时改写，rematch 沿用） */
+  mode?: GameMode;
 }
 
 export interface JoinedMessage {
@@ -185,6 +196,9 @@ const ACTION_TYPES = new Set([
   'DECLINE_CHALLENGE',
   'CALL_UNO',
   'CATCH_UNO',
+  // M3 友尽：7 换手 / 轮盘选色（与引擎 M2 新增的两个动作对齐）
+  'SWAP_HANDS',
+  'CHOOSE_ROULETTE_COLOR',
 ]);
 
 /**
@@ -217,6 +231,17 @@ export function parseEngineAction(value: unknown): EngineAction | null {
     case 'CHOOSE_COLOR': {
       if (!COLORS.has(value.color as Color)) return null;
       return { type: 'CHOOSE_COLOR', color: value.color as Color };
+    }
+    case 'CHOOSE_ROULETTE_COLOR': {
+      if (!COLORS.has(value.color as Color)) return null;
+      return { type: 'CHOOSE_ROULETTE_COLOR', color: value.color as Color };
+    }
+    case 'SWAP_HANDS': {
+      const targetSeat = value.targetSeat;
+      if (!Number.isInteger(targetSeat) || (targetSeat as number) < 0 || (targetSeat as number) >= 10) {
+        return null;
+      }
+      return { type: 'SWAP_HANDS', targetSeat: targetSeat as number };
     }
     case 'CATCH_UNO': {
       if (!Number.isInteger(value.targetSeat)) return null;
@@ -263,7 +288,10 @@ export function parseClientMessage(raw: string): ClientMessage | null {
             ? (data.aiCount as number)
             : null;
       if (aiCount === null) return null;
-      return { type: 'start-game', aiCount };
+      // M3：mode 缺省保持 classic；非法值（含暂缓的 flip）一律判 BAD_MESSAGE，不静默回退
+      const mode = data.mode === undefined ? undefined : isPlayableMode(data.mode) ? data.mode : null;
+      if (mode === null) return null;
+      return { type: 'start-game', aiCount, ...(mode ? { mode } : {}) };
     }
     case 'leave-room':
       return { type: 'leave-room' };

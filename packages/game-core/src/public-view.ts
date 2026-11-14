@@ -20,6 +20,7 @@ import type {
   Direction,
   EngineAction,
   GameEvent,
+  GameMode,
   GamePhase,
   GameState,
   RoundEndReason,
@@ -81,6 +82,8 @@ export interface PublicPlayerView {
   lastPlayed: Card | null;
   line: string;
   difficulty: Difficulty | null;
+  /** M3 友尽：手牌 ≥25 张被淘汰（classic 恒为 false） */
+  eliminated: boolean;
 }
 
 /** 契约 §1.2 human */
@@ -103,8 +106,27 @@ export interface PublicTableView {
   discardTop3: Card[];
   drawPileCount: number;
   stack: StackState | null;
+  /** M3：叠链累计罚牌总额（无叠链时为 0），右栏 CURRENT PRESSURE 直接读 */
+  stackTotal: number;
   pendingColorChoice: boolean;
   winnerSeat: number | null;
+}
+
+/**
+ * M3 友尽模式摘要：只含公开信息，classic 下 `GameView.mercy` 恒为 null。
+ * 换手 / 传手后所有牌面仍只从 `human.hand` 按座位下发，这里不携带任何牌面。
+ */
+export interface MercyView {
+  /** 出 7 后待选换手目标的发起者座位（choose-swap-target 阶段） */
+  pendingSwapSeat: number | null;
+  /** 轮盘选色者座位（choose-roulette-color 阶段） */
+  rouletteChooserSeat: number | null;
+  /** 轮盘已选定的目标颜色（选定后到效果结算期间短暂存在） */
+  rouletteTargetColor: Color | null;
+  /** 淘汰者搁置的牌数；重洗时放回抽牌堆，只暴露数量 */
+  parkedCardsCount: number;
+  /** 已被淘汰的座位号（升序） */
+  eliminatedSeats: number[];
 }
 
 /** 契约 §1.2.2 result（平局时 winnerSeat = null；2026-10-18 起取消计分，新增操作统计） */
@@ -141,6 +163,10 @@ export interface GameView {
   mock: boolean;
   screen: 'lobby' | 'game' | 'result';
   phase: GamePhase;
+  /** M3：当前玩法模式（classic / mercy），M4 按它切换卡面资源与模式徽标 */
+  mode: GameMode;
+  /** M3：友尽专属公开摘要；classic 恒为 null */
+  mercy: MercyView | null;
   config: PublicConfig;
   currentSeat: number;
   direction: Direction;
@@ -163,13 +189,16 @@ export interface GameView {
 
 /** 生成 lobby 屏幕的伪 view（引擎不保存大厅状态，由 UI 层持有） */
 export function createLobbyView(
-  config: Partial<PublicConfig> = {},
+  config: Partial<PublicConfig> & { mode?: GameMode } = {},
   settings: Partial<ViewSettings> = {},
 ): GameView {
   return {
     mock: false,
     screen: 'lobby',
     phase: 'lobby',
+    // M3：大厅也能带上待开局的玩法模式；config 四个契约字段保持原样不动。
+    mode: config.mode ?? 'classic',
+    mercy: null,
     config: {
       playerCount: config.playerCount ?? 4,
       difficulty: config.difficulty ?? 'realistic',
@@ -195,6 +224,7 @@ export function createLobbyView(
       discardTop3: [],
       drawPileCount: 0,
       stack: null,
+      stackTotal: 0,
       pendingColorChoice: false,
       winnerSeat: null,
     },
@@ -205,25 +235,46 @@ export function createLobbyView(
   };
 }
 
-/** 事件脱敏：他人摸牌不带牌面；AI 挑战成功不带被挑战者手牌 */
+/**
+ * 事件脱敏：他人摸牌不带牌面；AI 挑战成功不带被挑战者手牌。
+ *
+ * M3 友尽：7 换手 / 0 传手 / 全弃 / 轮盘 / 淘汰这 8 类新事件一律按定义字段
+ * **显式重建**再下发——即使以后事件里误加了牌面字段，也不会顺着视图泄露给别的座位。
+ * 换手、传手后每个座位只从 `human.hand` 拿到自己换到的那副牌，事件里只有座位号与张数。
+ */
 export function sanitizeEventsForSeat(events: readonly GameEvent[], seat: number): GameEvent[] {
-  return events.map((event) => {
-    if (event.type === 'DRAW') {
-      if (event.seat === seat) return event;
-      return { type: 'DRAW', seat: event.seat, count: event.count, cards: [] };
+  return events.map((event): GameEvent => {
+    switch (event.type) {
+      case 'DRAW':
+        if (event.seat === seat) return event;
+        return { type: 'DRAW', seat: event.seat, count: event.count, cards: [] };
+      case 'CHALLENGE_SUCCESS':
+        if (event.challenger === seat && event.hand) {
+          return {
+            type: 'CHALLENGE_SUCCESS',
+            challenger: event.challenger,
+            target: event.target,
+            hand: event.hand.map((card) => ({ ...card })),
+          };
+        }
+        return { type: 'CHALLENGE_SUCCESS', challenger: event.challenger, target: event.target };
+      case 'SWAP_HANDS':
+        return { type: 'SWAP_HANDS', seat: event.seat, targetSeat: event.targetSeat };
+      case 'PASS_HANDS':
+        return { type: 'PASS_HANDS', direction: event.direction };
+      case 'SKIP_EVERYONE':
+        return { type: 'SKIP_EVERYONE', seat: event.seat };
+      case 'DISCARD_ALL':
+        return { type: 'DISCARD_ALL', seat: event.seat, count: event.count };
+      case 'COLOR_ROULETTE':
+        return { type: 'COLOR_ROULETTE', seat: event.seat, color: event.color };
+      case 'ROULETTE_EXHAUSTED':
+        return { type: 'ROULETTE_EXHAUSTED', seat: event.seat };
+      case 'MERCY_ELIMINATED':
+        return { type: 'MERCY_ELIMINATED', seat: event.seat, count: event.count };
+      default:
+        return event;
     }
-    if (event.type === 'CHALLENGE_SUCCESS') {
-      if (event.challenger === seat && event.hand) {
-        return {
-          type: 'CHALLENGE_SUCCESS',
-          challenger: event.challenger,
-          target: event.target,
-          hand: event.hand.map((card) => ({ ...card })),
-        };
-      }
-      return { type: 'CHALLENGE_SUCCESS', challenger: event.challenger, target: event.target };
-    }
-    return event;
   });
 }
 
@@ -476,11 +527,42 @@ export function getGameView(
   const human = state.players[seat]!;
   const lastPlayed = lastPlayedBySeat(state);
   const roundEnded = state.phase === 'round-end';
+  const mode = state.config.mode;
+  // M3：友尽专属公开摘要（classic 恒为 null，视图其余字段一个不减）
+  const mercy: MercyView | null =
+    mode === 'mercy'
+      ? {
+          pendingSwapSeat: state.pendingSwap?.initiatorSeat ?? null,
+          rouletteChooserSeat: state.roulette?.chooserSeat ?? null,
+          rouletteTargetColor: state.roulette?.targetColor ?? null,
+          parkedCardsCount: state.parkedCards?.length ?? 0,
+          eliminatedSeats: state.players
+            .filter((player) => player.eliminated)
+            .map((player) => player.seat),
+        }
+      : null;
+  const drawn = state.drawnThisTurn;
+  // M3 换手/传手后按座位脱敏：刚摸的牌若已不在该座位手牌里（0 传手会整副转走），
+  // 即使 currentSeat 仍是本座位也不再下发牌面，避免把别人的牌面发过来。
+  const drawnVisible = Boolean(
+    state.currentSeat === seat &&
+      drawn &&
+      (mode !== 'mercy' || human.hand.some((card) => card.id === drawn.id)),
+  );
+  const legalActions = getHumanLegalActions(state, seat);
+  // 同理：基于这张已转走的牌生成的 PLAY_DRAWN 动作（label / cardId 都带牌面）也要剔除，
+  // 不能只清 drawnThisTurn 字段就当作已脱敏。
+  const humanLegalActions =
+    mode === 'mercy' && drawn && !drawnVisible
+      ? legalActions.filter((action) => action.type !== 'PLAY_DRAWN')
+      : legalActions;
 
   return {
     mock: false,
     screen: roundEnded ? 'result' : 'game',
     phase: state.phase,
+    mode,
+    mercy,
     config: {
       playerCount: state.players.length,
       difficulty: state.config.aiDifficulty,
@@ -501,15 +583,16 @@ export function getGameView(
       lastPlayed: lastPlayed.get(player.seat) ?? null,
       line: '',
       difficulty: player.isHuman ? null : state.config.aiDifficulty,
+      eliminated: player.eliminated === true,
     })),
     human: {
       seat,
       hand: human.hand.map((card) => ({ ...card })),
-      legalActions: getHumanLegalActions(state, seat),
+      legalActions: humanLegalActions,
       // drawnThisTurn 只发给摸牌者本人（与 getAiView 同口径）：其他座位只能从
-      // DRAW 事件看到摸了几张，牌面属隐藏信息（M8-05 联机隔离修复，ws-game E2E 抓到的泄露）
-      drawnThisTurn:
-        state.currentSeat === seat && state.drawnThisTurn ? { ...state.drawnThisTurn } : null,
+      // DRAW 事件看到摸了几张，牌面属隐藏信息（M8-05 联机隔离修复，ws-game E2E 抓到的泄露）。
+      // M3 追加：友尽 7 换手 / 0 传手后还要确认这张牌仍在本座位手里（见上方 drawnVisible）。
+      drawnThisTurn: drawnVisible && drawn ? { ...drawn } : null,
       mustRespondStack: state.phase === 'stack-response' && state.currentSeat === seat,
       canCallUno: Boolean(
         state.unoWindow && state.unoWindow.seat === seat && state.unoWindow.canCall,
@@ -538,8 +621,13 @@ export function getGameView(
             lastPlayer: state.stack.lastPlayer,
             topColor: state.stack.topColor,
             awaitingSeat: state.stack.awaitingSeat,
+            // M3：official 叠链的链顶罚值（只能出 ≥ 该值）；classic 无此字段时保持原投影
+            ...(state.stack.topDrawValue !== undefined
+              ? { topDrawValue: state.stack.topDrawValue }
+              : {}),
           }
         : null,
+      stackTotal: state.stack?.total ?? 0,
       pendingColorChoice: state.phase === 'choose-color',
       winnerSeat: state.winnerSeat,
     },

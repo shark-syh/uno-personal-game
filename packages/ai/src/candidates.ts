@@ -64,13 +64,21 @@ function toDraft(action: EngineAction, view: AiView): CandidateDraft {
       return { kind: 'challenge', action, card: null, colorChoice: null };
     case 'DECLINE_CHALLENGE':
       return { kind: 'decline-challenge', action, card: null, colorChoice: null };
+    // M3 友尽：两个新动作进入 AI 候选，否则联机 AI 补位遇到 7 / 轮盘会卡住对局
+    case 'SWAP_HANDS':
+      return { kind: 'swap-hands', action, card: null, colorChoice: null };
+    case 'CHOOSE_ROULETTE_COLOR':
+      return {
+        kind: 'choose-roulette-color',
+        action,
+        card: null,
+        colorChoice: action.color,
+      };
     case 'CALL_UNO':
     case 'CATCH_UNO':
       throw new Error('UNO 窗口动作不应生成 AI 候选（应在过滤阶段排除）');
     default:
-      // M2 友尽的新动作（7 换手 / 轮盘选色）暂不进入 AI 评分，
-      // 基础模式永远不会产生这些动作；友尽 AI 决策由后续阶段对接。
-      throw new Error(`友尽动作暂不支持 AI 候选：${(action as { type: string }).type}`);
+      throw new Error(`未知动作类型：${(action as { type: string }).type}`);
   }
 }
 
@@ -83,6 +91,10 @@ function candidateId(action: EngineAction): string {
       return `${action.type}:${action.cardId}:${action.colorChoice ?? '-'}`;
     case 'CHOOSE_COLOR':
       return `CHOOSE_COLOR:${action.color}`;
+    case 'CHOOSE_ROULETTE_COLOR':
+      return `CHOOSE_ROULETTE_COLOR:${action.color}`;
+    case 'SWAP_HANDS':
+      return `SWAP_HANDS:${action.targetSeat}`;
     case 'CATCH_UNO':
       return `CATCH_UNO:${action.targetSeat}`;
     default:
@@ -132,6 +144,15 @@ function makeNote(candidate: Candidate, view: AiView): string {
       return `挑战 +4（估算对方违规概率 ${Math.round(candidate.features.challengeSuccess * 100)}%）`;
     case 'decline-challenge':
       return `接受 +4，摸 ${view.pendingChallenge?.total ?? 4} 张`;
+    case 'choose-roulette-color': {
+      const count = view.hand.filter((item) => item.color === colorChoice).length;
+      return `轮盘选${colorNameOf(colorChoice)}（手中 ${count} 张）`;
+    }
+    case 'swap-hands': {
+      const targetSeat = candidate.action.type === 'SWAP_HANDS' ? candidate.action.targetSeat : -1;
+      const count = view.players.find((player) => player.seat === targetSeat)?.handCount ?? 0;
+      return `与 ${targetSeat + 1} 号换手（对方 ${count} 张）`;
+    }
   }
 }
 

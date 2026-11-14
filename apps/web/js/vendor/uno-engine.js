@@ -1520,6 +1520,9 @@ function createLobbyView(config = {}, settings = {}) {
     mock: false,
     screen: "lobby",
     phase: "lobby",
+    // M3：大厅也能带上待开局的玩法模式；config 四个契约字段保持原样不动。
+    mode: config.mode ?? "classic",
+    mercy: null,
     config: {
       playerCount: config.playerCount ?? 4,
       difficulty: config.difficulty ?? "realistic",
@@ -1545,6 +1548,7 @@ function createLobbyView(config = {}, settings = {}) {
       discardTop3: [],
       drawPileCount: 0,
       stack: null,
+      stackTotal: 0,
       pendingColorChoice: false,
       winnerSeat: null
     },
@@ -1556,22 +1560,37 @@ function createLobbyView(config = {}, settings = {}) {
 }
 function sanitizeEventsForSeat(events, seat) {
   return events.map((event) => {
-    if (event.type === "DRAW") {
-      if (event.seat === seat) return event;
-      return { type: "DRAW", seat: event.seat, count: event.count, cards: [] };
+    switch (event.type) {
+      case "DRAW":
+        if (event.seat === seat) return event;
+        return { type: "DRAW", seat: event.seat, count: event.count, cards: [] };
+      case "CHALLENGE_SUCCESS":
+        if (event.challenger === seat && event.hand) {
+          return {
+            type: "CHALLENGE_SUCCESS",
+            challenger: event.challenger,
+            target: event.target,
+            hand: event.hand.map((card) => ({ ...card }))
+          };
+        }
+        return { type: "CHALLENGE_SUCCESS", challenger: event.challenger, target: event.target };
+      case "SWAP_HANDS":
+        return { type: "SWAP_HANDS", seat: event.seat, targetSeat: event.targetSeat };
+      case "PASS_HANDS":
+        return { type: "PASS_HANDS", direction: event.direction };
+      case "SKIP_EVERYONE":
+        return { type: "SKIP_EVERYONE", seat: event.seat };
+      case "DISCARD_ALL":
+        return { type: "DISCARD_ALL", seat: event.seat, count: event.count };
+      case "COLOR_ROULETTE":
+        return { type: "COLOR_ROULETTE", seat: event.seat, color: event.color };
+      case "ROULETTE_EXHAUSTED":
+        return { type: "ROULETTE_EXHAUSTED", seat: event.seat };
+      case "MERCY_ELIMINATED":
+        return { type: "MERCY_ELIMINATED", seat: event.seat, count: event.count };
+      default:
+        return event;
     }
-    if (event.type === "CHALLENGE_SUCCESS") {
-      if (event.challenger === seat && event.hand) {
-        return {
-          type: "CHALLENGE_SUCCESS",
-          challenger: event.challenger,
-          target: event.target,
-          hand: event.hand.map((card) => ({ ...card }))
-        };
-      }
-      return { type: "CHALLENGE_SUCCESS", challenger: event.challenger, target: event.target };
-    }
-    return event;
   });
 }
 function labelFor(action, card, state) {
@@ -1789,10 +1808,26 @@ function getGameView(state, seat, options = {}) {
   const human = state.players[seat];
   const lastPlayed = lastPlayedBySeat(state);
   const roundEnded = state.phase === "round-end";
+  const mode = state.config.mode;
+  const mercy = mode === "mercy" ? {
+    pendingSwapSeat: state.pendingSwap?.initiatorSeat ?? null,
+    rouletteChooserSeat: state.roulette?.chooserSeat ?? null,
+    rouletteTargetColor: state.roulette?.targetColor ?? null,
+    parkedCardsCount: state.parkedCards?.length ?? 0,
+    eliminatedSeats: state.players.filter((player) => player.eliminated).map((player) => player.seat)
+  } : null;
+  const drawn = state.drawnThisTurn;
+  const drawnVisible = Boolean(
+    state.currentSeat === seat && drawn && (mode !== "mercy" || human.hand.some((card) => card.id === drawn.id))
+  );
+  const legalActions = getHumanLegalActions(state, seat);
+  const humanLegalActions = mode === "mercy" && drawn && !drawnVisible ? legalActions.filter((action) => action.type !== "PLAY_DRAWN") : legalActions;
   return {
     mock: false,
     screen: roundEnded ? "result" : "game",
     phase: state.phase,
+    mode,
+    mercy,
     config: {
       playerCount: state.players.length,
       difficulty: state.config.aiDifficulty,
@@ -1812,15 +1847,17 @@ function getGameView(state, seat, options = {}) {
       thinking: false,
       lastPlayed: lastPlayed.get(player.seat) ?? null,
       line: "",
-      difficulty: player.isHuman ? null : state.config.aiDifficulty
+      difficulty: player.isHuman ? null : state.config.aiDifficulty,
+      eliminated: player.eliminated === true
     })),
     human: {
       seat,
       hand: human.hand.map((card) => ({ ...card })),
-      legalActions: getHumanLegalActions(state, seat),
+      legalActions: humanLegalActions,
       // drawnThisTurn 只发给摸牌者本人（与 getAiView 同口径）：其他座位只能从
-      // DRAW 事件看到摸了几张，牌面属隐藏信息（M8-05 联机隔离修复，ws-game E2E 抓到的泄露）
-      drawnThisTurn: state.currentSeat === seat && state.drawnThisTurn ? { ...state.drawnThisTurn } : null,
+      // DRAW 事件看到摸了几张，牌面属隐藏信息（M8-05 联机隔离修复，ws-game E2E 抓到的泄露）。
+      // M3 追加：友尽 7 换手 / 0 传手后还要确认这张牌仍在本座位手里（见上方 drawnVisible）。
+      drawnThisTurn: drawnVisible && drawn ? { ...drawn } : null,
       mustRespondStack: state.phase === "stack-response" && state.currentSeat === seat,
       canCallUno: Boolean(
         state.unoWindow && state.unoWindow.seat === seat && state.unoWindow.canCall
@@ -1837,8 +1874,11 @@ function getGameView(state, seat, options = {}) {
         chain: state.stack.chain.map((card) => ({ ...card })),
         lastPlayer: state.stack.lastPlayer,
         topColor: state.stack.topColor,
-        awaitingSeat: state.stack.awaitingSeat
+        awaitingSeat: state.stack.awaitingSeat,
+        // M3：official 叠链的链顶罚值（只能出 ≥ 该值）；classic 无此字段时保持原投影
+        ...state.stack.topDrawValue !== void 0 ? { topDrawValue: state.stack.topDrawValue } : {}
       } : null,
+      stackTotal: state.stack?.total ?? 0,
       pendingColorChoice: state.phase === "choose-color",
       winnerSeat: state.winnerSeat
     },
@@ -2271,7 +2311,9 @@ function extractFeatures(draft, context) {
   const { view, memory, profile } = context;
   const isPlay = draft.kind === "play" || draft.kind === "play-drawn" || draft.kind === "stack-play";
   const handSize = view.hand.length;
-  const handAfter = isPlay ? handSize - 1 : handSize;
+  const swapAction = draft.action.type === "SWAP_HANDS" ? draft.action : null;
+  const swapTargetCount = draft.kind === "swap-hands" && swapAction ? view.players.find((player) => player.seat === swapAction.targetSeat)?.handCount ?? handSize : null;
+  const handAfter = swapTargetCount !== null ? swapTargetCount : isPlay ? handSize - 1 : handSize;
   const handAfterCards = handWithout(view.hand, draft.card);
   const resultColor = resultingColor(draft);
   const nextSeat2 = nextPlayerSeat(view);
@@ -2280,12 +2322,12 @@ function extractFeatures(draft, context) {
   const minOpponentCount = opponentCounts.length > 0 ? Math.min(...opponentCounts) : handSize;
   const attack = isPlay ? extractAttack(draft, view, nextCount) : 0;
   const features = {
-    handReduction: isPlay ? 1 : 0,
+    handReduction: swapTargetCount !== null ? clamp01((handSize - swapTargetCount + 3) / 6) : isPlay ? 1 : 0,
     attack,
     colorKeep: isPlay ? extractColorKeep(draft, handAfterCards, resultColor) : 0,
     followUp: isPlay ? extractFollowUp(draft, handAfterCards, resultColor) : 0,
     wildCost: isPlay ? extractWildCost(draft, handSize) : 0,
-    endgame: isPlay ? extractEndgame(draft, handAfter, nextCount) : 0,
+    endgame: isPlay || swapTargetCount !== null ? extractEndgame(draft, handAfter, nextCount) : 0,
     threat: isPlay && isAttackCard(draft.card) ? extractThreat(nextCount, minOpponentCount) : 0,
     stackGain: draft.kind === "stack-play" ? extractStackGain(draft, view, nextCount) : 0,
     drawCost: extractDrawCost(draft, view, memory),
@@ -2295,7 +2337,7 @@ function extractFeatures(draft, context) {
     challengeSuccess: 0,
     challengeRisk: 0
   };
-  if ((isPlay || draft.kind === "choose-color") && resultColor) {
+  if ((isPlay || draft.kind === "choose-color" || draft.kind === "choose-roulette-color") && resultColor) {
     features.colorFit = handAfter === 0 ? 1 : clamp01(countColor(handAfterCards, resultColor) / Math.max(1, handAfter));
     const pNextHasColor = estimatePlayerHasColor(
       memory,
@@ -2494,11 +2536,21 @@ function toDraft(action, view) {
       return { kind: "challenge", action, card: null, colorChoice: null };
     case "DECLINE_CHALLENGE":
       return { kind: "decline-challenge", action, card: null, colorChoice: null };
+    // M3 友尽：两个新动作进入 AI 候选，否则联机 AI 补位遇到 7 / 轮盘会卡住对局
+    case "SWAP_HANDS":
+      return { kind: "swap-hands", action, card: null, colorChoice: null };
+    case "CHOOSE_ROULETTE_COLOR":
+      return {
+        kind: "choose-roulette-color",
+        action,
+        card: null,
+        colorChoice: action.color
+      };
     case "CALL_UNO":
     case "CATCH_UNO":
       throw new Error("UNO \u7A97\u53E3\u52A8\u4F5C\u4E0D\u5E94\u751F\u6210 AI \u5019\u9009\uFF08\u5E94\u5728\u8FC7\u6EE4\u9636\u6BB5\u6392\u9664\uFF09");
     default:
-      throw new Error(`\u53CB\u5C3D\u52A8\u4F5C\u6682\u4E0D\u652F\u6301 AI \u5019\u9009\uFF1A${action.type}`);
+      throw new Error(`\u672A\u77E5\u52A8\u4F5C\u7C7B\u578B\uFF1A${action.type}`);
   }
 }
 function candidateId(action) {
@@ -2509,6 +2561,10 @@ function candidateId(action) {
       return `${action.type}:${action.cardId}:${action.colorChoice ?? "-"}`;
     case "CHOOSE_COLOR":
       return `CHOOSE_COLOR:${action.color}`;
+    case "CHOOSE_ROULETTE_COLOR":
+      return `CHOOSE_ROULETTE_COLOR:${action.color}`;
+    case "SWAP_HANDS":
+      return `SWAP_HANDS:${action.targetSeat}`;
     case "CATCH_UNO":
       return `CATCH_UNO:${action.targetSeat}`;
     default:
@@ -2555,6 +2611,15 @@ function makeNote(candidate, view) {
       return `\u6311\u6218 +4\uFF08\u4F30\u7B97\u5BF9\u65B9\u8FDD\u89C4\u6982\u7387 ${Math.round(candidate.features.challengeSuccess * 100)}%\uFF09`;
     case "decline-challenge":
       return `\u63A5\u53D7 +4\uFF0C\u6478 ${view.pendingChallenge?.total ?? 4} \u5F20`;
+    case "choose-roulette-color": {
+      const count = view.hand.filter((item) => item.color === colorChoice).length;
+      return `\u8F6E\u76D8\u9009${colorNameOf(colorChoice)}\uFF08\u624B\u4E2D ${count} \u5F20\uFF09`;
+    }
+    case "swap-hands": {
+      const targetSeat = candidate.action.type === "SWAP_HANDS" ? candidate.action.targetSeat : -1;
+      const count = view.players.find((player) => player.seat === targetSeat)?.handCount ?? 0;
+      return `\u4E0E ${targetSeat + 1} \u53F7\u6362\u624B\uFF08\u5BF9\u65B9 ${count} \u5F20\uFF09`;
+    }
   }
 }
 function generateCandidates(context) {

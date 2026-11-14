@@ -19,11 +19,17 @@ import {
   isGameOver,
   normalizeGameConfig,
   type EngineAction,
+  type GameMode,
   type GameState,
   type GameView,
   type RngState,
 } from '@uno/game-core';
-import { MAX_NAME_LENGTH, ROOM_CODE_LENGTH, type RoomSnapshot } from './protocol.ts';
+import {
+  isPlayableMode,
+  MAX_NAME_LENGTH,
+  ROOM_CODE_LENGTH,
+  type RoomSnapshot,
+} from './protocol.ts';
 
 export const MAX_SEATS = 10;
 export const MIN_SEATS = 2;
@@ -63,6 +69,8 @@ export interface Room {
   aiRng: RngState | null;
   /** M9-03：各座位的表情发送限频状态 */
   emoteLimits: Map<number, EmoteLimitState>;
+  /** M3：房间玩法模式（房主开局时可指定；rematch 沿用，默认 classic） */
+  mode: GameMode;
   /** M8-06：最近活动时间（房间超时清理依据） */
   lastActivityAt: number;
 }
@@ -113,6 +121,8 @@ export function toRoomSnapshot(room: Room): RoomSnapshot {
       name: player.name,
       connected: player.connected,
     })),
+    // M3：大厅/牌桌都能读到房间模式；只增字段，不改既有四个字段
+    mode: room.mode,
   };
 }
 
@@ -134,6 +144,7 @@ export class RoomManager {
       aiCount: 0,
       aiRng: null,
       emoteLimits: new Map(),
+      mode: 'classic',
       lastActivityAt: Date.now(),
     };
     this.rooms.set(code, room);
@@ -234,12 +245,19 @@ export class RoomManager {
    * - 真人座位 isHuman=true 并以房间显示名为准；AI 座位保留引擎默认（isHuman=false），
    *   其 UNO 喊叫/抓人概率、被挑战判定全部由引擎既有 AI 口径裁决。
    */
-  startGame(room: Room, requesterSeat: number, aiCount = 0): GameState {
+  startGame(room: Room, requesterSeat: number, aiCount = 0, mode?: GameMode): GameState {
     if (requesterSeat !== room.hostSeat) {
       throw new RoomError('NOT_HOST', '只有房主可以开始游戏');
     }
     if (room.status !== 'lobby') {
       throw new RoomError('ROOM_ALREADY_PLAYING', '对局已开始');
+    }
+    // M3：mode 透传（不传沿用房间当前模式，默认 classic）；未实现的 flip 明确拒绝
+    if (mode !== undefined) {
+      if (!isPlayableMode(mode)) {
+        throw new RoomError('BAD_MESSAGE', `暂不支持玩法模式：${mode}`);
+      }
+      room.mode = mode;
     }
     const humanCount = room.players.length;
     const total = humanCount + aiCount;
@@ -277,6 +295,8 @@ export class RoomManager {
   /** 建局共用：按当前房间成员 + aiCount 生成新对局（名字以最新显示名为准） */
   private buildGameState(room: Room): GameState {
     const config = normalizeGameConfig({
+      // M3：房间模式透传到引擎配置（mercy 会自动 official 叠链 / 关闭 +4 挑战）
+      mode: room.mode,
       playerCount: room.players.length + room.aiCount,
       humanSeat: 0,
       seed: `room-${room.code}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,

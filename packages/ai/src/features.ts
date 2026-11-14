@@ -123,7 +123,16 @@ export function extractFeatures(draft: CandidateDraft, context: FeatureContext):
   const isPlay =
     draft.kind === 'play' || draft.kind === 'play-drawn' || draft.kind === 'stack-play';
   const handSize = view.hand.length;
-  const handAfter = isPlay ? handSize - 1 : handSize;
+  // M3 友尽 7 换手：换到的是目标座位整副手牌，用「换手后的手牌数」做基础启发。
+  // 先把动作收窄成局部常量，否则回调里 TS 无法保留联合类型的 narrowing。
+  const swapAction = draft.action.type === 'SWAP_HANDS' ? draft.action : null;
+  const swapTargetCount =
+    draft.kind === 'swap-hands' && swapAction
+      ? (view.players.find((player) => player.seat === swapAction.targetSeat)?.handCount ??
+        handSize)
+      : null;
+  const handAfter =
+    swapTargetCount !== null ? swapTargetCount : isPlay ? handSize - 1 : handSize;
   const handAfterCards = handWithout(view.hand, draft.card);
   const resultColor = resultingColor(draft);
   const nextSeat = nextPlayerSeat(view);
@@ -135,12 +144,18 @@ export function extractFeatures(draft: CandidateDraft, context: FeatureContext):
   const attack = isPlay ? extractAttack(draft, view, nextCount) : 0;
 
   const features: CandidateFeatures = {
-    handReduction: isPlay ? 1 : 0,
+    handReduction:
+      swapTargetCount !== null
+        ? clamp01((handSize - swapTargetCount + 3) / 6)
+        : isPlay
+          ? 1
+          : 0,
     attack,
     colorKeep: isPlay ? extractColorKeep(draft, handAfterCards, resultColor) : 0,
     followUp: isPlay ? extractFollowUp(draft, handAfterCards, resultColor) : 0,
     wildCost: isPlay ? extractWildCost(draft, handSize) : 0,
-    endgame: isPlay ? extractEndgame(draft, handAfter, nextCount) : 0,
+    endgame:
+      isPlay || swapTargetCount !== null ? extractEndgame(draft, handAfter, nextCount) : 0,
     threat: isPlay && isAttackCard(draft.card) ? extractThreat(nextCount, minOpponentCount) : 0,
     stackGain: draft.kind === 'stack-play' ? extractStackGain(draft, view, nextCount) : 0,
     drawCost: extractDrawCost(draft, view, memory),
@@ -151,8 +166,11 @@ export function extractFeatures(draft: CandidateDraft, context: FeatureContext):
     challengeRisk: 0,
   };
 
-  // 颜色控制 / 下家缺色：出牌（含万能牌选色）与开局选色都要用
-  if ((isPlay || draft.kind === 'choose-color') && resultColor) {
+  // 颜色控制 / 下家缺色：出牌（含万能牌选色）、开局选色、M3 轮盘选色都要用
+  if (
+    (isPlay || draft.kind === 'choose-color' || draft.kind === 'choose-roulette-color') &&
+    resultColor
+  ) {
     features.colorFit =
       handAfter === 0
         ? 1

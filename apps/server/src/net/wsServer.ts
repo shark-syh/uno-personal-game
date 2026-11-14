@@ -192,7 +192,7 @@ export function attachWebSocketServer(httpServer: HttpServer, options: WsServerO
               return;
             }
             const room = rooms.getRoom(context.roomCode);
-            rooms.startGame(room, context.seat, message.aiCount ?? 0);
+            rooms.startGame(room, context.seat, message.aiCount ?? 0, message.mode);
             broadcastRoom(room);
             advanceGame(room);
             break;

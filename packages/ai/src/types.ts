@@ -31,7 +31,10 @@ export type CandidateKind =
   | 'stack-play'
   | 'stack-decline'
   | 'challenge'
-  | 'decline-challenge';
+  | 'decline-challenge'
+  // M3 友尽：7 换手选目标 / 颜色轮盘由下家选色（classic 永不产生）
+  | 'swap-hands'
+  | 'choose-roulette-color';
 
 /**
  * 公开视图（AI 唯一可见的数据）。
