@@ -147,6 +147,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 }
 /* 当前回合：金色描边 + 轻微外光（契约 §3.3：不做大面积金色背景） */
 .opponent.is-current { border-color: var(--v2-gold); box-shadow: 0 0 0 1px var(--v2-gold-soft), 0 0 14px var(--v2-gold-soft); }
+/* M4 友尽：手牌 ≥25 张被淘汰的座位灰显、去饱和；与当前回合高亮可叠加 */
+.opponent.is-eliminated { opacity: .45; filter: grayscale(1); border-style: dashed; }
+.opponent.is-eliminated .opponent-meta::after { content: " · 已淘汰"; color: var(--danger); }
 .opponent .avatar { grid-row: span 2; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #ffffff15; font-size: 22px; }
 .opponent-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; padding-right: 18px; }
 .opponent-meta { color: var(--ink-muted); font-size: 12px; }
@@ -623,6 +626,9 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 .status-big { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .status-big strong { color: var(--v2-gold); font-size: 27px; letter-spacing: -.07em; }
 .status-big span { color: var(--ink-muted); font-size: 11px; text-align: right; }
+/* M4：叠链累计罚牌提示（只增节点，不占 U1 六项 .status-line 字段） */
+.rail-stack-total { display: block; margin: 2px 0 4px; color: var(--danger); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.rail-stack-total[hidden] { display: none; }
 .status-list { display: grid; gap: 4px; margin-top: 6px; }
 .status-line { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-muted); font-size: 11px; line-height: 1.25; }
 .status-line b { color: var(--ink); }

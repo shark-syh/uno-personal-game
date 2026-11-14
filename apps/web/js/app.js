@@ -38,6 +38,9 @@ function hintFor(current) {
   }
   if (current.phase === "challenge-decide") return "上家出了 +4，选择摸 4 张或挑战";
   if (current.phase === "choose-color") return "请选择万能牌的颜色";
+  // M4 友尽：换手 / 轮盘阶段的提示与自动弹窗同源
+  if (current.phase === "choose-swap-target") return "打出 7：选一位仍在局中的玩家交换整副手牌（官方强制）";
+  if (current.phase === "choose-roulette-color") return "颜色轮盘：你被指定选色，抽到该色为止";
   if (current.phase === "uno-window") {
     return current.human.canCallUno ? "只剩一张牌，别忘了喊 UNO" : "发现有人忘了喊 UNO？抓住机会";
   }

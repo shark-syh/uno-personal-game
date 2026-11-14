@@ -188,17 +188,20 @@ export function renderPlayers(view) {
     const isCurrent = player.seat === view.currentSeat;
     const handCount = Math.max(0, Number(player.handCount) || 0);
     const node = document.createElement("article");
-    node.className = `opponent${isCurrent ? " is-current" : ""}`;
+    // M4 友尽：手牌 ≥25 张被淘汰的座位灰显（引擎视图的 players[].eliminated）
+    const eliminated = player.eliminated === true;
+    node.className = `opponent${isCurrent ? " is-current" : ""}${eliminated ? " is-eliminated" : ""}`;
     node.dataset.seat = String(player.seat);
     node.dataset.relativeSeat = String(relative);
     node.dataset.handCount = String(handCount);
+    node.dataset.eliminated = String(eliminated);
     node.dataset.current = String(isCurrent);
     node.dataset.uno = String(Boolean(player.saidUno));
     node.dataset.thinking = String(Boolean(player.thinking));
     node.style.setProperty("--seat-x", `${anchor.x.toFixed(2)}%`);
     node.style.setProperty("--seat-y", `${anchor.y.toFixed(2)}%`);
     node.style.setProperty("--seat-angle", `${anchor.angle}deg`);
-    node.setAttribute("aria-label", `${player.name}，${handCount} 张牌`);
+    node.setAttribute("aria-label", `${player.name}，${handCount} 张牌${eliminated ? "，已淘汰" : ""}`);
     const avatar = document.createElement("span"); avatar.className = "avatar"; avatar.textContent = player.avatar;
     const name = document.createElement("strong"); name.className = "opponent-name"; name.textContent = player.name;
     const meta = document.createElement("span"); meta.className = "opponent-meta"; meta.textContent = `${handCount} 张${player.saidUno ? " · UNO" : ""}`;

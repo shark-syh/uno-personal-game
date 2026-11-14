@@ -15,6 +15,7 @@
  */
 import { toEngineAction } from "../vendor/uno-engine.js";
 import { getSettings } from "../state/settings.js";
+import { getMode } from "../state/modePreference.js";
 import { playEvents } from "../animation/queue.js";
 import {
   initEmotes,
@@ -695,7 +696,8 @@ export function initOnlineMode(options = {}) {
   });
   $("#room-start")?.addEventListener("click", () => {
     if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "start-game", aiCount: showAiCount() }));
+      // M4：房主把左下角切换器选的模式透传给服务端（M3 协议已接受 classic / mercy）
+      socket.send(JSON.stringify({ type: "start-game", aiCount: showAiCount(), mode: getMode() }));
     }
   });
   // AI 补位选择变化会改变「开始」可用性，立刻重渲房间面板

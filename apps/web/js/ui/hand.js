@@ -1,7 +1,29 @@
 import { cardLabel } from "./table.js";
 import { resolveUnoWindowMs, prefersStaticMotion } from "./unoTiming.js";
+import { cardResource } from "../state/modePreference.js";
 
 const cardColors = { red: "#ff5555", yellow: "#ffaa00", green: "#55aa55", blue: "#5555ff", null: "#d7193f" };
+
+// M4：当前渲染所用的卡面资源模式（由 render() 每次从 view.mode 同步）。
+// classic → cards/{短码}.png（原 54 张 CC0 零改动）；mercy → cards-mercy/{B 版 slug}.webp。
+let cardResourceMode = "classic";
+export function setCardResourceMode(mode) {
+  cardResourceMode = mode === "mercy" ? "mercy" : "classic";
+}
+
+/** 图片缺失时的文字牌面：mercy 的 faceCode 是 B 版 slug，不能沿用 classic 的 slice(1) 短码逻辑 */
+function fallbackLabel(card) {
+  if (cardResourceMode !== "mercy") {
+    return card.faceCode === "WC" ? "W" : card.faceCode === "W4" ? "+4" : card.faceCode.slice(1);
+  }
+  if (card.kind === "number") return String(card.value ?? "?");
+  const labels = {
+    draw2: "+2", draw4: "+4", draw6: "+6", draw10: "+10",
+    skip: "跳过", reverse: "反转", skipEveryone: "全跳", discardAll: "全弃",
+    wildReverseDraw4: "反转+4", wildColorRoulette: "轮盘",
+  };
+  return labels[card.kind] || card.kind;
+}
 
 const HAND_GAP = 10;
 const HAND_MIN_REVEAL = 36;
@@ -75,8 +97,9 @@ function ensureHandLayoutObserver() {
 
 export function renderCard(card, { mini = false, legal = false, drawn = false, onSelect = null } = {}) {
   const node = document.createElement(onSelect ? "button" : "div"); if (onSelect) { node.type = "button"; node.disabled = !legal; } node.className = `card${mini ? " mini-card" : ""}${onSelect ? legal ? " is-legal" : " is-illegal" : ""}${drawn ? " is-drawn" : ""}`; node.dataset.cardId = card.id; node.dataset.faceCode = card.faceCode; if (onSelect) node.dataset.state = drawn ? "drawn" : legal ? "legal" : "illegal"; node.setAttribute("aria-label", cardLabel(card)); node.style.setProperty("--card-color", cardColors[card.color]);
-  const image = document.createElement("img"); image.src = `cards/${card.faceCode}.png`; image.alt = cardLabel(card); image.width = 240; image.height = 360; image.draggable = false;
-  const fallback = document.createElement("span"); fallback.className = "fallback-label"; fallback.textContent = card.faceCode === "WC" ? "W" : card.faceCode === "W4" ? "+4" : card.faceCode.slice(1);
+  const resource = cardResource(cardResourceMode);
+  const image = document.createElement("img"); image.src = `${resource.dir}/${card.faceCode}.${resource.ext}`; image.alt = cardLabel(card); image.width = 240; image.height = 360; image.draggable = false;
+  const fallback = document.createElement("span"); fallback.className = "fallback-label"; fallback.textContent = fallbackLabel(card);
   image.addEventListener("error", () => { node.classList.add("is-fallback"); image.remove(); node.append(fallback); });
   node.append(image);
   if (onSelect) node.addEventListener("click", onSelect);
@@ -197,6 +220,8 @@ export function renderHand(view, { onAction, openDialog }) {
   const functional = legal.filter((item) => !isCardAction(item)).filter((item) => {
     if (item.type === "CALL_UNO") return unoVisible;
     if (item.type === "CATCH_UNO") return catchVisible;
+    // M4 友尽：4 个轮盘选色 / N-1 个换手目标改由自动弹窗承载，不挤 44px 细轨
+    if (item.type === "SWAP_HANDS" || item.type === "CHOOSE_ROULETTE_COLOR") return false;
     return true;
   });
   // U3：当前主操作 = 动作条里第一个可用功能按钮（常规回合即「摸牌」，摸牌后即「结束回合」）。

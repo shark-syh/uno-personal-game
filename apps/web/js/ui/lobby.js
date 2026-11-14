@@ -1,3 +1,5 @@
+import { getMode } from "../state/modePreference.js";
+
 const difficultyOptions = [["casual", "休闲"], ["easy", "简单"], ["realistic", "真实"], ["hardcore", "骨灰级"]];
 const modeOptions = [["zhipu", "智谱"], ["local", "本地"], ["auto", "自动"]];
 
@@ -69,5 +71,6 @@ export function renderLobby(view, { onAction, openDialog }) {
   choices(modeRoot, modeOptions, state.aiMode, (value) => { state.aiMode = value; });
   if (challengeInput) { challengeInput.checked = challengeWild4; challengeInput.onchange = () => { challengeWild4 = challengeInput.checked; }; }
   const form = document.querySelector("#lobby-form");
-  form.onsubmit = (event) => { event.preventDefault(); onAction({ type: "START_GAME", config: { playerName: "你", playerCount: state.playerCount, difficulty: state.difficulty, aiMode: state.aiMode, challengeWild4 } }); };
+  // M4：开局时读左下角切换器的当前偏好（会话级），mode 作为开局参数透传给引擎/联机。
+  form.onsubmit = (event) => { event.preventDefault(); onAction({ type: "START_GAME", config: { playerName: "你", playerCount: state.playerCount, difficulty: state.difficulty, aiMode: state.aiMode, challengeWild4, mode: getMode() } }); };
 }

@@ -27,9 +27,12 @@ function ensureArena() {
 // N4a（契约 §3.3/§7.2）：特殊阶段中文文案（#phase-label）；#turn-stamp 改纯行动者名。
 const PHASE_LABELS = {
   "choose-color": () => "选择颜色",
-  "stack-response": (view) => `叠牌响应 · +${view.table?.stack?.total || 0}`,
+  "stack-response": (view) => `叠牌响应 · +${view.table?.stackTotal || view.table?.stack?.total || 0}`,
   "challenge-decide": () => "+4 挑战",
   "uno-window": () => "UNO 窗口",
+  // M4 友尽两个新增阶段
+  "choose-swap-target": () => "7 换手 · 选择目标",
+  "choose-roulette-color": () => "颜色轮盘 · 选择颜色",
 };
 
 // N4a（契约 §3.3）：phase → rail 步进条 done 数量映射（await-play 2 / 特殊阶段 3 / round-end 4）。
@@ -39,6 +42,8 @@ const PHASE_STEPS = {
   "stack-response": 3,
   "challenge-decide": 3,
   "uno-window": 3,
+  "choose-swap-target": 3,
+  "choose-roulette-color": 3,
   "round-end": 4,
 };
 
@@ -154,6 +159,14 @@ function renderTurnStatus(view) {
         : current.name
       : "—";
   }
+  // M4：叠链累计罚牌总额（右栏只增提示节点，U1 六项字段一个不动）
+  const stackHint = document.querySelector("#rail-stack-total");
+  if (stackHint) {
+    const total = Number(view.table?.stackTotal ?? view.table?.stack?.total ?? 0) || 0;
+    stackHint.hidden = total <= 0;
+    stackHint.textContent = total > 0 ? `叠链累计 +${total} 张` : "";
+    stackHint.dataset.total = String(total);
+  }
 
   // right-rail「你的手牌 / 可出牌 / 牌堆剩余」。
   const railMyHand = document.querySelector("#rail-my-hand");
@@ -228,7 +241,17 @@ export function renderTable(view, context) {
         ? (event.reason === "deck-empty" ? "牌堆耗尽，平局" : "平局")
         : event.reason === "deck-empty"
           ? `牌堆耗尽，${nameOf(event.winnerSeat)} 手牌最少获胜`
-          : `${nameOf(event.winnerSeat)} 获胜`;
+          : event.reason === "last-survivor"
+            ? `${nameOf(event.winnerSeat)} 成为最后幸存者，获胜`
+            : `${nameOf(event.winnerSeat)} 获胜`;
+      // M4：友尽模式 7 类新事件的中文文案（不再落到「牌桌状态更新」）
+      case "SWAP_HANDS": return `${nameOf(event.seat)} 与 ${nameOf(event.targetSeat)} 交换了整副手牌`;
+      case "PASS_HANDS": return event.direction === 1 ? "0 传手：全体按顺时针传手" : "0 传手：全体按逆时针传手";
+      case "SKIP_EVERYONE": return `${nameOf(event.seat)} 打出全员跳过，自己再来一回合`;
+      case "DISCARD_ALL": return `${nameOf(event.seat)} 全弃 ${event.count} 张同色牌`;
+      case "COLOR_ROULETTE": return `${nameOf(event.seat)} 轮盘选了${colorLabel(event.color)}`;
+      case "ROULETTE_EXHAUSTED": return "牌堆耗尽，轮盘停止抽牌并跳过该回合";
+      case "MERCY_ELIMINATED": return `${nameOf(event.seat)} 手牌 ${event.count} 张，被淘汰出局`;
       case "STACK_PUSH": return `${nameOf(event.seat)} 叠牌，累计需摸 ${event.total} 张`;
       case "STACK_RESOLVE": return `${nameOf(event.seat)} 摸 ${event.total} 张（叠牌结算）`;
       case "CHALLENGE_SUCCESS": return `挑战成功：${nameOf(event.challenger)} 查看 ${nameOf(event.target)} 的手牌`;

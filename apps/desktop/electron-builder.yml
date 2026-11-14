@@ -16,6 +16,12 @@ files:
 extraResources:
   - from: ../web
     to: web
+    # M4：B 版友尽卡面（apps/web/cards-mercy/）仅供本机个人学习/演示，
+    # 按 research/open-mercy/README-来源与裁剪.md §6.5 不随 exe / NSIS / Release 分发。
+    # 桌面版缺该目录时前端自动降级为色块 + 文字牌面（hand.js renderCard 的 is-fallback）。
+    filter:
+      - "**/*"
+      - "!cards-mercy/**"
 
 asar: true
 npmRebuild: false

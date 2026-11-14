@@ -36,7 +36,7 @@
 
 ## 2. 左下角模式切换（新增 UI 契约）
 
-**位置与锚点**：在 `#app` 内新增独立节点 `#mode-switch`（**DOM 锚点只增不改**，不改 `window.UnoApp` 五个 API），三档分段控件 `基础 / 进阶 / 友尽`，固定左下角 `left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom))`，宽度 ≤ 184px。
+**位置与锚点**：在 `#app` 内新增独立节点 `#mode-switch`（**DOM 锚点只增不改**，不改 `window.UnoApp` 五个 API），三档分段控件 `基础 / 进阶 / 友尽`，固定左下角 `left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom))`。**用户 2026-11-14 反馈拍板：只在大厅屏显示，进入对局 / 结算屏立即隐藏**（原先固定浮层会压住手牌区）；**同日二次拍板：整体放大（宽 184~300px、档位 ≥64×52px），作废原 ≤184px 口径**。
 
 **现有左下角环境（已核对 `apps/web/index.html` 与 `styles/layout.css`）**：
 - 左栏 `.phase-rail` 是 TURN 数据列；`#event-feed` 在牌桌底部**居中**（`left:50%; bottom:4px`，宽 min(560px,80%)）；`#hand-zone.player-zone` 占满底宽；`.toast-region` 固定**右下角**。
@@ -50,12 +50,12 @@
   → 单机 engineMode.js:531~576 normalizeGameConfig 透传
   → 联机 rooms.ts:277~299 buildGameState 透传（当前只用默认配置，必须补）
   → packages/game-core GameConfig.mode
-  → public-view.ts PublicConfig 暴露 mode / side 给 UI
+  → GameView 顶层 mode / mercy（M3 已落地；side 属 Flip 后续，PublicConfig 四字段未改）
 ```
-- **生效时机**：与现有「规则设置只对新开对局生效」一致——对局中切换不改动进行中的 `GameState`，控件显示当前模式并提示「将在下一局生效」；不中途重开、不破坏联机权威状态。
+- **生效时机**：与现有「规则设置只对新开对局生效」一致——**模式只在大厅选、只对新开对局生效**；对局 / 结算屏隐藏控件，不存在中途切换，不破坏联机权威状态（`syncModeSwitch()` 按 `view.screen` 设 `root.hidden`）。
 - **联机**：房主选模式，房间开局时广播；服务端 `rooms.ts` 必须把 mode 写进 `GameState`，否则联机永远跑默认基础版。
-- **UI 硬规定**：按 §6，若做圆角必须先套 `apps/web/assets/squircle.svg` + `--ui-squircle`；建议直接做**直角 + 1px 实线边框**（与右栏数据卡一致），不引入新圆角。触控目标 ≥44px、Tab/Enter 可达、`reduced-motion` 下新增装饰无动画名。
-- 待拍板：固定浮层（推荐）vs 挂在 `#hand-zone .hand-rail` 左端（不占屏但非严格左下角）。
+- **UI 硬规定（用户 2026-11-14 拍板覆盖原「建议直角」）**：标签做高级质感，**圆角一律用连续曲率 squircle**（`apps/web/assets/squircle.svg` 遮罩 + `mask-size: 100% 100%`），禁止任何 `border-radius` 普通圆弧；外层负责定位与 `drop-shadow`（含荧光），用 `inset` 描边代替会被裁掉的 `border`。触控目标 ≥44px、Tab/Enter 可达、`reduced-motion` 下新增装饰无动画名。
+- **M4（2026-11-14）落地 + 同日两次按用户反馈改版**：`#mode-switch` 为 `#app` 内独立节点，三档各 ≥44px（改版后 ≥64×52px）、Flip 禁用标暂缓；**仅大厅显示，对局 / 结算屏隐藏**；状态用独立 key `uno:mode`（未混进 `uno:settings`）；单机 `START_GAME.config.mode` / `RESTART`、联机 `start-game.mode` 三处透传。**视觉终版（同日二次拍板）：无底板悬浮**——surface 不铺背景 / 描边 / 遮罩，整组靠父容器 `drop-shadow`（投影 + 荧光）浮起；**滑动指示器**——绝对定位荧光 squircle 荧块 `.mode-switch__indicator` 垫在档位下方，`--indicator-x/--indicator-w` 由 JS 按选中档位 `offsetLeft/offsetWidth` 测量写入，切换时 `transform` 平滑滑动（resize / 字体加载会重测）；档位透明、选中文字变深色。九档断点 `verify:ui` 208/208 未回退。
 
 ## 3. Flip 规则契约摘要
 

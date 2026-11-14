@@ -16,3 +16,6 @@ Thumbs.db
 .idea/
 .workbuddy/
 research/open-mercy-main.zip
+# M4：B 版友尽卡面（68 张 webp）仅供本机个人学习/演示，不进仓库 / exe / Release。
+# 由 scripts/sync-mercy-cards.mjs 在本机生成；打包另见 electron-builder.yml 的 filter。
+apps/web/cards-mercy/

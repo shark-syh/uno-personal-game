@@ -74,16 +74,32 @@ export function openDialog(kind, payload = {}, onAction = () => {}, source = "us
     const body = document.createElement("div");
     const choices = document.createElement("div");
     choices.className = "choice-grid color-choices";
+    // M4：CHOOSE_COLOR 与友尽 CHOOSE_ROULETTE_COLOR 都带 color；万能牌出牌动作带 colorChoice。
+    // 统一按 color ?? colorChoice 匹配，轮盘选色弹窗才不会四个按钮全 disabled。
+    const isRoulette = (payload.actions || []).some((candidate) => candidate.type === "CHOOSE_ROULETTE_COLOR");
     ["red", "yellow", "green", "blue"].forEach((color, index) => {
-      const action = payload.actions?.find((candidate) => (candidate.type === "CHOOSE_COLOR" ? candidate.color : candidate.colorChoice) === color);
+      const action = payload.actions?.find((candidate) => (candidate.color ?? candidate.colorChoice) === color);
       const item = button(`${index + 1} · ${colorNames[color]}`, () => submit(action), `btn btn-color-${color}`, action);
       item.disabled = !action || Boolean(action.disabled);
       item.dataset.color = color;
       choices.append(item);
     });
     body.append(choices);
-    const card = show("选择颜色", body, [button("取消", closeDialog, "btn btn-ghost")], source);
+    if (isRoulette) body.append(paragraph("颜色轮盘：你被指定选色，抽到该色为止，全部入手并被跳过。"));
+    const card = show(isRoulette ? "颜色轮盘 · 选择颜色" : "选择颜色", body, [button("取消", closeDialog, "btn btn-ghost")], source);
     card.addEventListener("keydown", (event) => { if (/^[1-4]$/.test(event.key)) { event.preventDefault(); choices.children[Number(event.key) - 1].click(); } });
+    return;
+  }
+  // M4 友尽：7 换手（官方强制，无「不换」选项）——按座位列出仍在局中的目标
+  if (kind === "swap") {
+    const players = new Map((payload.players || []).map((player) => [player.seat, player]));
+    const actions = (payload.actions || []).filter((item) => item.type === "SWAP_HANDS");
+    const options = actions.map((action) => {
+      const player = players.get(action.targetSeat);
+      const who = player ? `${player.name} · ${player.handCount} 张` : `${action.targetSeat + 1} 号`;
+      return button(`${action.label || "换手"}（${who}）`, () => submit(action), "btn", action);
+    });
+    show("7 换手 · 选择目标", paragraph("官方规则强制换手：选一位仍在局中的玩家交换整副手牌。"), options, source);
     return;
   }
   if (kind === "challenge") {

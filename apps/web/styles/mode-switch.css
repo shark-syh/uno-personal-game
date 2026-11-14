@@ -1,0 +1,147 @@
+/* M4：左下角三档模式切换器。
+   用户 2026-11-14 两次拍板（覆盖 Flip 方案 §2 旧口径）：
+   - 只在大厅显示，对局 / 结算屏隐藏（见 js/ui/modeSwitch.js 的 root.hidden）；
+   - **无底板悬浮**：surface 不再铺渐变面板 / 描边，整组靠外层 drop-shadow 浮起；
+   - **滑动指示器**：选中态不再是各档独立填充，而是绝对定位的荧光 squircle 荧块
+     在档位下方平滑滑动（--indicator-x / --indicator-w 由 JS 测量写入）；
+   - **整体放大**：档位 ≥64×52px、字号 14px、整卡宽 ≤300px（原 184px 口径作废）；
+   - 一切圆角用连续曲率 squircle 遮罩（apps/web/assets/squircle.svg），
+     禁止普通 border-radius（开发约定 §6）。filter 先于 mask 生效，发光 / 投影
+     全部上移到父容器 `#mode-switch`（§0 第 4 条）。触控 ≥44px、
+     reduced-motion 无动画名、z-index 低于 dialog / toast。 */
+#mode-switch {
+  position: fixed;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 40;
+  width: max-content;
+  max-width: 300px;
+  filter:
+    drop-shadow(0 16px 30px rgba(0, 0, 0, .5))
+    drop-shadow(0 0 18px rgba(217, 255, 75, .16));
+}
+
+#mode-switch[hidden] { display: none; }
+
+/* 无底板：只是布局容器，不铺背景、不描边、不套遮罩（没有可裁剪的形状） */
+.mode-switch__surface {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px;
+  color: var(--ink);
+}
+
+.mode-switch__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
+
+/* 直角荧光小方块（不用 border-radius 普通圆弧） */
+.mode-switch__marker {
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  background: var(--v2-gold);
+  box-shadow: 0 0 10px rgba(217, 255, 75, .8);
+}
+
+.mode-switch__group {
+  position: relative;
+  display: flex;
+  gap: 6px;
+}
+
+/* 滑动指示器：绝对定位于档位下方，位置 / 宽度由 JS 写入 CSS 变量，
+   切换时靠 transform 平滑滑动。squircle 遮罩保证连续曲率；
+   外发光会被自身遮罩裁掉，发光统一走父容器 #mode-switch 的 drop-shadow。 */
+.mode-switch__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  height: 100%;
+  width: var(--indicator-w, 64px);
+  transform: translateX(var(--indicator-x, 0px));
+  background: linear-gradient(160deg, #e6ff86, var(--v2-gold));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .4),
+    inset 0 -8px 14px rgba(80, 120, 0, .25);
+  transition: transform 260ms var(--ease-out), width 260ms var(--ease-out);
+  -webkit-mask-image: url("../assets/squircle.svg");
+          mask-image: url("../assets/squircle.svg");
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+}
+
+.mode-switch__option {
+  position: relative;
+  z-index: 1;
+  min-width: 64px;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  cursor: pointer;
+  transition: color 200ms var(--ease-out), background 200ms var(--ease-out);
+  -webkit-mask-image: url("../assets/squircle.svg");
+          mask-image: url("../assets/squircle.svg");
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+}
+
+/* 未选中：透明档位 + hover 微亮，保持悬浮的轻量感 */
+.mode-switch__option:hover:not(:disabled):not([aria-pressed="true"]) {
+  background: rgba(255, 255, 255, .07);
+  color: var(--ink);
+}
+
+/* 选中：背景由滑动指示器提供，这里只改文字颜色 */
+.mode-switch__option[aria-pressed="true"] { color: #101b06; }
+
+.mode-switch__option:disabled { opacity: .34; cursor: not-allowed; }
+/* 外阴影会被遮罩裁掉，焦点环用 inset 才看得见 */
+.mode-switch__option:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--v2-gold); }
+
+.mode-switch__hint {
+  padding: 0 4px;
+  color: var(--v2-gold);
+  font-size: 11px;
+  letter-spacing: .03em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
+
+.mode-switch__hint[hidden] { display: none; }
+
+/* ≤760：收窄、标签缩字号、档位只留一个短字，不占一屏高度 */
+@media (max-width: 760px) {
+  #mode-switch { left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  .mode-switch__surface { gap: 7px; }
+  .mode-switch__label { font-size: 9px; letter-spacing: .14em; }
+  .mode-switch__group { gap: 5px; }
+  .mode-switch__option { min-width: 52px; min-height: 48px; padding: 0 10px; font-size: 0; }
+  .mode-switch__option::after { content: attr(data-short); font-size: 15px; letter-spacing: 0; }
+  .mode-switch__hint { font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mode-switch,
+  #mode-switch * { animation: none !important; transition: none !important; }
+}

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="styles/boot.css">
   <link rel="stylesheet" href="styles/lobby-deck.css">
   <link rel="stylesheet" href="styles/hand-trend.css">
+  <link rel="stylesheet" href="styles/mode-switch.css">
   <script>
     // 兜底：启动层最长存在 9 秒，任何脚本异常都不允许把应用永久遮住
     window.setTimeout(function () {
@@ -268,6 +269,8 @@
           <section class="status-card">
             <h2 aria-label="当前压力">Current pressure</h2>
             <div class="status-big"><strong id="rail-pressure-count">0</strong><span id="rail-pressure-name">—</span></div>
+            <!-- M4：叠链累计罚牌提示（只增节点，不占 U1 六项 .status-line 字段） -->
+            <span id="rail-stack-total" class="rail-stack-total" hidden></span>
             <div class="status-list">
               <div class="status-line"><span>你的手牌</span><b id="rail-my-hand">0 张</b></div>
               <div class="status-line"><span>可出牌</span><b id="rail-playable" data-playable="0">0 张</b></div>
@@ -315,6 +318,9 @@
         <div id="result-content"></div>
       </div>
     </section>
+    <!-- M4：三模式切换器（独立节点、固定左下角，仅大厅显示；Flip 暂缓由 JS 禁用）。
+         连续曲率 squircle 圆角由 styles/mode-switch.css 的遮罩实现；DOM 锚点只增不改。 -->
+    <div id="mode-switch" hidden></div>
   </main>
   <div id="emote-picker" role="group" aria-label="选择表情" hidden></div>
   <div id="dialog-root" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-live="polite"></div>

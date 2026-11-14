@@ -7,11 +7,18 @@ import { cancelEvents } from "../animation/queue.js";
 import { captureTableCardRect } from "../animation/resultTransition.js";
 import { resetOpponentHandCounts } from "./players.js";
 import { resetTurnCounter } from "./table.js";
+import { setCardResourceMode } from "./hand.js";
+import { initModeSwitch, syncModeSwitch } from "./modeSwitch.js";
 
 let lastScreen = null;
 
 export function render(view, context) {
   cancelEvents();
+  // M4：视图模式决定卡面资源基址（classic 54 张 CC0 / mercy B 版 68 张）；
+  // 左下角切换器只增 DOM 锚点，选中态与「下局生效」提示按当前 view 同步。
+  setCardResourceMode(view.mode);
+  initModeSwitch();
+  syncModeSwitch(view);
   // M6（契约 §8.3）：game → result 切屏前缓存弃牌堆顶牌 rect——切屏后 display:none 就取不到了
   if (lastScreen === "game" && view.screen === "result") captureTableCardRect();
   // M2（契约 §2.2）：进入牌桌首帧不播对手手牌数量动效——清空 diff 基线（换局/回大厅再进同理）。
@@ -36,5 +43,13 @@ export function render(view, context) {
   }
   if (view.screen === "game" && view.phase === "challenge-decide" && humanTurn) {
     context.openDialog("challenge", { actions: view.human.legalActions }, "auto");
+  }
+  // M4 友尽：轮盘由下家选色（复用选色弹窗）、7 换手强制选目标（座位选择弹窗）。
+  // 两个阶段的动作不再走 44px 细轨按钮，避免 4 色 / N-1 个目标挤爆动作条。
+  if (view.screen === "game" && view.phase === "choose-roulette-color" && humanTurn) {
+    context.openDialog("color", { actions: view.human.legalActions.filter((action) => action.type === "CHOOSE_ROULETTE_COLOR") }, "auto");
+  }
+  if (view.screen === "game" && view.phase === "choose-swap-target" && humanTurn) {
+    context.openDialog("swap", { actions: view.human.legalActions.filter((action) => action.type === "SWAP_HANDS"), players: view.players }, "auto");
   }
 }

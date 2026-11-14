@@ -27,6 +27,7 @@ import {
 } from '../vendor/uno-engine.js';
 import { aiErrorMessage, createAiClient, getServerAiConfig } from '../ai/aiClient.js';
 import { getSettings } from '../state/settings.js';
+import { getMode } from '../state/modePreference.js';
 import { recordResult } from '../state/stats.js';
 import { clearAllLines, clearPlayerLine } from '../ui/players.js';
 // M5：UNO 窗口时长唯一映射（契约 §7.1）；?test=1 仍为 120ms
@@ -538,6 +539,7 @@ function startGame(lobbyConfig = {}) {
     aiMode: 'auto',
     challengeWild4: true,
     playerName: '你',
+    mode: 'classic',
     ...lobbyConfig,
   };
   const settings = getSettings();
@@ -546,6 +548,8 @@ function startGame(lobbyConfig = {}) {
   let config;
   try {
     config = normalizeGameConfig({
+      // M4：左下角切换器选的玩法模式（mercy 会自动 official 叠链 / 168 张牌堆）
+      mode: lastLobbyConfig.mode === 'mercy' ? 'mercy' : 'classic',
       playerCount: lastLobbyConfig.playerCount,
       humanSeat: 0,
       aiDifficulty: lastLobbyConfig.difficulty,
@@ -608,7 +612,8 @@ function startGame(lobbyConfig = {}) {
 }
 
 function renderLobby() {
-  const view = createLobbyView(lastLobbyConfig || {}, getSettings());
+  // M4：大厅视图的模式跟随切换器偏好（不改动进行中的对局）
+  const view = createLobbyView({ ...(lastLobbyConfig || {}), mode: getMode() }, getSettings());
   view.mock = false;
   view.settings = getSettings();
   view.runtimeAiMode = null;
@@ -623,7 +628,8 @@ function handleAction(action) {
     return;
   }
   if (action.type === 'RESTART') {
-    startGame(lastLobbyConfig || {});
+    // M4：「下一局生效」同样覆盖结算页的再来一局，不沿用上一局的旧模式
+    startGame({ ...(lastLobbyConfig || {}), mode: getMode() });
     return;
   }
   if (action.type === 'BACK_TO_LOBBY') {
