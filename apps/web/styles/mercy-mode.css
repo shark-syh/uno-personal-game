@@ -1,0 +1,212 @@
+/* Loaded on first Mercy selection so the default lobby ships without this theme. */
+#lobby-screen[data-mode="mercy"],
+#game-screen[data-mode="mercy"],
+#result-screen[data-mode="mercy"] {
+  --v2-gold: #ff3b4f;
+  --v2-gold-soft: rgba(255, 45, 66, .16);
+  --v2-gold-line: rgba(255, 64, 82, .48);
+  --v2-win-red: #ff4054;
+  --v2-text-dim: #bd999d;
+  --ink-muted: #b49b9e;
+  --line: rgba(255, 107, 120, .2);
+  --line-strong: rgba(255, 107, 120, .36);
+  transition: background-color 180ms var(--ease-out), color 180ms var(--ease-out);
+}
+
+#lobby-screen[data-mode="mercy"] {
+  position: relative;
+  background-color: #100608;
+  background-image:
+    linear-gradient(115deg, transparent 0 58%, rgba(113, 8, 22, .32) 58% 58.2%, transparent 58.2%),
+    linear-gradient(165deg, #16080b 0%, #0c0709 48%, #21090e 100%);
+}
+
+#lobby-screen[data-mode="mercy"]::before {
+  opacity: .48;
+  background-image: linear-gradient(rgba(255, 79, 93, .075) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 79, 93, .075) 1px, transparent 1px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, transparent 82%);
+  mask-image: linear-gradient(to bottom, #000 0, transparent 82%);
+}
+
+#lobby-screen[data-mode="mercy"] .lobby-display em {
+  -webkit-text-stroke-color: #ff5264;
+}
+
+#lobby-screen[data-mode="mercy"] .lobby-display span:last-child,
+#lobby-screen[data-mode="mercy"] .lobby-brand h1 {
+  color: #fff1f2;
+}
+
+#lobby-screen[data-mode="mercy"] .index-item {
+  border-left-color: #ff4054;
+}
+
+#lobby-screen[data-mode="mercy"] .lobby-panel {
+  border-color: rgba(255, 70, 86, .38);
+  background: linear-gradient(145deg, rgba(31, 10, 14, .96), rgba(12, 7, 9, .97));
+  box-shadow: 0 28px 88px rgba(0, 0, 0, .62), inset 3px 0 #d8293d;
+}
+#lobby-screen .lobby-shell {
+  transition: opacity 180ms var(--ease-out);
+}
+#lobby-screen.is-mode-switching .lobby-shell {
+  opacity: .72;
+}
+#lobby-screen[data-mode="mercy"] .online-block {
+  border-top-color: rgba(255, 76, 94, .5);
+}
+#lobby-screen[data-mode="mercy"] .online-divider {
+  color: #d3a8ae;
+}
+#lobby-screen[data-mode="mercy"] .online-divider::before,
+#lobby-screen[data-mode="mercy"] .online-divider::after {
+  background: rgba(255, 76, 94, .42);
+}
+#lobby-screen[data-mode="mercy"] .online-grid input,
+#lobby-screen[data-mode="mercy"] .online-manual input,
+#lobby-screen[data-mode="mercy"] #room-name-input {
+  border-color: rgba(255, 76, 94, .48);
+  color: #fff1f2;
+  background: #17080d;
+}
+#lobby-screen[data-mode="mercy"] .online-grid input::placeholder,
+#lobby-screen[data-mode="mercy"] .online-manual input::placeholder,
+#lobby-screen[data-mode="mercy"] #room-name-input::placeholder {
+  color: #c3949c;
+}
+#lobby-screen[data-mode="mercy"] .online-grid input:focus,
+#lobby-screen[data-mode="mercy"] .online-manual input:focus,
+#lobby-screen[data-mode="mercy"] #room-name-input:focus {
+  border-color: #ff5264;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 64, 84, .2);
+}
+
+#lobby-screen[data-mode="mercy"] .setup-heading .kicker,
+#lobby-screen[data-mode="mercy"] .field-label,
+#lobby-screen[data-mode="mercy"] .index-item strong {
+  color: #ff6574;
+}
+
+#lobby-screen[data-mode="mercy"] .btn-primary,
+#game-screen[data-mode="mercy"] .btn-primary {
+  color: #fff8f8;
+  background: linear-gradient(110deg, #9c1024, #e52c43 58%, #b3132a);
+  box-shadow: 0 8px 24px rgba(177, 16, 39, .28), inset 0 1px rgba(255, 255, 255, .2);
+}
+
+#lobby-screen[data-mode="mercy"] .choice-grid button[aria-pressed="true"] {
+  border-color: #ff5264;
+  color: #fff1f2;
+  background: rgba(185, 20, 43, .32);
+}
+
+#game-screen[data-mode="mercy"] {
+  --v2-surface-0: rgba(11, 8, 10, .96);
+  --v2-surface-1: rgba(17, 8, 11, .94);
+  --v2-line-soft: rgba(255, 83, 101, .2);
+  --v2-line-strong: rgba(255, 83, 101, .34);
+  background-color: #100608;
+  background-image: linear-gradient(145deg, #17080c 0%, #10070a 52%, #22090f 100%);
+}
+
+#game-screen[data-mode="mercy"] #table-area.arena {
+  border-color: rgba(255, 68, 84, .32);
+  background: radial-gradient(ellipse at center, #1d0b11 0%, #12090d 48%, #090709 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 95, 112, .16), inset 0 18px 56px rgba(0, 0, 0, .68);
+}
+#game-screen[data-mode="mercy"] .arena-rail {
+  border-color: rgba(255, 69, 88, .15);
+}
+#game-screen[data-mode="mercy"] .arena-orbit {
+  border-color: rgba(255, 64, 83, .2);
+  box-shadow: 0 0 64px rgba(255, 45, 66, .035);
+}
+#game-screen[data-mode="mercy"] .arena-orbit::before {
+  background: #ff4054;
+  box-shadow: 0 0 14px rgba(255, 48, 70, .72);
+}
+#game-screen[data-mode="mercy"] #color-glow {
+  opacity: .42;
+  box-shadow: 0 0 22px var(--glow-soft, transparent), inset 0 0 18px var(--glow-soft, transparent);
+}
+#game-screen[data-mode="mercy"] .opponent {
+  border-color: rgba(255, 83, 101, .22);
+  background: linear-gradient(145deg, rgba(25, 10, 14, .97), rgba(10, 8, 10, .97));
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .42);
+}
+#game-screen[data-mode="mercy"] .opponent.is-current {
+  border-color: #ff4054;
+  box-shadow: 0 0 0 1px rgba(255, 45, 66, .2), 0 0 16px rgba(255, 45, 66, .16);
+}
+#game-screen[data-mode="mercy"] .status-card,
+#game-screen[data-mode="mercy"] .phase-rail,
+#game-screen[data-mode="mercy"] .rail-turn-chip {
+  border-color: rgba(255, 82, 98, .3);
+  background-color: rgba(34, 9, 14, .78);
+}
+#game-screen[data-mode="mercy"] .hand-trend {
+  border-color: rgba(255, 77, 94, .62);
+  background: #14080c;
+  box-shadow: inset 0 1px rgba(255, 122, 134, .1), 0 8px 22px rgba(0, 0, 0, .3);
+}
+#game-screen[data-mode="mercy"] .hand-trend h2 {
+  color: #ff9aa5;
+}
+#game-screen[data-mode="mercy"] .hand-trend__grid {
+  stroke: rgba(255, 91, 106, .34);
+}
+#game-screen[data-mode="mercy"] .hand-trend__axis {
+  fill: #bd9299;
+}
+#game-screen[data-mode="mercy"] .hand-trend__legend-item {
+  color: #d5b4b9;
+}
+#game-screen[data-mode="mercy"] .hand-trend__legend-item span[data-seat] {
+  color: #ffe2e5;
+}
+#game-screen[data-mode="mercy"] .hand-trend__empty {
+  color: #d5a0a8;
+}
+#game-screen[data-mode="mercy"] #phase-banner {
+  border-color: rgba(255, 67, 86, .72);
+  color: #ff7180;
+  background: #16070c;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .38), 0 0 16px rgba(201, 24, 48, .12);
+}
+#game-screen[data-mode="mercy"] #phase-label {
+  border-color: rgba(255, 68, 86, .72);
+  color: #ff7b88;
+  background: #23080f;
+}
+#game-screen[data-mode="mercy"] .status-big strong,
+#game-screen[data-mode="mercy"] .rail-turn strong,
+#game-screen[data-mode="mercy"] .rail-turn-chip strong {
+  color: #ff5367;
+}
+#game-screen[data-mode="mercy"] #hand-zone.player-zone,
+#game-screen[data-mode="mercy"] .hand-deck {
+  border-color: rgba(255, 72, 88, .28);
+  background-color: rgba(24, 8, 12, .9);
+}
+#game-screen[data-mode="mercy"] .opponent.is-eliminated {
+  filter: grayscale(1) brightness(.42);
+}
+
+#mode-switch[data-mode="mercy"] {
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, .66)) drop-shadow(0 0 20px rgba(232, 30, 56, .28));
+}
+#mode-switch[data-mode="mercy"] .mode-switch__marker {
+  background: #ff4054;
+  box-shadow: 0 0 12px rgba(255, 48, 70, .9);
+}
+#mode-switch[data-mode="mercy"] .mode-switch__indicator {
+  background: linear-gradient(145deg, #ff6874, #c51b32 72%, #7f1020);
+  box-shadow: inset 0 0 0 1px rgba(255, 225, 228, .38), inset 0 -8px 14px rgba(62, 0, 9, .35);
+}
+#mode-switch[data-mode="mercy"] .mode-switch__option[aria-pressed="true"] { color: #fff8f8; }
+
+@media (prefers-reduced-motion: reduce) {
+  #lobby-screen[data-mode="mercy"], #game-screen[data-mode="mercy"], #result-screen[data-mode="mercy"] { transition: none; }
+  #lobby-screen .lobby-shell { transition: none; }
+}

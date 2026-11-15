@@ -35,6 +35,7 @@ export function render(view, context) {
   if (view.screen === "lobby") renderLobby(view, context);
   if (view.screen === "game") renderTable(view, context);
   if (view.screen === "result") renderResult(view, context);
+  syncModeSwitch();
   renderDevToolbar(view, context);
   // 只在"人类确实要操作"时自动弹窗：AI 的选色/挑战回合不能给人类弹一个空弹窗
   const humanTurn = view.currentSeat === view.human?.seat && (view.human?.legalActions?.length || 0) > 0;

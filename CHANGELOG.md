@@ -2,6 +2,17 @@
 
 > v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前发布版本：v2.2.1（2026-11-10，折线图与结算标题显示修复）**；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
 
+## 三模式升级 · M1~M5（2026-11-13 ~ 11-14，未发 Release，tag `m0-baseline`~`m5` / `v2.3.0`）
+
+**友尽（mercy）模式全量落地**：`GameConfig.mode` 三模式框架 + 13 种牌型 / 168 张友尽牌堆（M1）→ 引擎效果（M2）→ 视图与联机（M3）→ 卡面与左下角切换器（M4）→ 回归与正式断言（M5）。classic 的 `playCard` 路径与既有断言全程零改动。
+
+- **M1 规则与数据层**：`CardKind` 扩为 13 种（基础 6 + 友尽 7：`+6` / `+10` / `+4 反转` / `7 换手` / `0 传手` / `全员跳过` / `全弃` / `Wild 颜色轮盘`）；`createDeck` 支持 classic 108 / mercy 168（68 唯一面，faceCode 对齐 B 版资源文件名）；友尽起手只认数字牌且 168 张守恒；flip 明确抛错不静默回退。
+- **M2 引擎效果**（只作用 `mode='mercy'`）：**7 换手**（强制选目标、淘汰者不可选、换手后可触发淘汰）/ **0 传手**（仅活跃座位按方向旋转）/ **全员跳过**（自己立即再来）/ **全弃**（同色牌压在顶牌下方、可一次清空获胜）/ **颜色轮盘**（下家选色、逐张抽到该色、双堆耗尽兜底跳过）/ **+6 / +10 / Wild 反转+4**（先反转方向，2 人局自罚可回敬）；罚牌统一 **official 叠链**（只能出 ≥ 链顶值）；**25 张淘汰**（手牌搁置 `parkedCards`、重洗放回、回合越过淘汰者）+ **最后幸存者胜利**（`reason='last-survivor'`）；新增 `SWAP_HANDS` / `CHOOSE_ROULETTE_COLOR` 两类动作与 8 类事件。
+- **M3 视图与联机**：`GameView` 顶层 `mode` + `mercy` 摘要（换手/轮盘待选座位、搁置牌数、淘汰座位）、`players[].eliminated`、`table.stackTotal`；8 类新事件在 `sanitizeEventsForSeat()` 按定义字段显式重建，换手/传手后 `drawnThisTurn` 与 `PLAY_DRAWN` 按座位剔除杜绝牌面串座；联机 `start-game` 可带 `mode`（flip 拒绝），协议白名单补两类新动作，`@uno/ai` 补换手/轮盘候选。
+- **M4 卡面与左下角切换**：B 版 68 张 webp 按 `view.mode` 切资源基址（`cards-mercy/` 被 `.gitignore` 与 `electron-builder.yml` 双重排除，不进仓库 / exe / Release，缺素材自动降级文字牌面）；`#mode-switch` 三档切换器（基础 / 进阶[暂缓] / 友尽）**仅大厅显示**、无底板悬浮、squircle 滑动指示器、整体放大（184~300px 契约）；`uno:mode` 独立持久化，单机开局 / 再来一局 / 联机三处透传；换手 / 轮盘弹窗、淘汰灰显、叠链累计提示。
+- **M5 回归与正式友尽断言**：`selfplay` 新增 `--mode mercy`（`runMercyTable` 4 人友尽混战：非法 0 / 异常 0 / 每局守恒 168 / 每局决出胜者，不做难度单调判定——友尽胜负含规则性运气）；`sameAction` 对 `SWAP_HANDS`（按目标座位）/ `CHOOSE_ROULETTE_COLOR`（按颜色）严格比对，堵住 default 宽松缺口；守恒断言按模式取 108 / 168。`npm test` 新增 `mercy-selfplay.test.ts` 6 条 → **392/392（37 文件）**；基线全绿：lint / typecheck 0、`verify:ui` **208/208**、`verify:online` **44/44**、`selfplay` classic 700 局非法 0 / 异常 0（相邻难度胜率单调仍为遗留已知项）、mercy 200 局全绿（淘汰 192/200、`last-survivor` 161）、`perf` FPS 60 / 堆 1MB。
+- **本机环境备注（2026-11-14）**：vitest 5.0.5 默认 `forks` / `threads` 池在本机当日会话下全体 37 文件「collection 阶段 `reading 'config'`」失败（WorkBuddy 定制 node 22.22.2-6 与 `NODE_OPTIONS --require` shim 疑似相关；stash 回 HEAD 基线同样失败，证明非项目回归）；`--pool=vmThreads` 全绿复核。项目配置未改动。
+
 ## v2.2.1（2026-11-10）
 
 **显示修复补丁**：修复桌面端全屏 / 任意窗口下手牌折线图不显示或严重变形，以及结算页巨字 `你 WINS.` 的中文被下方遮挡；版本号统一 2.2.1，重打 Windows 安装包。

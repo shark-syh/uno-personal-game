@@ -2715,6 +2715,7 @@ function decide(state, seat, options) {
 
 // packages/ai/src/selfplay.ts
 var DEFAULT_MAX_ACTIONS = 5e3;
+var DECK_TOTALS = { classic: 108, mercy: 168, flip: 112 };
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -2734,6 +2735,7 @@ function createSelfPlayGame(config) {
   if (config.deckExhaustion) partial.deckExhaustion = config.deckExhaustion;
   if (config.challengeWild4 !== void 0) partial.challengeWild4 = config.challengeWild4;
   if (config.twoPlayerRules !== void 0) partial.twoPlayerRules = config.twoPlayerRules;
+  if (config.mode) partial.mode = config.mode;
   const state = createInitialGame(partial);
   state.config.humanSeat = -1;
   for (const player of state.players) player.isHuman = false;
@@ -2750,7 +2752,11 @@ function sameAction(left, right) {
     }
     case "CHOOSE_COLOR":
       return left.color === right.color;
+    case "CHOOSE_ROULETTE_COLOR":
+      return left.color === right.color;
     case "CATCH_UNO":
+      return left.targetSeat === right.targetSeat;
+    case "SWAP_HANDS":
       return left.targetSeat === right.targetSeat;
     default:
       return true;
@@ -2758,6 +2764,8 @@ function sameAction(left, right) {
 }
 function playSelfPlayGame(config) {
   const maxActions = config.maxActions ?? DEFAULT_MAX_ACTIONS;
+  const mode = config.mode ?? "classic";
+  const expectedTotal = DECK_TOTALS[mode] ?? 108;
   const session = createSelfPlayGame(config);
   let state = session.state;
   const aiRng = session.aiRng;
@@ -2803,9 +2811,9 @@ function playSelfPlayGame(config) {
     }
     executed += 1;
     const total = countCards(state);
-    if (total !== 108) {
+    if (total !== expectedTotal) {
       conservationOk = false;
-      errors.push(`\u724C\u6570\u5F02\u5E38\uFF1A${total}\uFF08\u5E94\u4E3A 108\uFF09`);
+      errors.push(`\u724C\u6570\u5F02\u5E38\uFF1A${total}\uFF08${mode} \u5E94\u4E3A ${expectedTotal}\uFF09`);
       break;
     }
   }
@@ -2813,6 +2821,7 @@ function playSelfPlayGame(config) {
     (event) => event.type === "CHALLENGE_SUCCESS" || event.type === "CHALLENGE_FAIL"
   ).length;
   const remainingHandCounts = state.players.map((player) => player.hand.length);
+  const eliminatedCount = state.players.filter((player) => player.eliminated).length;
   if (isGameOver(state)) {
     const result = getResult(state);
     return {
@@ -2832,6 +2841,7 @@ function playSelfPlayGame(config) {
       illegalActions,
       errors,
       conservationOk,
+      eliminatedCount,
       remainingHandCounts
     };
   }
@@ -2862,6 +2872,7 @@ function playSelfPlayGame(config) {
     illegalActions,
     errors,
     conservationOk,
+    eliminatedCount,
     remainingHandCounts
   };
 }
@@ -2929,6 +2940,57 @@ function runDifficultyLadder(options) {
     games: pairings.reduce((sum, pairing) => sum + pairing.games, 0)
   };
 }
+function runMercyTable(options) {
+  const games = Math.max(1, Math.floor(options.games));
+  const playerCount = options.playerCount ?? 4;
+  const baseSeed = options.baseSeed ?? "m5-mercy";
+  const winCounts = { casual: 0, easy: 0, realistic: 0, hardcore: 0 };
+  const winnerReasons = {};
+  let illegalActions = 0;
+  let errorCount = 0;
+  let conservationOk = true;
+  let allDecided = true;
+  let gamesWithElimination = 0;
+  let totalTurns = 0;
+  for (let gameIndex = 0; gameIndex < games; gameIndex += 1) {
+    const shift = gameIndex % DIFFICULTY_ORDER.length;
+    const difficulties = Array.from(
+      { length: playerCount },
+      (_, offset) => DIFFICULTY_ORDER[(offset + shift) % DIFFICULTY_ORDER.length]
+    );
+    const result = playSelfPlayGame({
+      playerCount,
+      seed: `${String(baseSeed)}-${gameIndex}`,
+      difficulties,
+      engineDifficulty: options.engineDifficulty,
+      maxActions: options.maxActions,
+      mode: "mercy"
+    });
+    illegalActions += result.illegalActions;
+    errorCount += result.errors.length;
+    conservationOk = conservationOk && result.conservationOk;
+    totalTurns += result.turns;
+    if (result.winnerSeat === null) {
+      allDecided = false;
+    } else {
+      winCounts[result.difficulties[result.winnerSeat]] += 1;
+      winnerReasons[result.reason] = (winnerReasons[result.reason] ?? 0) + 1;
+    }
+    if (result.eliminatedCount > 0) gamesWithElimination += 1;
+  }
+  return {
+    games,
+    playerCount,
+    illegalActions,
+    errorCount,
+    conservationOk,
+    allDecided,
+    avgTurns: totalTurns / games,
+    gamesWithElimination,
+    winnerReasons,
+    winCounts
+  };
+}
 function runMixedTable(options) {
   const games = Math.max(1, Math.floor(options.games));
   const baseSeed = options.baseSeed ?? "m2-mixed";
@@ -2961,7 +3023,8 @@ function runMixedTable(options) {
       engineDifficulty: options.engineDifficulty,
       maxActions: options.maxActions,
       deckExhaustion: options.deckExhaustion,
-      challengeWild4: options.challengeWild4
+      challengeWild4: options.challengeWild4,
+      mode: options.mode
     });
     illegalActions += result.illegalActions;
     errorCount += result.errors.length;
@@ -3063,6 +3126,7 @@ export {
   prevSeat,
   probabilityAtLeastOne,
   runDifficultyLadder,
+  runMercyTable,
   runMixedTable,
   sameAction,
   sanitizeEventsForSeat,

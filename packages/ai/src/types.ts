@@ -12,6 +12,7 @@ import type {
   Direction,
   EngineAction,
   GameEvent,
+  GameMode,
   GamePhase,
   RngState,
   RoundEndReason,
@@ -293,6 +294,8 @@ export interface SelfPlayGameConfig {
   deckExhaustion?: DeckExhaustion;
   challengeWild4?: boolean;
   twoPlayerRules?: boolean;
+  /** 游戏模式（M5 友尽自对弈）：默认 classic；mercy 用 168 张友尽牌堆与友尽规则 */
+  mode?: GameMode;
 }
 
 /** 自对弈单局结果 */
@@ -314,6 +317,8 @@ export interface SelfPlayGameResult {
   errors: string[];
   /** 每步牌数守恒检查是否通过 */
   conservationOk: boolean;
+  /** 结束时已淘汰的座位数（classic 恒 0；友尽模式 25 张淘汰的统计口径，M5） */
+  eliminatedCount: number;
   /** 各座位结束时剩余手牌数（4 人混战排位用） */
   remainingHandCounts: number[];
 }
@@ -380,6 +385,8 @@ export interface MixedTableOptions {
    * 用容差吸收统计噪声（"强档名次不弱于弱档 + 容差"）。
    */
   positionTolerance?: number;
+  /** 游戏模式（M5）：默认 classic */
+  mode?: GameMode;
 }
 
 /** 4 人混战结果（验证四档难度的综合强度排序） */
@@ -397,4 +404,41 @@ export interface MixedTableResult {
   rankingMonotonic: boolean;
   /** 平均名次判定容差（0 = 严格单调） */
   positionTolerance: number;
+}
+
+/**
+ * 友尽模式混战参数（M5 正式断言）。
+ *
+ * 友尽的博弈结构与 classic 差异大（25 张淘汰、换手、轮盘、全弃速胜），
+ * 胜负含较多规则性运气，**不做难度单调判定**；正式断言为：
+ * 非法动作 0 / 对局异常 0 / 每局牌数守恒（168）/ 每局决出胜者。
+ */
+export interface MercyTableOptions {
+  games: number;
+  /** 座位数（默认 4；友尽淘汰在 3 人以上才有「最后幸存者」含义） */
+  playerCount?: number;
+  baseSeed?: string | number;
+  engineDifficulty?: Difficulty;
+  maxActions?: number;
+}
+
+/** 友尽模式混战结果 */
+export interface MercyTableResult {
+  games: number;
+  playerCount: number;
+  /** 非法动作总数（AI 只从合法动作里选 + applyAction 全部接受） */
+  illegalActions: number;
+  /** 对局异常总数（决策异常 / 引擎拒绝以外的错误 / 动作上限死循环） */
+  errorCount: number;
+  /** 每局牌数守恒是否全部通过（168 张：手牌 + 牌堆 + 弃牌堆 + 搁置牌） */
+  conservationOk: boolean;
+  /** 每局都决出胜者（无平局、无未完成局） */
+  allDecided: boolean;
+  avgTurns: number;
+  /** 出现淘汰玩家的局数（友尽规则在真实运转） */
+  gamesWithElimination: number;
+  /** 胜利方式分布：reason → 局数 */
+  winnerReasons: Partial<Record<RoundEndReason, number>>;
+  /** 各难度胜场数（信息展示，不作断言） */
+  winCounts: Record<Difficulty, number>;
 }

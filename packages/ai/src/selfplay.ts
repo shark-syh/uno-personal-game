@@ -8,6 +8,10 @@
  *   `realistic` 固定，避免难度差异混入 UNO 随机结算，胜率反映的是**出牌策略**差异；
  * - AI 决策随机源与引擎随机源分离：引擎 seed 决定发牌/UNO 概率，AI RNG 由
  *   `selfplay-ai-${seed}` 派生，保证整批结果可复现。
+ * - M5 友尽自对弈：`SelfPlayGameConfig.mode` 透传 `GameConfig.mode`，牌数守恒按
+ *   模式取 108 / 168；`runMercyTable` 是友尽模式的正式回归断言（非法 0 / 异常 0 /
+ *   守恒 / 每局有胜者，不做难度单调判定）；`sameAction` 对 SWAP_HANDS /
+ *   CHOOSE_ROULETTE_COLOR 按唯一键字段严格比对，保证"非法动作=0"可信。
  */
 import {
   applyAction,
@@ -18,13 +22,21 @@ import {
   getResult,
   isGameOver,
 } from '@uno/game-core';
-import type { Difficulty, EngineAction, GameConfig, GameState } from '@uno/game-core';
+import type {
+  Difficulty,
+  EngineAction,
+  GameConfig,
+  GameState,
+} from '@uno/game-core';
+import type { GameMode, RoundEndReason } from '@uno/game-core';
 import { decide } from './decide.ts';
 import { DIFFICULTY_ORDER } from './difficulty.ts';
 import type {
   LadderOptions,
   LadderPairingResult,
   LadderResult,
+  MercyTableOptions,
+  MercyTableResult,
   MixedTableOptions,
   MixedTableResult,
   SelfPlayGameConfig,
@@ -32,6 +44,8 @@ import type {
 } from './types.ts';
 
 const DEFAULT_MAX_ACTIONS = 5000;
+/** 牌数守恒期望值：classic 108 / mercy 168（M1 牌堆表） */
+const DECK_TOTALS: Record<GameMode, number> = { classic: 108, mercy: 168, flip: 112 };
 
 /** 自对弈局面 + AI 随机源 */
 export interface SelfPlaySession {
@@ -61,6 +75,7 @@ export function createSelfPlayGame(config: SelfPlayGameConfig): SelfPlaySession 
   if (config.deckExhaustion) partial.deckExhaustion = config.deckExhaustion;
   if (config.challengeWild4 !== undefined) partial.challengeWild4 = config.challengeWild4;
   if (config.twoPlayerRules !== undefined) partial.twoPlayerRules = config.twoPlayerRules;
+  if (config.mode) partial.mode = config.mode;
 
   const state = createInitialGame(partial);
   // 自对弈：没有人类座位，所有玩家都是 AI（创建时 humanSeat 必须在范围内，这里再改）
@@ -84,7 +99,13 @@ export function sameAction(left: EngineAction, right: EngineAction): boolean {
     }
     case 'CHOOSE_COLOR':
       return left.color === (right as typeof left).color;
+    case 'CHOOSE_ROULETTE_COLOR':
+      // M5：轮盘选色也是唯一键字段，与 CHOOSE_COLOR 同样严格比对
+      return left.color === (right as typeof left).color;
     case 'CATCH_UNO':
+      return left.targetSeat === (right as typeof left).targetSeat;
+    case 'SWAP_HANDS':
+      // M5：换手目标座位是唯一键字段，严格比对（否则任何目标都会被判合法）
       return left.targetSeat === (right as typeof left).targetSeat;
     default:
       return true;
@@ -94,6 +115,8 @@ export function sameAction(left: EngineAction, right: EngineAction): boolean {
 /** 跑完一局 AI vs AI，返回结算与质量检查结果 */
 export function playSelfPlayGame(config: SelfPlayGameConfig): SelfPlayGameResult {
   const maxActions = config.maxActions ?? DEFAULT_MAX_ACTIONS;
+  const mode: GameMode = config.mode ?? 'classic';
+  const expectedTotal = DECK_TOTALS[mode] ?? 108;
   const session = createSelfPlayGame(config);
   let state = session.state;
   const aiRng = session.aiRng;
@@ -147,9 +170,9 @@ export function playSelfPlayGame(config: SelfPlayGameConfig): SelfPlayGameResult
 
     executed += 1;
     const total = countCards(state);
-    if (total !== 108) {
+    if (total !== expectedTotal) {
       conservationOk = false;
-      errors.push(`牌数异常：${total}（应为 108）`);
+      errors.push(`牌数异常：${total}（${mode} 应为 ${expectedTotal}）`);
       break;
     }
   }
@@ -158,6 +181,7 @@ export function playSelfPlayGame(config: SelfPlayGameConfig): SelfPlayGameResult
     (event) => event.type === 'CHALLENGE_SUCCESS' || event.type === 'CHALLENGE_FAIL',
   ).length;
   const remainingHandCounts = state.players.map((player) => player.hand.length);
+  const eliminatedCount = state.players.filter((player) => player.eliminated).length;
 
   if (isGameOver(state)) {
     const result = getResult(state);
@@ -178,6 +202,7 @@ export function playSelfPlayGame(config: SelfPlayGameConfig): SelfPlayGameResult
       illegalActions,
       errors,
       conservationOk,
+      eliminatedCount,
       remainingHandCounts,
     };
   }
@@ -211,6 +236,7 @@ export function playSelfPlayGame(config: SelfPlayGameConfig): SelfPlayGameResult
     illegalActions,
     errors,
     conservationOk,
+    eliminatedCount,
     remainingHandCounts,
   };
 }
@@ -292,6 +318,68 @@ export function runDifficultyLadder(options: LadderOptions): LadderResult {
 }
 
 /**
+ * 友尽模式混战（M5 正式断言）：4 人友尽局按局轮转难度，
+ * 断言"非法动作 0 / 对局异常 0 / 每局牌数守恒 168 / 每局决出胜者"。
+ *
+ * 不做难度单调判定：友尽的胜负含较多规则性运气（25 张淘汰、换手、轮盘、全弃速胜），
+ * 单调性对该模式没有可解释意义；各难度胜场仅作信息展示。
+ */
+export function runMercyTable(options: MercyTableOptions): MercyTableResult {
+  const games = Math.max(1, Math.floor(options.games));
+  const playerCount = options.playerCount ?? 4;
+  const baseSeed = options.baseSeed ?? 'm5-mercy';
+  const winCounts: Record<Difficulty, number> = { casual: 0, easy: 0, realistic: 0, hardcore: 0 };
+  const winnerReasons: Partial<Record<RoundEndReason, number>> = {};
+  let illegalActions = 0;
+  let errorCount = 0;
+  let conservationOk = true;
+  let allDecided = true;
+  let gamesWithElimination = 0;
+  let totalTurns = 0;
+
+  for (let gameIndex = 0; gameIndex < games; gameIndex += 1) {
+    const shift = gameIndex % DIFFICULTY_ORDER.length;
+    const difficulties: Difficulty[] = Array.from({ length: playerCount }, (_, offset) =>
+      DIFFICULTY_ORDER[(offset + shift) % DIFFICULTY_ORDER.length]!,
+    );
+    const result = playSelfPlayGame({
+      playerCount,
+      seed: `${String(baseSeed)}-${gameIndex}`,
+      difficulties,
+      engineDifficulty: options.engineDifficulty,
+      maxActions: options.maxActions,
+      mode: 'mercy',
+    });
+
+    illegalActions += result.illegalActions;
+    errorCount += result.errors.length;
+    conservationOk = conservationOk && result.conservationOk;
+    totalTurns += result.turns;
+
+    if (result.winnerSeat === null) {
+      allDecided = false;
+    } else {
+      winCounts[result.difficulties[result.winnerSeat]!]! += 1;
+      winnerReasons[result.reason] = (winnerReasons[result.reason] ?? 0) + 1;
+    }
+    if (result.eliminatedCount > 0) gamesWithElimination += 1;
+  }
+
+  return {
+    games,
+    playerCount,
+    illegalActions,
+    errorCount,
+    conservationOk,
+    allDecided,
+    avgTurns: totalTurns / games,
+    gamesWithElimination,
+    winnerReasons,
+    winCounts,
+  };
+}
+
+/**
  * 4 人混战：每档难度各占一个座位，按局轮转座位，统计胜场与平均名次。
  * 用于验证四档难度的综合强度排序（比相邻 2 人对战更接近真实对局）。
  */
@@ -329,6 +417,7 @@ export function runMixedTable(options: MixedTableOptions): MixedTableResult {
       maxActions: options.maxActions,
       deckExhaustion: options.deckExhaustion,
       challengeWild4: options.challengeWild4,
+      mode: options.mode,
     });
 
     illegalActions += result.illegalActions;

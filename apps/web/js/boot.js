@@ -8,7 +8,7 @@
  * - 静态 DOM 在 index.html 内（CSS 一到位就能首帧绘制），本脚本只负责「书写」与「退场」；
  * - 每条笔画用 stroke-dashoffset 逐笔写出，笔尖光点沿 getPointAtLength 跟随，进度条同步；
  * - 写完 → 墨迹定格 + 光带扫过 → 整层虚化溶解，大厅两栏错峰升起，一次连续运动进入应用；
- * - 降级：reduced-motion / 设置关闭动画 / ?test=1 / ?mock=1 / ?dev=1 / 每次会话只播一次；
+ * - 降级：reduced-motion / 设置关闭动画 / ?test=1 / ?mock=1 / ?dev=1；每次页面启动都会播放；
  *   ?boot=1 强制重播（方便预览），?boot=0 强制跳过。点击或按任意键可立即跳过。
  * - 不触碰 window.UnoApp 契约、DOM 锚点、引擎与网络层。
  */
@@ -39,12 +39,9 @@
     params.get("mode") === "mock";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let played = false;
-  try { played = sessionStorage.getItem("uno:bootPlayed") === "1"; } catch { /* 隐私模式按未播处理 */ }
-
   const shouldSkip =
     !force &&
-    (noBoot || reduceMotion || settings.animation === false || isTestOrDev || played);
+    (noBoot || reduceMotion || settings.animation === false || isTestOrDev);
 
   // ★ 首帧修复：无论播放还是跳过，都先把墨迹藏好（CSS 里另有同源预设，双保险）。
   //   跳过时直接移除遮罩，自然也不会有残留字形。
@@ -66,7 +63,6 @@
   const status = overlay.querySelector(".boot-status");
   const statusText = overlay.querySelector("#boot-status-text");
 
-  try { sessionStorage.setItem("uno:bootPlayed", "1"); } catch { /* 忽略 */ }
   if (appRoot) appRoot.inert = true;
 
   // 每笔的起止略有重叠，像一口气写完而不是三段机械拼接

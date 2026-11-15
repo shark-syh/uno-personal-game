@@ -1,5 +1,5 @@
 /**
- * AI vs AI 自对弈基准（M2 验收脚本）。
+ * AI vs AI 自对弈基准（M2 验收脚本；M5 增加友尽模式）。
  *
  * 验收目标：
  * 1. 非法动作数 = 0（AI 永远只从引擎合法动作里选）；
@@ -7,20 +7,24 @@
  *    BUG-01 摸牌规则改为「摸到可出为止」后，单局回合数约翻倍、方差变大，
  *    200 局样本的 95% 置信区间约 ±7%，因此允许 2% 的统计容差（强档胜率 ≥ 48% 视为不弱于）；
  * 3. 平均回合数合理（BUG-01 新规则下约 60~160 回合；旧规则为 20~60）；
- * 4. 4 人混战排名随难度提升（附加验证，相邻难度平均名次差允许 0.15 的统计容差）。
+ * 4. 4 人混战排名随难度提升（附加验证，相邻难度平均名次差允许 0.15 的统计容差）；
+ * 5. `--mode mercy`（M5 友尽正式断言）：4 人友尽混战，非法 0 / 异常 0 /
+ *    每局牌数守恒 168 / 每局决出胜者；不做难度单调判定（友尽胜负含规则性运气）。
  *
  * 用法（项目根目录）：
- *   npm run selfplay                          # 默认：每组相邻 200 局 + 混战 100 局
+ *   npm run selfplay                          # 默认：每组相邻 200 局 + 混战 100 局（classic）
  *   npm run selfplay -- --games 300 --mixed 200
  *   npm run selfplay -- --games 50 --no-mixed
  *   npm run selfplay -- --seed m2-demo --engine-difficulty hardcore
+ *   npm run selfplay -- --mode mercy          # 友尽 4 人混战（--games 为局数，默认 200）
  *   npm run selfplay -- --help
  */
-import type { Difficulty } from '@uno/game-core';
+import type { Difficulty, GameMode } from '@uno/game-core';
 import {
   DIFFICULTY_LABEL,
   DIFFICULTY_ORDER,
   runDifficultyLadder,
+  runMercyTable,
   runMixedTable,
 } from '../packages/ai/src/index.ts';
 
@@ -32,24 +36,27 @@ interface SelfplayOptions {
   maxActions: number;
   deckExhaustion: 'reshuffle' | 'end-by-fewest' | undefined;
   challengeWild4: boolean | undefined;
+  mode: GameMode;
 }
 
-const HELP = `M2 本地 AI 自对弈基准
+const HELP = `M2 本地 AI 自对弈基准（M5 增加友尽模式）
 
 参数：
-  --games <n>              每组相邻难度对战的局数（默认 200）
-  --mixed <n>              4 人混战局数（默认 100；--no-mixed 关闭）
-  --no-mixed               不做 4 人混战
+  --games <n>              classic：每组相邻难度局数（默认 200）；mercy：混战总局数（默认 200）
+  --mixed <n>              4 人混战局数（默认 100；--no-mixed 关闭；仅 classic）
+  --no-mixed               不做 4 人混战（仅 classic）
+  --mode <模式>            classic（默认）/ mercy（M5 友尽正式断言）
   --seed <字符串>          种子前缀（默认 m2-selfplay；相同种子 ⇒ 相同结果）
   --engine-difficulty <档> 引擎侧 UNO 喊/抓概率使用的全局难度（默认 realistic）
   --max-actions <n>        单局动作上限保护（默认 5000）
   --deck-exhaustion <策略> 牌堆耗尽策略：reshuffle（默认）/ end-by-fewest
-  --no-challenge           关闭 +4 挑战
+  --no-challenge           关闭 +4 挑战（仅 classic）
   --help                   显示帮助
 
 判定容差（BUG-01 摸牌规则变更后单局更长、方差更大）：
   · 相邻难度：强档胜率 ≥ 48%（200 局 2% 容差）
   · 4 人混战：相邻难度平均名次差 ≤ +0.15（100 局名次均值标准误约 0.1）
+  · mercy（友尽）：非法动作 0 / 对局异常 0 / 牌数守恒 168 / 每局有胜者；不做单调判定
 输出：相邻难度对战胜率（验证单调性）、4 人混战胜场/平均名次、平均回合数、非法动作数。
 退出码：非法动作 > 0 / 出现对局异常 / 难度不单调 时为 1。
 `;
@@ -63,6 +70,7 @@ function parseArgs(argv: string[]): SelfplayOptions {
     maxActions: 5000,
     deckExhaustion: undefined,
     challengeWild4: undefined,
+    mode: 'classic',
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -79,6 +87,10 @@ function parseArgs(argv: string[]): SelfplayOptions {
         break;
       case '--no-mixed':
         options.mixed = 0;
+        break;
+      case '--mode':
+        if (value === 'classic' || value === 'mercy') options.mode = value;
+        index += 1;
         break;
       case '--seed':
         options.seed = value ?? options.seed;
@@ -134,6 +146,51 @@ const WIN_RATE_TOLERANCE = 0.02;
 /** 4 人混战 100 局时相邻难度平均名次差的标准误约 0.1，用 0.15 容差吸收噪声 */
 const POSITION_TOLERANCE = 0.15;
 
+if (options.mode === 'mercy') {
+  // ==================== M5 友尽模式正式断言 ====================
+  console.log('=== M5 友尽模式自对弈基准（4 人混战，难度按局轮转） ===');
+  console.log(
+    `参数: ${options.games} 局 | 种子 ${options.seed}-mercy | ` +
+      `引擎 UNO 难度 ${options.engineDifficulty} | 动作上限 ${options.maxActions}`,
+  );
+  console.log('');
+
+  const mercy = runMercyTable({
+    games: options.games,
+    baseSeed: `${options.seed}-mercy`,
+    engineDifficulty: options.engineDifficulty,
+    maxActions: options.maxActions,
+  });
+
+  const reasons = Object.entries(mercy.winnerReasons)
+    .map(([reason, count]) => `${reason} ${count}`)
+    .join(' | ');
+  console.log('【4 人友尽混战（每档一席，座位按局轮转）】');
+  console.log(
+    `胜场: ${DIFFICULTY_ORDER.map((difficulty) => `${DIFFICULTY_LABEL[difficulty]} ${mercy.winCounts[difficulty]}`).join(' | ')}`,
+  );
+  console.log(`胜利方式: ${reasons || '（无）'}`);
+  console.log(
+    `平均回合 ${mercy.avgTurns.toFixed(1)} | 出现淘汰的局数 ${mercy.gamesWithElimination}/${mercy.games} | ` +
+      `非法 ${mercy.illegalActions} | 错误 ${mercy.errorCount}`,
+  );
+  console.log('');
+  console.log('【验收结论】');
+  console.log(
+    `- 总对局 ${mercy.games} 局 | 非法动作 ${mercy.illegalActions} | 对局异常 ${mercy.errorCount}`,
+  );
+  console.log(`- 牌数守恒（168 张）: ${mercy.conservationOk ? '✅' : '❌'}`);
+  console.log(`- 每局决出胜者: ${mercy.allDecided ? '✅' : '❌'}`);
+  console.log(`- 用时: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+
+  if (mercy.illegalActions > 0 || mercy.errorCount > 0 || !mercy.conservationOk || !mercy.allDecided) {
+    console.error('❌ 友尽自对弈验收未通过（非法动作 / 异常 / 牌数守恒 / 未决出局）');
+    process.exitCode = 1;
+  } else {
+    console.log('✅ 友尽自对弈验收通过');
+  }
+} else {
+  // ==================== M2 classic 基准（原逻辑不动） ====================
 console.log('=== M2 本地 AI 自对弈基准 ===');
 console.log(
   `参数: 每组相邻难度 ${options.games} 局 | 4 人混战 ${options.mixed} 局 | 种子 ${options.seed} | ` +
@@ -230,4 +287,5 @@ if (illegalActions > 0 || errorCount > 0 || !monotonic) {
   process.exitCode = 1;
 } else {
   console.log('✅ 自对弈验收通过');
+}
 }

@@ -1,14 +1,11 @@
 /**
- * M4 三模式偏好（会话级 + localStorage）。
+ * M4 三模式偏好（仅当前页面会话有效；刷新后回到基础模式）。
  *
- * 契约来源：docs/三模式升级-Flip模式开发方案.md §2 —— key 用 `uno:mode`，
- * 与 `uno:settings` 分开存（mode 是开局参数，不是表现/规则偏好，不进设置弹窗全量写回）。
+ * mode 是开局参数，不是表现/规则偏好，不进设置弹窗全量写回。
  * 生效时机：只对新开对局生效；对局中切换不改动进行中的 GameState。
  *
  * Flip（进阶）方案暂缓，第三档只展示、不可选；服务端协议也只接受 classic / mercy。
  */
-const KEY = 'uno:mode';
-
 /** 三档展示定义（顺序与左下角切换器一致） */
 export const GAME_MODES = [
   { id: 'classic', label: '基础', short: '基' },
@@ -27,17 +24,7 @@ export function isKnownMode(mode) {
   return GAME_MODES.some((item) => item.id === mode);
 }
 
-function readStored() {
-  try {
-    const stored = window.localStorage.getItem(KEY);
-    // 旧值或暂缓的 flip 一律回退 classic，避免开局时被服务端拒绝
-    return isPlayableMode(stored) ? stored : 'classic';
-  } catch {
-    return 'classic';
-  }
-}
-
-let selected = readStored();
+let selected = 'classic';
 
 export function getMode() {
   return selected;
@@ -46,11 +33,6 @@ export function getMode() {
 export function setMode(mode) {
   if (!isPlayableMode(mode)) return false;
   selected = mode;
-  try {
-    window.localStorage.setItem(KEY, mode);
-  } catch {
-    // 隐私模式 / 禁用 localStorage：会话内仍生效
-  }
   window.dispatchEvent(new CustomEvent('uno:mode-changed', { detail: { mode } }));
   return true;
 }

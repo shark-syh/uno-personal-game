@@ -98,7 +98,7 @@ function ensureHandLayoutObserver() {
 export function renderCard(card, { mini = false, legal = false, drawn = false, onSelect = null } = {}) {
   const node = document.createElement(onSelect ? "button" : "div"); if (onSelect) { node.type = "button"; node.disabled = !legal; } node.className = `card${mini ? " mini-card" : ""}${onSelect ? legal ? " is-legal" : " is-illegal" : ""}${drawn ? " is-drawn" : ""}`; node.dataset.cardId = card.id; node.dataset.faceCode = card.faceCode; if (onSelect) node.dataset.state = drawn ? "drawn" : legal ? "legal" : "illegal"; node.setAttribute("aria-label", cardLabel(card)); node.style.setProperty("--card-color", cardColors[card.color]);
   const resource = cardResource(cardResourceMode);
-  const image = document.createElement("img"); image.src = `${resource.dir}/${card.faceCode}.${resource.ext}`; image.alt = cardLabel(card); image.width = 240; image.height = 360; image.draggable = false;
+  const image = document.createElement("img"); image.src = `${resource.dir}/${card.faceCode}.${resource.ext}`; image.alt = cardLabel(card); image.width = 240; image.height = 360; image.loading = "lazy"; image.decoding = "async"; image.fetchPriority = mini ? "low" : "auto"; image.draggable = false;
   const fallback = document.createElement("span"); fallback.className = "fallback-label"; fallback.textContent = fallbackLabel(card);
   image.addEventListener("error", () => { node.classList.add("is-fallback"); image.remove(); node.append(fallback); });
   node.append(image);

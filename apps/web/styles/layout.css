@@ -31,13 +31,13 @@ body:has(#dev-toolbar:not([hidden])) #app { min-height: calc(100dvh - 64px); }
 .app-version { color: var(--ink-muted); font-size: 14px; font-weight: 600; letter-spacing: .04em; white-space: nowrap; }
 .lobby-brand .app-version { margin: 0; font-size: 12px; letter-spacing: .08em; }
 /* 巨字排版：div（不抢 #lobby-title 的 h1 语义），中间行描边（demo §2.3） */
-.lobby-display { margin: 16px 0 22px; font-size: var(--v22-display-size); font-weight: 900; line-height: .78; letter-spacing: -.09em; }
+.lobby-display { min-height: 2.34em; margin: 16px 0 22px; font-size: var(--v22-display-size); font-weight: 900; line-height: .78; letter-spacing: -.09em; }
 .lobby-display span, .lobby-display em { display: block; }
 .lobby-display em { color: transparent; -webkit-text-stroke: 1px var(--ink); font-style: normal; }
 /* N3（§7.5 计划内更新）：#lobby-lead 改为新 UI 描述——锚点与语义不变，只更新文案与排版 */
-#lobby-lead { max-width: 470px; margin: 0; color: var(--ink-muted); font-size: 15px; line-height: 1.65; }
-.lobby-index { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 38px; }
-.index-item { display: grid; gap: 4px; padding-left: 10px; border-left: 2px solid var(--v2-gold); }
+#lobby-lead { min-height: 3.3em; max-width: 470px; margin: 0; color: var(--ink-muted); font-size: 15px; line-height: 1.65; }
+.lobby-index { display: grid; width: min(100%, 430px); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 38px; }
+.index-item { display: grid; min-width: 0; min-height: 38px; gap: 4px; padding-left: 10px; border-left: 2px solid var(--v2-gold); }
 .index-item strong { font-size: 18px; }
 /* N3：small 改中文意译——中文没有 uppercase 效果，字号提到 11px、字距收到 .06em 才不散 */
 .index-item small { color: var(--ink-muted); font-size: 11px; letter-spacing: .06em; }
@@ -366,14 +366,16 @@ body:has(#dev-toolbar:not([hidden])) #game-screen.is-active { height: calc(100dv
 @media (max-width: 1080px) {
   .lobby-shell { grid-template-columns: 1fr; max-width: 680px; gap: 28px; }
   /* 字号上限按最长组「WATCH. PRESS. PLAY.」（19 字符）校核，单行不溢出 680 容器 */
-  .lobby-display { font-size: clamp(44px, 6.2vw, 68px); margin: 10px 0 16px; }
+  /* 单列断点下巨字是 inline 一行，切换玩法文案不会换行跳动；这里不占 min-height，
+     否则 1024×768 会把 SETUP 卡的「开启对局」推出首屏（M2 断言 19px 回归）。 */
+  .lobby-display { min-height: 0; font-size: clamp(44px, 6.2vw, 68px); margin: 10px 0 16px; }
   .lobby-display span, .lobby-display em { display: inline; }
   .lobby-index { margin-top: 18px; }
 }
 @media (max-width: 760px) {
   .lobby-shell { grid-template-columns: 1fr; max-width: 560px; gap: 20px; }
-  .lobby-display { font-size: clamp(30px, 7.2vw, 52px); margin: 8px 0 12px; }
-  #lobby-lead { font-size: 13px; }
+  .lobby-display { min-height: 1.2em; font-size: clamp(30px, 7.2vw, 52px); margin: 8px 0 12px; }
+  #lobby-lead { min-height: 4.95em; font-size: 13px; }
   .lobby-index { margin-top: 16px; gap: 14px; }
   .lobby-panel { padding: clamp(20px, 5vw, 28px); }
   #game-screen { padding-inline: 10px; }
