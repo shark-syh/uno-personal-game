@@ -12,7 +12,7 @@
 ![UI checks](https://img.shields.io/badge/UI-208%2F208-2ea44f?style=flat-square)
 ![LAN checks](https://img.shields.io/badge/LAN-44%2F44-0969da?style=flat-square)
 ![offline](https://img.shields.io/badge/offline-local%20AI-6e7781?style=flat-square)
-[![Download](https://img.shields.io/badge/download-public%20v2.2.0-2ea44f?style=for-the-badge&logo=windows)](https://github.com/shark-syh/uno-personal-game/releases/latest)
+[![Download](https://img.shields.io/badge/download-public%20v2.3.0-2ea44f?style=for-the-badge&logo=windows)](https://github.com/shark-syh/uno-personal-game/releases/latest)
 
 <p align="center">
   <img src="docs/images/v23-lobby-mercy.webp" width="900" alt="友尽模式大厅：暗红主题与 NO ONE LEAVES. 巨字">
@@ -267,16 +267,16 @@ docs/                  开发文档与本文截图
 
 ## 装起来、跑起来
 
-> **版本口径先说清楚**：代码、界面角落与 `package.json` 已统一到 **`v2.3.0`**（仓库 tag `v2.3.0` + M 系列模块 tag `m5`），包含三模式升级 M1~M5、友尽 UI 终版与 README 双模式改写。**v2.3.0 的 Windows 安装包是作者本人自用的完整包**（含 68 张友尽卡面、全部功能可用），按权限申明**可在本人自有设备之间点对点转移，但不得上传公开渠道 / Release、不得向第三方或商业用途分发**；所以 GitHub Release 里能下载的公开安装包仍是 **`v2.2.0`**（不含友尽模式）。公开渠道想玩完整双模式，请用源码运行。
+> **版本口径先说清楚**：代码、界面角落与 `package.json` 已统一到 **`v2.3.0`**（仓库 tag `v2.3.0` + M 系列模块 tag `m5`）。GitHub Release **v2.3.0** 提供的是**公开合规版** `UNO-Setup-2.3.0-public.exe`：两套玩法、规则与全部功能都在，但按权限申明**不含友尽 B 版卡面**，友尽卡面会降级为文字牌面。另有**作者本人自用的完整包** `UNO-Setup-2.3.0.exe`（含 68 张卡面），按权限申明**只可在本人自有设备之间点对点转移**（非商业、不公开、不向第三方分发），公开渠道不提供下载。
 
 | 想做什么 | 拿哪个 |
 | --- | --- |
-| Windows 双击就玩（公开包，基础模式） | [`UNO-Setup-2.2.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.2.0/UNO-Setup-2.2.0.exe)（约 107 MiB，装当前用户，不用管理员；Release 最新公开包，不含友尽模式） |
-| 完整双模式（本人设备间转移） | `UNO-Setup-2.3.0.exe`（含 68 张友尽卡面与全部功能；可在本人自有的 Windows 电脑间点对点传送安装，公开渠道不提供下载） |
+| Windows 双击就玩（公开合规版） | [`UNO-Setup-2.3.0-public.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.3.0/UNO-Setup-2.3.0-public.exe)（约 107 MiB；双模式规则齐全，友尽卡面为文字牌面；装当前用户，不用管理员） |
+| 完整卡面（本人设备间转移） | `UNO-Setup-2.3.0.exe` / `UNO-2.3.0-完整版-可发送.zip`（含 68 张友尽卡面与全部功能；仅在本人自有的 Windows 电脑间点对点传送，公开渠道不提供下载） |
 | 看代码 / 玩双模式 | [`v2.3.0` 源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.3.0.zip) 或 `git clone` |
 | 只想在浏览器里开一局 | 下面三条命令 |
 
-公开 `UNO-Setup-2.2.0.exe` 的 SHA256 是 `A38857EBD3501898DD062C9C917F982C770208CE03B3AB4B2BD34F6847E9FE7B`，与 Release 附的 `SHA256SUMS.txt` 一致；本机自用 `UNO-Setup-2.3.0.exe`（114,975,020 B）是 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`。安装包没做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」；首次开房时 Windows 会问防火墙权限，允许后同网段的朋友才能发现房间。
+公开合规版 `UNO-Setup-2.3.0-public.exe`（112,282,594 B）的 SHA256 是 `CAF9BFC1755D8FF2FCFB17B6B5CABDE206A440B0D0E127ECE592428F856AFD2B`，与 Release 附的 `SHA256SUMS.txt` 一致；本人自用完整包 `UNO-Setup-2.3.0.exe`（114,975,020 B）是 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`。两个包内容不同、哈希不同，别混。安装包没做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」；首次开房时 Windows 会问防火墙权限，允许后同网段的朋友才能发现房间。
 
 ```bash
 git clone https://github.com/shark-syh/uno-personal-game.git uno
@@ -288,7 +288,7 @@ npm run dev
 
 Windows 也可以直接双击 **`启动服务.bat`**（首次先 `npm install`），服务起来后会自动开浏览器。需要 Node.js ≥ 22、Chrome / Edge；联网只在首次装依赖和启用智谱 AI 时才需要，本地 AI 完全离线。启动动画现在每次打开页面都会播一遍，点一下或按任意键可跳过，`?boot=0` 直接跳过。
 
-想要独立窗口就跑桌面版：`npm run desktop:dev` 开发启动，`npm run desktop:dist` 打出 NSIS 安装包。桌面版自带内嵌服务，不依赖外部浏览器和 Node.js，设置页里还能自填智谱 Key。**仓库默认的打包配置按权限申明排除友尽 B 版卡面**（缺素材自动降级为文字牌面）；v2.3.0 的完整包在打包时临时放开该过滤以带上 68 张卡面，仅限作者本人自有的设备使用。这个包本身可移植：复制到另一台 Windows x64 电脑双击即可安装，不需要 Node.js、浏览器或联网，单机与本地 AI 完全离线；未做代码签名会触发 SmartScreen，点「更多信息 → 仍要运行」即可，首次开局域网房间需放行防火墙。文件约 110 MiB，建议 U 盘 / 局域网直传 / 私有网盘点对点发送，**不要生成公开分享链接**。
+想要独立窗口就跑桌面版：`npm run desktop:dev` 开发启动，`npm run desktop:dist` 打出 NSIS 安装包。桌面版自带内嵌服务，不依赖外部浏览器和 Node.js，设置页里还能自填智谱 Key。**仓库默认的打包配置按权限申明排除友尽 B 版卡面**（缺素材自动降级为文字牌面，GitHub Release v2.3.0 的公开包即由此打出）；v2.3.0 的完整包在打包时临时放开该过滤以带上 68 张卡面，仅限作者本人自有的设备使用。这个包本身可移植：复制到另一台 Windows x64 电脑双击即可安装，不需要 Node.js、浏览器或联网，单机与本地 AI 完全离线；未做代码签名会触发 SmartScreen，点「更多信息 → 仍要运行」即可，首次开局域网房间需放行防火墙。文件约 110 MiB，建议 U 盘 / 局域网直传 / 私有网盘点对点发送，**不要生成公开分享链接**。
 
 智谱是可选的，不配也能玩：
 
@@ -347,8 +347,8 @@ Windows 也可以直接双击 **`启动服务.bat`**（首次先 `npm install`�
 ## 还有哪些小毛病
 
 - **进阶（Flip）模式方案已写但暂缓**，第三档灰显禁用；B 版里也没有任何 Flip 卡面，真要做需要第三套素材。
-- **公开 Release 仍停留在 v2.2.0**：v2.3.0 完整安装包按权限申明只在本人自有设备之间点对点转移、不上传公开渠道，所以公开渠道暂时下载不到带友尽模式的新 exe；代码与界面版本号本身已统一到 2.3.0。
-- 友尽的 B 版卡面不随仓库 / 公开渠道分发，公开配置打出的产物会显示文字牌面；完整包内含 68 张，仅本人自有设备非商业使用，设置与战绩不随包迁移。
+- **公开版不含友尽 B 版卡面**：Release 里的 `UNO-Setup-2.3.0-public.exe` 按权限申明排除了 68 张卡面，友尽规则、效果、AI 与联机都在，但卡面显示为文字牌面；含卡面的完整包只在本人自有设备间转移。
+- 设置与战绩存在 `localStorage`，不随安装包迁移到另一台电脑。
 - 模式偏好只在当前页面会话有效，刷新回基础模式；对局中切换下一局才生效。
 - 单机刷新会中断对局（还没做快照恢复）；联机房间在内存里，服务重启就没了。
 - 联机 AI 固定本地启发式；UDP 发现只管同一网段，不支持公网。

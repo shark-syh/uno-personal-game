@@ -1,18 +1,19 @@
 # 更新日志
 
-> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前代码版本：v2.3.0（2026-11-15，三模式升级收口）**；v2.3.0 的 Windows 安装包为作者本人自用的完整包，按权限申明可在本人自有设备间点对点转移（非商业、不公开、不向第三方分发），未创建 Release，公开 Release 最新仍是 v2.2.0；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
+> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前代码版本：v2.3.0（2026-11-15，三模式升级收口）**；GitHub Release **v2.3.0** 提供不含友尽 B 版卡面的公开合规安装包，含 68 张卡面的完整包按权限申明仅可在本人自有设备间点对点转移（非商业、不公开、不向第三方分发）；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
 
 ## v2.3.0（2026-11-15）
 
-**版本号统一 · 友尽 UI 终版 · 可转移的完整安装包**（仓库 tag `v2.3.0` / `m5`；按用户「不进行商业活动、保留全部卡面、仅本人设备间转移」的要求，未创建 Release、未上传任何 exe 到公开渠道）。
+**版本号统一 · 友尽 UI 终版 · 双形态安装包**（仓库 tag `v2.3.0` / `m5`；含卡面的完整包按用户「不进行商业活动、保留全部卡面、仅本人设备间转移」的要求只在本人设备间点对点转移；公开 Release v2.3.0 另行上传不含卡面的合规包）。
 
 - **版本号统一到 2.3.0**：根 / `apps/server` / `apps/desktop` 的 `package.json`、`package-lock.json` 四处项目版本、`apps/server/src/routes/health.ts` 的 `/api/health.version` 与前端注释一起从 2.2.1 改为 **2.3.0**，界面角落现显示 `v2.3.0`；第三方 `env-paths@2.2.1` / `serve-static@2.2.1` 依赖未被误改。
 - **友尽 UI 终版 + M5 收口 + README 双模式重写**：见下方「三模式升级 · M1~M5」与 commit `9d9c7dc`、`acc08f8`（README 移除 mermaid，改用 GFM 静态表格 / 代码块）。
 - **本机自用完整安装包**：`UNO-Setup-2.3.0.exe`（114,975,020 B，SHA256 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`）。打包输出到 `D:/uno-full-230`，临时放开 `electron-builder.yml` 的 `extraResources.filter` 带上 `apps/web/cards-mercy/` 的 **68 张 B 版卡面**，全部功能与卡面可用；产物 `resources/web/cards-mercy/` 实测 68 张、主进程内联版本 2.3.0（无 2.2.1 残留）。**打包后已把打包配置恢复为排除卡面的公开口径**，仓库与 `.gitignore` 依旧不含该素材。按 `research/open-mercy/README-来源与裁剪.md` §6.5 / 契约 §8（2026-11-15 改写），该 exe 仅限作者本人自有的设备使用：允许点对点转移到本人另一台电脑，但不得上传 Release / 公开渠道、不得向第三方或商业用途分发。
-- 公开 Release 最新仍是 **v2.2.0**（不含友尽模式），README 下载区已如实标注两者区别。
-- **2026-11-15 追加：可发送版与权限口径改写**：用户要求把完整包发给本人的另一台电脑（非商业、保留全部卡面）。已把 `research/open-mercy/README-来源与裁剪.md` §6.5、`card-gallery.html` 页脚、契约 §8 / §7.6、Flip 方案末尾、`research/README.md`、README 与本文的分发限制统一改写为「允许本人自有设备间点对点转移，禁止公开渠道 / 第三方 / 商业用途」；桌面生成 `UNO-2.3.0-完整版-可发送.zip`（含 exe + `README-INSTALL.txt` + `SHA256SUMS.txt`）与单独的 `UNO-Setup-2.3.0.exe`，zip 内 exe 哈希复核一致。未创建 Release、未上传任何文件到公开渠道。
+- 公开 Release **v2.3.0** 提供不含友尽 B 版卡面的合规安装包，README 下载区已如实标注两个包的区别。
+- **2026-11-15 追加：可发送版与权限口径改写**：用户要求把完整包发给本人的另一台电脑（非商业、保留全部卡面）。已把 `research/open-mercy/README-来源与裁剪.md` §6.5、`card-gallery.html` 页脚、契约 §8 / §7.6、Flip 方案末尾、`research/README.md`、README 与本文的分发限制统一改写为「允许本人自有设备间点对点转移，禁止公开渠道 / 第三方 / 商业用途」；桌面生成 `UNO-2.3.0-完整版-可发送.zip`（含 exe + `README-INSTALL.txt` + `SHA256SUMS.txt`）与单独的 `UNO-Setup-2.3.0.exe`，zip 内 exe 哈希复核一致。当时未创建 Release、未上传任何文件到公开渠道；随后按用户要求另建公开发版（见下条）。
+- **2026-11-15 追加：公开发版 v2.3.0**：按用户「force 移到 6b03ed5，公开 v2.3.0」要求，已把 `v2.3.0` tag force 移到 `6b03ed5` 并同步远端；用仓库默认（排除卡面）配置另打公开合规包 `UNO-Setup-2.3.0-public.exe`（112,282,594 B，SHA256 `CAF9BFC1755D8FF2FCFB17B6B5CABDE206A440B0D0E127ECE592428F856AFD2B`），产物 `resources/web` 实测**无 `cards-mercy/`**、保留 54 张 CC0 卡面、主进程 2.3.0；创建公开 GitHub Release v2.3.0 并上传该 exe 与对应 `SHA256SUMS.txt`。公开包两套玩法与全部功能可用，友尽卡面降级为文字牌面；含卡面的完整包仍只在本人设备间转移。
 
-## 三模式升级 · M1~M5（2026-11-13 ~ 11-14，未发 Release，tag `m0-baseline`~`m5` / `v2.3.0`）
+## 三模式升级 · M1~M5（2026-11-13 ~ 11-14，随 v2.3.0 公开发布，tag `m0-baseline`~`m5` / `v2.3.0`）
 
 **友尽（mercy）模式全量落地**：`GameConfig.mode` 三模式框架 + 13 种牌型 / 168 张友尽牌堆（M1）→ 引擎效果（M2）→ 视图与联机（M3）→ 卡面与左下角切换器（M4）→ 回归与正式断言（M5）。classic 的 `playCard` 路径与既有断言全程零改动。
 
