@@ -5,14 +5,14 @@
 > **PLAY WITH INTENT. / NO ONE LEAVES.** —— 先看清局势，或者先活下去。
 
 [![CI](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml/badge.svg)](https://github.com/shark-syh/uno-personal-game/actions/workflows/ci.yml)
-![version](https://img.shields.io/badge/version-v2.3.0%20tag-d9ff4b?style=flat-square)
+![version](https://img.shields.io/badge/version-v2.3.0-d9ff4b?style=flat-square)
 ![modes](https://img.shields.io/badge/modes-%E5%9F%BA%E7%A1%80%20%2F%20%E5%8F%8B%E5%B0%BD-ff4054?style=flat-square)
 ![Node](https://img.shields.io/badge/Node-%E2%89%A522-3c873a?style=flat-square)
 ![unit](https://img.shields.io/badge/unit-392%2F392-2ea44f?style=flat-square)
 ![UI checks](https://img.shields.io/badge/UI-208%2F208-2ea44f?style=flat-square)
 ![LAN checks](https://img.shields.io/badge/LAN-44%2F44-0969da?style=flat-square)
 ![offline](https://img.shields.io/badge/offline-local%20AI-6e7781?style=flat-square)
-[![Download](https://img.shields.io/badge/download-Windows%20installer-2ea44f?style=for-the-badge&logo=windows)](https://github.com/shark-syh/uno-personal-game/releases/latest)
+[![Download](https://img.shields.io/badge/download-public%20v2.2.0-2ea44f?style=for-the-badge&logo=windows)](https://github.com/shark-syh/uno-personal-game/releases/latest)
 
 <p align="center">
   <img src="docs/images/v23-lobby-mercy.webp" width="900" alt="友尽模式大厅：暗红主题与 NO ONE LEAVES. 巨字">
@@ -267,15 +267,16 @@ docs/                  开发文档与本文截图
 
 ## 装起来、跑起来
 
-> **版本口径先说清楚**：这次交付的仓库 tag 是 **`v2.3.0`**（同时打了 M 系列模块 tag `m5`），包含三模式升级 M1~M5 与 2026-11-15 的友尽 UI 终版。`package.json` 与界面角落的版本字段仍是 **2.2.1**（本次未重打安装包、未发 Release），所以 **Release 里可下载的最新安装包还是 `v2.2.0`**，它不含友尽模式。想玩新模式请用源码运行。
+> **版本口径先说清楚**：代码、界面角落与 `package.json` 已统一到 **`v2.3.0`**（仓库 tag `v2.3.0` + M 系列模块 tag `m5`），包含三模式升级 M1~M5、友尽 UI 终版与 README 双模式改写。**v2.3.0 的 Windows 安装包是作者本人本机自用的完整包**（含 68 张友尽卡面、全部功能可用），按权限申明 **不外传、不上传 Release**；所以 GitHub Release 里能下载的公开安装包仍是 **`v2.2.0`**（不含友尽模式）。公开渠道想玩完整双模式，请用源码运行。
 
 | 想做什么 | 拿哪个 |
 | --- | --- |
-| Windows 双击就玩（基础模式） | [`UNO-Setup-2.2.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.2.0/UNO-Setup-2.2.0.exe)（约 107 MiB，装当前用户，不用管理员） |
+| Windows 双击就玩（公开包，基础模式） | [`UNO-Setup-2.2.0.exe`](https://github.com/shark-syh/uno-personal-game/releases/download/v2.2.0/UNO-Setup-2.2.0.exe)（约 107 MiB，装当前用户，不用管理员；Release 最新公开包，不含友尽模式） |
+| 完整双模式（本机自用） | `UNO-Setup-2.3.0.exe`（本机重打，含 68 张友尽卡面与全部功能；按权限申明不外传，公开渠道不提供下载） |
 | 看代码 / 玩双模式 | [`v2.3.0` 源码 zip](https://github.com/shark-syh/uno-personal-game/archive/refs/tags/v2.3.0.zip) 或 `git clone` |
 | 只想在浏览器里开一局 | 下面三条命令 |
 
-`UNO-Setup-2.2.0.exe` 的 SHA256 是 `A38857EBD3501898DD062C9C917F982C770208CE03B3AB4B2BD34F6847E9FE7B`，与 Release 附的 `SHA256SUMS.txt` 一致；本机那个未上传的 `UNO-Setup-2.2.1.exe` 是 `D44C6469A48A3497710C545913FD32B30ABC09DCA78324CA2A726D727F1965ED`。安装包没做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」；首次开房时 Windows 会问防火墙权限，允许后同网段的朋友才能发现房间。
+公开 `UNO-Setup-2.2.0.exe` 的 SHA256 是 `A38857EBD3501898DD062C9C917F982C770208CE03B3AB4B2BD34F6847E9FE7B`，与 Release 附的 `SHA256SUMS.txt` 一致；本机自用 `UNO-Setup-2.3.0.exe`（114,975,020 B）是 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`。安装包没做代码签名，SmartScreen 可能提示「更多信息 → 仍要运行」；首次开房时 Windows 会问防火墙权限，允许后同网段的朋友才能发现房间。
 
 ```bash
 git clone https://github.com/shark-syh/uno-personal-game.git uno
@@ -287,7 +288,7 @@ npm run dev
 
 Windows 也可以直接双击 **`启动服务.bat`**（首次先 `npm install`），服务起来后会自动开浏览器。需要 Node.js ≥ 22、Chrome / Edge；联网只在首次装依赖和启用智谱 AI 时才需要，本地 AI 完全离线。启动动画现在每次打开页面都会播一遍，点一下或按任意键可跳过，`?boot=0` 直接跳过。
 
-想要独立窗口就跑桌面版：`npm run desktop:dev` 开发启动，`npm run desktop:dist` 打出 NSIS 安装包。桌面版自带内嵌服务，不依赖外部浏览器和 Node.js，设置页里还能自填智谱 Key；按权限申明，打包产物不含友尽 B 版卡面，缺素材时自动显示文字牌面。
+想要独立窗口就跑桌面版：`npm run desktop:dev` 开发启动，`npm run desktop:dist` 打出 NSIS 安装包。桌面版自带内嵌服务，不依赖外部浏览器和 Node.js，设置页里还能自填智谱 Key。**仓库默认的打包配置按权限申明排除友尽 B 版卡面**（缺素材自动降级为文字牌面）；v2.3.0 的本机自用完整包在打包时临时放开该过滤以带上 68 张卡面，仅作者本人本机使用、不外传。
 
 智谱是可选的，不配也能玩：
 
@@ -346,8 +347,8 @@ Windows 也可以直接双击 **`启动服务.bat`**（首次先 `npm install`�
 ## 还有哪些小毛病
 
 - **进阶（Flip）模式方案已写但暂缓**，第三档灰显禁用；B 版里也没有任何 Flip 卡面，真要做需要第三套素材。
-- **版本口径不一致**：仓库 tag `v2.3.0` / `m5`，`package.json` 仍 2.2.1，Release 最新安装包仍是 v2.2.0（不含友尽模式）。本次没有重打 exe。
-- 友尽的 B 版卡面按权限申明不随仓库 / exe / Release 分发，公开渠道拿到的版本会显示文字牌面。
+- **公开 Release 仍停留在 v2.2.0**：v2.3.0 完整安装包是本机自用、按权限申明不外传，所以公开渠道暂时下载不到带友尽模式的新 exe；代码与界面版本号本身已统一到 2.3.0。
+- 友尽的 B 版卡面不随仓库 / 公开渠道分发，公开配置打出的产物会显示文字牌面；本机自用完整包内含 68 张，仅本人非商业使用。
 - 模式偏好只在当前页面会话有效，刷新回基础模式；对局中切换下一局才生效。
 - 单机刷新会中断对局（还没做快照恢复）；联机房间在内存里，服务重启就没了。
 - 联机 AI 固定本地启发式；UDP 发现只管同一网段，不支持公网。

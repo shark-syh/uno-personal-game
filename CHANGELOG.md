@@ -1,6 +1,15 @@
 # 更新日志
 
-> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前发布版本：v2.2.1（2026-11-10，折线图与结算标题显示修复）**；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
+> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前代码版本：v2.3.0（2026-11-15，三模式升级收口）**；v2.3.0 的 Windows 安装包是作者本人本机自用的完整包，按权限申明不外传、未创建 Release，公开 Release 最新仍是 v2.2.0；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
+
+## v2.3.0（2026-11-15）
+
+**版本号统一 · 友尽 UI 终版 · 本机自用完整安装包**（仓库 tag `v2.3.0` / `m5`；按用户「不外传、无任何商业用途」的要求，未创建 Release、未上传任何 exe）。
+
+- **版本号统一到 2.3.0**：根 / `apps/server` / `apps/desktop` 的 `package.json`、`package-lock.json` 四处项目版本、`apps/server/src/routes/health.ts` 的 `/api/health.version` 与前端注释一起从 2.2.1 改为 **2.3.0**，界面角落现显示 `v2.3.0`；第三方 `env-paths@2.2.1` / `serve-static@2.2.1` 依赖未被误改。
+- **友尽 UI 终版 + M5 收口 + README 双模式重写**：见下方「三模式升级 · M1~M5」与 commit `9d9c7dc`、`acc08f8`（README 移除 mermaid，改用 GFM 静态表格 / 代码块）。
+- **本机自用完整安装包**：`UNO-Setup-2.3.0.exe`（114,975,020 B，SHA256 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`）。打包输出到 `D:/uno-full-230`，临时放开 `electron-builder.yml` 的 `extraResources.filter` 带上 `apps/web/cards-mercy/` 的 **68 张 B 版卡面**，全部功能与卡面可用；产物 `resources/web/cards-mercy/` 实测 68 张、主进程内联版本 2.3.0（无 2.2.1 残留）。**打包后已把打包配置恢复为排除卡面的公开口径**，仓库与 `.gitignore` 依旧不含该素材。按 `research/open-mercy/README-来源与裁剪.md` §6.5 / 契约 §8，该 exe 仅作者本人本机自用、不外传、不上传 Release、非商业用途。
+- 公开 Release 最新仍是 **v2.2.0**（不含友尽模式），README 下载区已如实标注两者区别。
 
 ## 三模式升级 · M1~M5（2026-11-13 ~ 11-14，未发 Release，tag `m0-baseline`~`m5` / `v2.3.0`）
 
