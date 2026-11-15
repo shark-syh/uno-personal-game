@@ -87,4 +87,4 @@
 
 ## 5. 权限申明
 
-本方案涉及的 B 版官方卡面（`research/open-mercy/cards-svgs/`、`cards-webp/`、`cards/`）仅用于**作者本人个人学习、研究与非商业演示**，不用于任何商业活动、不对外提供 UNO 游戏服务。UNO® 与 UNO Show 'Em No Mercy® 为 Mattel, Inc. 注册商标，卡面美术、图形、符号与 trade dress 的权利归 Mattel 或原权利人；上游 MIT 许可证只覆盖软件与文档，不构成对美术/商标的授权，矢量描摹属复制性演绎，本项目不主张原创权利、不标注为开源卡面、与 Mattel 无关联。上述官方卡面**不随 exe 安装包、GitHub Release 或任何公开分发渠道外传**；如需公开分发，改用项目自有 CC0 基础卡面或自绘素材并重新评估风险。完整申明见 [`../research/open-mercy/README-来源与裁剪.md`](../research/open-mercy/README-来源与裁剪.md) §6。
+本方案涉及的 B 版官方卡面（`research/open-mercy/cards-svgs/`、`cards-webp/`、`cards/`）仅用于**作者本人个人学习、研究与非商业演示**，不用于任何商业活动、不对外提供 UNO 游戏服务。UNO® 与 UNO Show 'Em No Mercy® 为 Mattel, Inc. 注册商标，卡面美术、图形、符号与 trade dress 的权利归 Mattel 或原权利人；上游 MIT 许可证只覆盖软件与文档，不构成对美术/商标的授权，矢量描摹属复制性演绎，本项目不主张原创权利、不标注为开源卡面、与 Mattel 无关联。上述官方卡面**不得上传 GitHub Release 或任何公开分发渠道、不得向第三方或商业用途分发**；**允许随完整安装包在作者本人自有设备之间点对点转移**（本人使用、非商业、不公开、不再分发）；如需公开分发，改用项目自有 CC0 基础卡面或自绘素材并重新评估风险。完整申明见 [`../research/open-mercy/README-来源与裁剪.md`](../research/open-mercy/README-来源与裁剪.md) §6。

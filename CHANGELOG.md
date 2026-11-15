@@ -1,15 +1,16 @@
 # 更新日志
 
-> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前代码版本：v2.3.0（2026-11-15，三模式升级收口）**；v2.3.0 的 Windows 安装包是作者本人本机自用的完整包，按权限申明不外传、未创建 Release，公开 Release 最新仍是 v2.2.0；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
+> v1.0~v1.3 的逐条历史已压缩；完整原文见 git 历史与 [`docs/v1-开发归档.md`](docs/v1-开发归档.md)。**当前代码版本：v2.3.0（2026-11-15，三模式升级收口）**；v2.3.0 的 Windows 安装包为作者本人自用的完整包，按权限申明可在本人自有设备间点对点转移（非商业、不公开、不向第三方分发），未创建 Release，公开 Release 最新仍是 v2.2.0；下方「v2.2.0 开发期」各条为发布前的逐阶段记录，均未单独发版。
 
 ## v2.3.0（2026-11-15）
 
-**版本号统一 · 友尽 UI 终版 · 本机自用完整安装包**（仓库 tag `v2.3.0` / `m5`；按用户「不外传、无任何商业用途」的要求，未创建 Release、未上传任何 exe）。
+**版本号统一 · 友尽 UI 终版 · 可转移的完整安装包**（仓库 tag `v2.3.0` / `m5`；按用户「不进行商业活动、保留全部卡面、仅本人设备间转移」的要求，未创建 Release、未上传任何 exe 到公开渠道）。
 
 - **版本号统一到 2.3.0**：根 / `apps/server` / `apps/desktop` 的 `package.json`、`package-lock.json` 四处项目版本、`apps/server/src/routes/health.ts` 的 `/api/health.version` 与前端注释一起从 2.2.1 改为 **2.3.0**，界面角落现显示 `v2.3.0`；第三方 `env-paths@2.2.1` / `serve-static@2.2.1` 依赖未被误改。
 - **友尽 UI 终版 + M5 收口 + README 双模式重写**：见下方「三模式升级 · M1~M5」与 commit `9d9c7dc`、`acc08f8`（README 移除 mermaid，改用 GFM 静态表格 / 代码块）。
-- **本机自用完整安装包**：`UNO-Setup-2.3.0.exe`（114,975,020 B，SHA256 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`）。打包输出到 `D:/uno-full-230`，临时放开 `electron-builder.yml` 的 `extraResources.filter` 带上 `apps/web/cards-mercy/` 的 **68 张 B 版卡面**，全部功能与卡面可用；产物 `resources/web/cards-mercy/` 实测 68 张、主进程内联版本 2.3.0（无 2.2.1 残留）。**打包后已把打包配置恢复为排除卡面的公开口径**，仓库与 `.gitignore` 依旧不含该素材。按 `research/open-mercy/README-来源与裁剪.md` §6.5 / 契约 §8，该 exe 仅作者本人本机自用、不外传、不上传 Release、非商业用途。
+- **本机自用完整安装包**：`UNO-Setup-2.3.0.exe`（114,975,020 B，SHA256 `FC0DBBF6EE23CB983D0C5E36ADFAB73E1F56ECB7581C81FBF1B4B7C090A99BFE`）。打包输出到 `D:/uno-full-230`，临时放开 `electron-builder.yml` 的 `extraResources.filter` 带上 `apps/web/cards-mercy/` 的 **68 张 B 版卡面**，全部功能与卡面可用；产物 `resources/web/cards-mercy/` 实测 68 张、主进程内联版本 2.3.0（无 2.2.1 残留）。**打包后已把打包配置恢复为排除卡面的公开口径**，仓库与 `.gitignore` 依旧不含该素材。按 `research/open-mercy/README-来源与裁剪.md` §6.5 / 契约 §8（2026-11-15 改写），该 exe 仅限作者本人自有的设备使用：允许点对点转移到本人另一台电脑，但不得上传 Release / 公开渠道、不得向第三方或商业用途分发。
 - 公开 Release 最新仍是 **v2.2.0**（不含友尽模式），README 下载区已如实标注两者区别。
+- **2026-11-15 追加：可发送版与权限口径改写**：用户要求把完整包发给本人的另一台电脑（非商业、保留全部卡面）。已把 `research/open-mercy/README-来源与裁剪.md` §6.5、`card-gallery.html` 页脚、契约 §8 / §7.6、Flip 方案末尾、`research/README.md`、README 与本文的分发限制统一改写为「允许本人自有设备间点对点转移，禁止公开渠道 / 第三方 / 商业用途」；桌面生成 `UNO-2.3.0-完整版-可发送.zip`（含 exe + `README-INSTALL.txt` + `SHA256SUMS.txt`）与单独的 `UNO-Setup-2.3.0.exe`，zip 内 exe 哈希复核一致。未创建 Release、未上传任何文件到公开渠道。
 
 ## 三模式升级 · M1~M5（2026-11-13 ~ 11-14，未发 Release，tag `m0-baseline`~`m5` / `v2.3.0`）
 
